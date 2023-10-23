@@ -67,15 +67,15 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
     def reconfigure(self, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]):
         self.validate(config)
         try:
-            LOGGER.info("Stopping worker and reconfiguring...")
             self.worker.stop()
+            LOGGER.info("Stopping worker and reconfiguring...")
         except AttributeError:
-            LOGGER.info("Starting initial configuration...")
             self.camera_properties = Camera.Properties(
                 supports_pcd=False,
                 distortion_parameters=None,
                 intrinsic_parameters=None
             )
+            LOGGER.info("Starting initial configuration...")
 
         self.height_px = int(config.attributes.fields["height_px"].number_value) or DEFAULT_INPUT_HEIGHT
         self.width_px = int(config.attributes.fields["width_px"].number_value) or DEFAULT_INPUT_WIDTH
