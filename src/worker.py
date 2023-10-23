@@ -1,5 +1,5 @@
 from logging import Logger
-from threading import Thread, Lock
+from threading import Thread
 
 import depthai
 import cv2
@@ -27,7 +27,6 @@ class Worker(Thread):
 
         self.running = False
         self.current_image = None
-        self.lock = Lock()
         self.running = True
         super().__init__()
  
@@ -45,28 +44,17 @@ class Worker(Thread):
 
         with depthai.Device(pipeline) as device:
             while self.running:
-                self.lock.acquire()
-                try:
-                    # Initialize queue and dequeue data packet
-                    rgb_queue = device.getOutputQueue(RGB_STREAM_NAME)
-                    rgb_frame_data = rgb_queue.tryGet()
-                    if rgb_frame_data is None:
-                        self.logger.warn("tryGet image from rgb img queue failed.")
-                        continue
-                    
-                    # Convert frame data into OpenCV compatible frame (BGR space)
-                    bgr_frame = rgb_frame_data.getCvFrame()
-                    if bgr_frame is None:
-                        self.logger.warn("Could not convert message to CvFrame")
-                        continue
-                    rgb_frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
+                rgb_stream_queue = device.getOutputQueue(RGB_STREAM_NAME)  # Keep inside loop in case of camera reconnects
+                rgb_frame_data = rgb_stream_queue.tryGet()
+                if not rgb_frame_data:
+                    continue  # Reset iteration until data is successfully dequeued
+                
+                bgr_frame = rgb_frame_data.getCvFrame()  # As of 10/23/2023, OpenCV uses BGR color order
+                rgb_frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
 
-                    # Set current image to PIL.Image of the RGB frame and close the previous image
-                    prev_image, self.current_image = self.current_image, Image.fromarray(rgb_frame)
-                    if prev_image:
-                        prev_image.close()
-                finally:
-                    self.lock.release()
+                prev_image, self.current_image = self.current_image, Image.fromarray(rgb_frame)
+                if prev_image:
+                    prev_image.close()
 
         self.logger.info("Worker thread finished.")
 
