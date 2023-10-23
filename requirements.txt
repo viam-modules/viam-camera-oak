@@ -1,1 +1,2 @@
 viam-sdk
+depthai-sdk

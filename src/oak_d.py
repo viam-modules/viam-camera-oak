@@ -1,19 +1,16 @@
-from typing import ClassVar, Mapping, Sequence, Any, Dict, Optional, Tuple, Final, List, cast
+import asyncio
+import time
+from typing import ClassVar, Mapping, Sequence, Any, Dict, Optional, Tuple, Final, List, cast, NamedTuple, Union
 from typing_extensions import Self
 
-from typing import Any, Dict, Final, List, NamedTuple, Optional, Tuple, Union
-
-from PIL.Image import Image
+import PIL
 
 from viam.media.video import NamedImage
 from viam.proto.common import ResponseMetadata
 
-
 from viam.components.camera import DistortionParameters, IntrinsicParameters, RawImage
 
-
-
-from viam.module.types import Reconfigurable
+from viam.module.types import Reconfigurable, Stoppable
 from viam.proto.app.robot import ComponentConfig
 from viam.proto.common import ResourceName, Vector3
 from viam.resource.base import ResourceBase
@@ -22,59 +19,83 @@ from viam.resource.types import Model, ModelFamily
 from viam.components.camera import Camera
 from viam.logging import getLogger
 
-import time
-import asyncio
+from src.worker import Worker
 
 LOGGER = getLogger(__name__)
+DEFAULT_INPUT_WIDTH = 1920
+DEFAULT_INPUT_HEIGHT = 1080
+DEFAULT_INPUT_FRAMERATE = 30
+DEFAULT_IMAGE_MIMETYPE = "image/jpeg"
+DEFAULT_DEBUG = False
 
-class oakD(Camera, Reconfigurable):
-    
+class OakDModel(Camera, Reconfigurable, Stoppable):
     """
-    Camera represents any physical hardware that can capture frames.
+    OakDModel represents a physical OAK-D camera that can capture frames.
     """
     class Properties(NamedTuple):
-        """The camera's supported features and settings"""
-        supports_pcd: bool
-        """Whether the camera has a valid implementation of ``get_point_cloud``"""
         intrinsic_parameters: IntrinsicParameters
         """The properties of the camera"""
         distortion_parameters: DistortionParameters
         """The distortion parameters of the camera"""
+        supports_pcd: bool = True
+        """Whether the camera has a valid implementation of ``get_point_cloud``"""
     
 
     MODEL: ClassVar[Model] = Model(ModelFamily("viam", "camera"), "oak-d")
-    
-    # create any class parameters here, 'some_pin' is used as an example (change/add as needed)
-    some_pin: int
+    worker: Worker
+    """``worker`` handles DepthAI integration in a separate thread"""
+    camera_properties: Camera.Properties
 
     # Constructor
     @classmethod
     def new(cls, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]) -> Self:
-        my_class = cls(config.name)
-        my_class.reconfigure(config, dependencies)
-        return my_class
+        camera_cls = cls(config.name)
+        camera_cls.validate(config)
+        camera_cls.reconfigure(config, dependencies)
+        return camera_cls
 
     # Validates JSON Configuration
     @classmethod
     def validate(cls, config: ComponentConfig):
         # here we validate config, the following is just an example and should be updated as needed
-        some_pin = config.attributes.fields["some_pin"].number_value
-        if some_pin == "":
-            raise Exception("A some_pin must be defined")
+        # some_pin = config.attributes.fields["some_pin"].number_value
+        # if some_pin == "":
+        #     raise Exception("A some_pin must be defined")
         return
 
     # Handles attribute reconfiguration
     def reconfigure(self, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]):
-        # here we initialize the resource instance, the following is just an example and should be updated as needed
-        self.some_pin = int(config.attributes.fields["some_pin"].number_value)
+        self.validate(config)
+        try:
+            LOGGER.info("Stopping worker and reconfiguring...")
+            self.worker.stop()
+        except AttributeError:
+            LOGGER.info("Starting initial configuration...")
+            self.camera_properties = Camera.Properties(
+                supports_pcd=False,
+                distortion_parameters=None,
+                intrinsic_parameters=None
+            )
+
+        self.height_px = int(config.attributes.fields["height_px"].number_value) or DEFAULT_INPUT_HEIGHT
+        self.width_px = int(config.attributes.fields["width_px"].number_value) or DEFAULT_INPUT_WIDTH
+        self.fps = float(config.attributes.fields["fps"].number_value) or DEFAULT_INPUT_FRAMERATE
+        self.debug = bool(config.attributes.fields["debug"].bool_value) or DEFAULT_DEBUG
+
+        self.worker = Worker(self.height_px, self.width_px, self.fps, self.debug, logger=LOGGER)
+        self.worker.start()
+        LOGGER.info("Successfully reconfigured!")
+        self._debug_log("Running module in debug mode.")
         return
 
-    """ Implement the methods the Viam RDK defines for the Camera API (rdk:component:camera) """
+    # Implements ``stop`` under the Stoppable protocol to free resources
+    def stop(self, *, extra: Optional[Mapping[str, Any]] = None, timeout: Optional[float] = None, **kwargs):
+        self.worker.stop()
 
-    
+    """ TODO: Implement the methods the Viam RDK defines for the Camera API (rdk:component:camera) """
     async def get_image(
         self, mime_type: str = "", *, extra: Optional[Dict[str, Any]] = None, timeout: Optional[float] = None, **kwargs
-    ) -> Union[Image, RawImage]:
+    ) -> Union[PIL.Image, RawImage]:
         """Get the next image from the camera as an Image or RawImage.
         Be sure to close the image when finished.
 
@@ -87,7 +108,7 @@ class oakD(Camera, Reconfigurable):
         Returns:
             Image | RawImage: The frame
         """
-        ...
+        return self.worker.get_image()
 
     
     async def get_images(self, *, timeout: Optional[float] = None, **kwargs) -> Tuple[List[NamedImage], ResponseMetadata]:
@@ -102,7 +123,7 @@ class oakD(Camera, Reconfigurable):
                 - ResponseMetadata:
                   The metadata associated with this response
         """
-        ...
+        
 
     
     async def get_point_cloud(
@@ -143,5 +164,9 @@ class oakD(Camera, Reconfigurable):
         Returns:
             Properties: The properties of the camera
         """
-        ...
+        return self.camera_properties
+    
+    def _debug_log(self, msg):
+        if self.debug:
+            LOGGER.debug(msg)
 
