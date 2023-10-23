@@ -17,12 +17,14 @@ class Worker(Thread):
     logger: Logger
 
     def __init__(self, height: int, width: int, fps: float, debug: bool, logger: Logger) -> None:
+        logger.debug("Initializing worker.")
+
         self.height = height
         self.width = width
         self.fps = fps
         self.debug = debug
-
         self.logger = logger
+
         self.running = False
         self.current_image = None
         self.lock = Lock()
@@ -35,49 +37,44 @@ class Worker(Thread):
         return None
 
     def run(self) -> None:
-        self.logger.info("Initializing camera pipeline")
+        self.logger.info("Initializing worker's image pipeline.")
         pipeline = depthai.Pipeline()
 
-        # add nodes here
-        self._add_camera_rgb_node(pipeline)
+        # TODO: add nodes here and refactor pipeline process
+        self._add_camera_rgb_node_to(pipeline)
 
-        frame = None
         with depthai.Device(pipeline) as device:
             while self.running:
-                q_rgb = device.getOutputQueue(RGB_STREAM_NAME)
-                in_rgb = q_rgb.tryGet()
-                if in_rgb is None:
-                    continue
-                
-                frame = in_rgb.getCvFrame()
-                if frame is None:
-                    self.logger.warn("Could not convert message to CvFrame")
-                    continue
-
                 self.lock.acquire()
                 try:
-                    f_tmp = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    prev_image, self.current_image = self.current_image, Image.fromarray(f_tmp)
-                    if prev_image is not None:
-                        try:
-                            prev_image.close()
-                        except:
-                            pass
-                    # TODO: except with possible errors (idk what they are rn)
+                    # Initialize queue and dequeue data packet
+                    rgb_queue = device.getOutputQueue(RGB_STREAM_NAME)
+                    rgb_frame_data = rgb_queue.tryGet()
+                    if rgb_frame_data is None:
+                        self.logger.warn("tryGet image from rgb img queue failed.")
+                        continue
+                    
+                    # Convert frame data into OpenCV compatible frame (BGR space)
+                    bgr_frame = rgb_frame_data.getCvFrame()
+                    if bgr_frame is None:
+                        self.logger.warn("Could not convert message to CvFrame")
+                        continue
+                    rgb_frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
+
+                    # Set current image to PIL.Image of the RGB frame and close the previous image
+                    prev_image, self.current_image = self.current_image, Image.fromarray(rgb_frame)
+                    if prev_image:
+                        prev_image.close()
                 finally:
                     self.lock.release()
 
-        self.logger.info("Stopped worker thread.")
+        self.logger.info("Worker thread finished.")
 
     def stop(self) -> None:
         self.running = False
-
-    def _debug_log(self, msg):
-        if self.debug:
-            self.logger.debug(msg)
     
-    def _add_camera_rgb_node(self, pipeline: depthai.Pipeline) -> depthai.DataOutputQueue:
-        self._debug_log("Creating color camera")
+    def _add_camera_rgb_node_to(self, pipeline: depthai.Pipeline) -> depthai.DataOutputQueue:
+        self.logger.debug("Creating color camera")
         cam_rgb = pipeline.createColorCamera()
         cam_rgb.setBoardSocket(depthai.CameraBoardSocket.RGB)
         cam_rgb.setVideoSize(self.width, self.height)

@@ -4,7 +4,7 @@ echo "[Script] Setting up module."
 cd "$(dirname "$0")"
 
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    if apt list --installed | grep -q "python3-pip"; then
+    if command -v pip &> /dev/null; then
         echo "[Script] python3-pip installation found."
     else
         echo "[Script] python3-pip installation not found. Attempting to install python3-pip."
@@ -12,7 +12,7 @@ if [[ "$OSTYPE" == "linux-gnu"* ]]; then
         sudo apt install python3-pip
     fi
 
-    if apt list --installed | grep -q "python3-venv"; then
+    if pip freeze | grep -q "virtualenv"; then
         echo "[Script] python3-venv installation found."
     else
         echo "[Script] python3-venv installation not found. Attempting to install python3-venv."

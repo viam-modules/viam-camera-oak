@@ -1,1 +1,25 @@
-{"cloud":{"app_address":"https://app.viam.com:443","id":"55b0efa6-d15f-4a38-a2fc-538d53c1e717","secret":"m8rdqq9d0s6qhlufx6dt6rht3q9v8si3micmgt5gzk33c9xi"}}
+{
+    "components": [
+      {
+        "type": "camera",
+        "attributes": {
+          "debug": true,
+          "width_px": 1080,
+          "fps": 15,
+          "height_px": 720
+        },
+        "namespace": "rdk",
+        "depends_on": [],
+        "name": "cam",
+        "model": "viam:camera:oak-d"
+      }
+    ],
+    "modules": [
+      {
+        "executable_path": "/home/sean-on/Desktop/oak-d-module/run.sh",
+        "type": "local",
+        "name": "oak-d",
+        "model": "viam:camera:oak-d"
+      }
+    ]
+  }

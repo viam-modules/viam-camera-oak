@@ -1,5 +1,4 @@
-import asyncio
-import time
+import logging
 from typing import ClassVar, Mapping, Sequence, Any, Dict, Optional, Tuple, Final, List, cast, NamedTuple, Union
 from typing_extensions import Self
 
@@ -77,15 +76,20 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             )
             LOGGER.info("Starting initial configuration...")
 
-        self.height_px = int(config.attributes.fields["height_px"].number_value) or DEFAULT_INPUT_HEIGHT
-        self.width_px = int(config.attributes.fields["width_px"].number_value) or DEFAULT_INPUT_WIDTH
-        self.fps = float(config.attributes.fields["fps"].number_value) or DEFAULT_INPUT_FRAMERATE
         self.debug = bool(config.attributes.fields["debug"].bool_value) or DEFAULT_DEBUG
+        if self.debug:
+            LOGGER.setLevel(logging.DEBUG)
+            LOGGER.debug(f"Running module in debug mode.")
+        self.height_px = int(config.attributes.fields["height_px"].number_value) or DEFAULT_INPUT_HEIGHT
+        LOGGER.debug(f'Set height attr to {self.height_px}')
+        self.width_px = int(config.attributes.fields["width_px"].number_value) or DEFAULT_INPUT_WIDTH
+        LOGGER.debug(f'Set width attr to {self.width_px}')
+        self.fps = float(config.attributes.fields["fps"].number_value) or DEFAULT_INPUT_FRAMERATE
+        LOGGER.debug(f'Set fps attr to {self.fps}')
 
         self.worker = Worker(self.height_px, self.width_px, self.fps, self.debug, logger=LOGGER)
         self.worker.start()
         LOGGER.info("Successfully reconfigured!")
-        self._debug_log("Running module in debug mode.")
         return
 
     # Implements ``stop`` under the Stoppable protocol to free resources
@@ -108,6 +112,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         Returns:
             Image | RawImage: The frame
         """
+        LOGGER.debug("Handling get_image request.")
         return self.worker.get_image()
 
     
@@ -165,8 +170,3 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             Properties: The properties of the camera
         """
         return self.camera_properties
-    
-    def _debug_log(self, msg):
-        if self.debug:
-            LOGGER.debug(msg)
-
