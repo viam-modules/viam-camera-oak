@@ -24,6 +24,7 @@ fi
 if [ -f "$(pwd)/.installed" ]; then
     echo "[Script] Dependencies installed. Activating venv."
     source viam-env/bin/activate
+    pip3 install --upgrade -r requirements.txt
 else
     echo "[Script] Installing virtual environment and dependencies."
     python3 -m pip install --user virtualenv
@@ -37,4 +38,4 @@ fi
 
 echo "[Script] Setup complete. Starting module process."
 # Uses `exec` so that termination signals reach the Python process; handled by Stoppable protocol
-exec python3 -m src.main "$@"
+exec -a viam-oak-d python3 -m src.main "$@"
