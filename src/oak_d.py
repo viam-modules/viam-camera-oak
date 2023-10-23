@@ -3,7 +3,7 @@ import time
 from typing import ClassVar, Mapping, Sequence, Any, Dict, Optional, Tuple, Final, List, cast, NamedTuple, Union
 from typing_extensions import Self
 
-import PIL
+from PIL import Image
 
 from viam.media.video import NamedImage
 from viam.proto.common import ResponseMetadata
@@ -95,7 +95,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
     """ TODO: Implement the methods the Viam RDK defines for the Camera API (rdk:component:camera) """
     async def get_image(
         self, mime_type: str = "", *, extra: Optional[Dict[str, Any]] = None, timeout: Optional[float] = None, **kwargs
-    ) -> Union[PIL.Image, RawImage]:
+    ) -> Union[Image.Image, RawImage]:
         """Get the next image from the camera as an Image or RawImage.
         Be sure to close the image when finished.
 
