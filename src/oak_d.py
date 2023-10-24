@@ -84,10 +84,10 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         LOGGER.debug(f'Set height attr to {self.height_px}')
         self.width_px = int(config.attributes.fields["width_px"].number_value) or DEFAULT_INPUT_WIDTH
         LOGGER.debug(f'Set width attr to {self.width_px}')
-        self.fps = float(config.attributes.fields["fps"].number_value) or DEFAULT_INPUT_FRAMERATE
-        LOGGER.debug(f'Set fps attr to {self.fps}')
+        self.framerate = float(config.attributes.fields["framerate"].number_value) or DEFAULT_INPUT_FRAMERATE
+        LOGGER.debug(f'Set framerate attr to {self.framerate}')
 
-        self.worker = Worker(self.height_px, self.width_px, self.fps, self.debug, logger=LOGGER)
+        self.worker = Worker(self.height_px, self.width_px, self.framerate, self.debug, logger=LOGGER)
         self.worker.start()
         LOGGER.info("Successfully reconfigured!")
         return

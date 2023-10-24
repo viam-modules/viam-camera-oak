@@ -12,16 +12,16 @@ RGB_STREAM_NAME = "rgb"
 class Worker(Thread):
     height: int
     width: int
-    fps: float
+    frame_rate: float
     debug: bool
     logger: Logger
 
-    def __init__(self, height: int, width: int, fps: float, debug: bool, logger: Logger) -> None:
+    def __init__(self, height: int, width: int, frame_rate: float, debug: bool, logger: Logger) -> None:
         logger.debug("Initializing worker.")
 
         self.height = height
         self.width = width
-        self.fps = fps
+        self.frame_rate = frame_rate
         self.debug = debug
         self.logger = logger
 
@@ -49,7 +49,7 @@ class Worker(Thread):
                 if not rgb_frame_data:
                     continue  # Reset iteration until data is successfully dequeued
                 
-                bgr_frame = rgb_frame_data.getCvFrame()  # As of 10/23/2023, OpenCV uses BGR color order
+                bgr_frame = rgb_frame_data.getCvFrame()  # OpenCV uses BGR color order
                 rgb_frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
 
                 prev_image, self.current_image = self.current_image, Image.fromarray(rgb_frame)
@@ -66,7 +66,7 @@ class Worker(Thread):
         cam_rgb = pipeline.createColorCamera()
         cam_rgb.setBoardSocket(depthai.CameraBoardSocket.RGB)
         cam_rgb.setVideoSize(self.width, self.height)
-        cam_rgb.setFps(self.fps)
+        cam_rgb.setFps(self.frame_rate)
         cam_rgb.setInterleaved(False)
 
         xout_rgb = pipeline.createXLinkOut()
