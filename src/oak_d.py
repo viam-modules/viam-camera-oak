@@ -26,6 +26,8 @@ DEFAULT_INPUT_HEIGHT = 1080
 DEFAULT_INPUT_FRAME_RATE = 30
 DEFAULT_IMAGE_MIMETYPE = "image/jpeg"
 DEFAULT_DEBUG = False
+COLOR_SENSOR_STR = "color"
+DEPTH_SENSOR_STR = "depth"
 
 class OakDModel(Camera, Reconfigurable, Stoppable):
     """
@@ -80,8 +82,8 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         if self.debug:
             LOGGER.setLevel(logging.DEBUG)
             LOGGER.debug(f"Running module in debug mode.")
-        self.main_sensor = str(config.attributes.fields["sensors"][0].string_value)
-        self.secondary_sensor = str(config.attributes.fields["sensors"][1].string_value)
+        self.sensors = list(config.attributes.fields["sensors"].list_value)
+        LOGGER.debug(f'Set sensors attr to {self.sensors}')
         self.height_px = int(config.attributes.fields["height_px"].number_value) or DEFAULT_INPUT_HEIGHT
         LOGGER.debug(f'Set height attr to {self.height_px}')
         self.width_px = int(config.attributes.fields["width_px"].number_value) or DEFAULT_INPUT_WIDTH
@@ -115,7 +117,12 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             Image | RawImage: The frame
         """
         LOGGER.debug("Handling get_image request.")
-        return self.worker.get_current_image()
+        main_sensor = self.sensors[0]
+        if main_sensor == COLOR_SENSOR_STR:
+            return self.worker.get_current_image()
+        if main_sensor == DEPTH_SENSOR_STR:
+            return self.worker.get_current_depth_map()
+        LOGGER.error("get_image failed due to misconfigured `sensors` attribute.")
 
     
     async def get_images(self, *, timeout: Optional[float] = None, **kwargs) -> Tuple[List[NamedImage], ResponseMetadata]:

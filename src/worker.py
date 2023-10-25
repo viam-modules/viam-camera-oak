@@ -49,7 +49,6 @@ class Worker(Thread):
 
         self._add_camera_rgb_node_to(pipeline)
         disparity_multiplier = self._add_stereo_depth_node_to(pipeline)
-
         with dai.Device(pipeline) as device:
             while self.running:
                 q_rgb = device.getOutputQueue(RGB_STREAM_NAME)
@@ -68,7 +67,6 @@ class Worker(Thread):
                     frame_disparity = (frame_disparity * disparity_multiplier).astype(np.uint8)
                     frame_disparity = cv2.applyColorMap(frame_disparity, cv2.COLORMAP_JET)
                     self._set_current_depth_map(frame_disparity)
-
         self.logger.info("Worker thread finished.")
 
     def stop(self) -> None:
@@ -119,7 +117,6 @@ class Worker(Thread):
         depth.disparity.link(disparity_out.input)
         depth.rectifiedRight.link(manip.inputImage)
         manip.out.link(manip_out.input)
-
         return 255 / depth.initialConfig.getMaxDisparity()  # Disparity multiplier is used for normalization
 
     def _set_current_image(self, arr):
