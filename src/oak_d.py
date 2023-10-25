@@ -1,10 +1,12 @@
 import logging
+import struct
+import time
 from typing import ClassVar, Mapping, Sequence, Any, Dict, Optional, Tuple, Final, List, cast, NamedTuple, Union
 from typing_extensions import Self
 
 from PIL import Image
 
-from viam.media.video import NamedImage
+from viam.media.video import NamedImage, CameraMimeType
 from viam.proto.common import ResponseMetadata
 
 from viam.components.camera import DistortionParameters, IntrinsicParameters, RawImage
@@ -24,7 +26,8 @@ LOGGER = getLogger(__name__)
 DEFAULT_INPUT_WIDTH = 1920
 DEFAULT_INPUT_HEIGHT = 1080
 DEFAULT_INPUT_FRAME_RATE = 30
-DEFAULT_IMAGE_MIMETYPE = "image/jpeg"
+DEFAULT_IMAGE_MIMETYPE = CameraMimeType.JPEG
+DEPTH_MIMETYPE = CameraMimeType.VIAM_RAW_DEPTH
 DEFAULT_DEBUG = False
 COLOR_SENSOR_STR = "color"
 DEPTH_SENSOR_STR = "depth"
@@ -94,7 +97,6 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         self.worker = Worker(self.height_px, self.width_px, self.frame_rate, self.debug, logger=LOGGER)
         self.worker.start()
         LOGGER.info("Successfully reconfigured!")
-        return
 
     # Implements ``stop`` under the Stoppable protocol to free resources
     def stop(self, *, extra: Optional[Mapping[str, Any]] = None, timeout: Optional[float] = None, **kwargs):
@@ -121,7 +123,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         if main_sensor == COLOR_SENSOR_STR:
             return self.worker.get_current_image()
         if main_sensor == DEPTH_SENSOR_STR:
-            return self.worker.get_current_depth_map()
+            return self._np_array_to_image(self.worker.get_current_depth_map())
         LOGGER.error("get_image failed due to misconfigured `sensors` attribute.")
 
     
@@ -137,8 +139,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
                 - ResponseMetadata:
                   The metadata associated with this response
         """
-        
-
+        raise Exception("under construction...")
     
     async def get_point_cloud(
         self, *, extra: Optional[Dict[str, Any]] = None, timeout: Optional[float] = None, **kwargs
@@ -168,7 +169,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             bytes: The pointcloud data.
             str: The mimetype of the pointcloud (e.g. PCD).
         """
-        ...
+        raise NotImplementedError("Method is not available for this module")
 
     
     async def get_properties(self, *, timeout: Optional[float] = None, **kwargs) -> Properties:
@@ -179,3 +180,55 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             Properties: The properties of the camera
         """
         return self.camera_properties
+
+    # possibly use later to encode bytes to raw for depth data
+    def _encode_depth_raw(self, data: bytes, little_endian):
+        DEPTH_MAGIC_NUMBER = struct.pack('>Q', 4919426490892632400)  # UTF-8 binary encoding for "DEPTHMAP", big-endian
+        DEPTH_MAGIC_BYTE_COUNT = struct.calcsize('Q')  # Number of bytes used to represent the depth magic number
+        DEPTH_WIDTH_BYTE_COUNT = struct.calcsize('Q')  # Number of bytes used to represent depth image width
+        DEPTH_HEIGHT_BYTE_COUNT = struct.calcsize('Q')  # Number of bytes used to represent depth image height
+        if self.debug:
+            start = time.time()
+
+        # Depth header contains 8 bytes for the magic number, followed by 8 bytes for width and 8 bytes for height. Each pixel has 2 bytes.
+        pixel_byte_count = 2 * self.width_px * self.height_px
+        width_to_encode = struct.pack('>Q', self.width_px)  # Convert width to big-endian
+        height_to_encode = struct.pack('>Q', self.height_px)  # Convert height to big-endian
+        total_byte_count = DEPTH_MAGIC_BYTE_COUNT + DEPTH_WIDTH_BYTE_COUNT + DEPTH_HEIGHT_BYTE_COUNT + pixel_byte_count
+
+        # Create a bytearray to store the encoded data
+        raw_buf = bytearray(total_byte_count)
+
+        offset = 0
+
+        # Copy the depth magic number into the buffer
+        raw_buf[offset:offset + DEPTH_MAGIC_BYTE_COUNT] = DEPTH_MAGIC_NUMBER
+        offset += DEPTH_MAGIC_BYTE_COUNT
+
+        # Copy the encoded width and height into the buffer
+        raw_buf[offset:offset + DEPTH_WIDTH_BYTE_COUNT] = width_to_encode
+        offset += DEPTH_WIDTH_BYTE_COUNT
+        raw_buf[offset:offset + DEPTH_HEIGHT_BYTE_COUNT] = height_to_encode
+        offset += DEPTH_HEIGHT_BYTE_COUNT
+
+        if little_endian:
+            # Copy the data as is
+            raw_buf[offset:offset + pixel_byte_count] = data
+        else:
+            pixel_offset = 0
+            for _ in range(self.width_px * self.height_px):
+                pix = struct.unpack_from('<H', data, pixel_offset)[0]
+                pix_encode = struct.pack('>H', pix)  # Convert pixel value to big-endian
+                raw_buf[offset:offset + 2] = pix_encode
+                pixel_offset += 2
+                offset += 2
+
+        if self.debug:
+            stop = time.time()
+            duration = int((stop - start) * 1000)
+            LOGGER.debug(f"[GetImage] RAW depth encode: {duration}ms")
+
+        return bytes(raw_buf)
+        
+    def _np_array_to_image(self, np_array) -> Image.Image:
+        return Image.fromarray(np_array, 'L')
