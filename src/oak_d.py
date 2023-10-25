@@ -23,7 +23,7 @@ from src.worker import Worker
 LOGGER = getLogger(__name__)
 DEFAULT_INPUT_WIDTH = 1920
 DEFAULT_INPUT_HEIGHT = 1080
-DEFAULT_INPUT_FRAMERATE = 30
+DEFAULT_INPUT_FRAME_RATE = 30
 DEFAULT_IMAGE_MIMETYPE = "image/jpeg"
 DEFAULT_DEBUG = False
 
@@ -84,10 +84,10 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         LOGGER.debug(f'Set height attr to {self.height_px}')
         self.width_px = int(config.attributes.fields["width_px"].number_value) or DEFAULT_INPUT_WIDTH
         LOGGER.debug(f'Set width attr to {self.width_px}')
-        self.framerate = float(config.attributes.fields["framerate"].number_value) or DEFAULT_INPUT_FRAMERATE
-        LOGGER.debug(f'Set framerate attr to {self.framerate}')
+        self.frame_rate = float(config.attributes.fields["frame_rate"].number_value) or DEFAULT_INPUT_FRAME_RATE
+        LOGGER.debug(f'Set frame_rate attr to {self.frame_rate}')
 
-        self.worker = Worker(self.height_px, self.width_px, self.framerate, self.debug, logger=LOGGER)
+        self.worker = Worker(self.height_px, self.width_px, self.frame_rate, self.debug, logger=LOGGER)
         self.worker.start()
         LOGGER.info("Successfully reconfigured!")
         return
