@@ -121,9 +121,9 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         LOGGER.debug("Handling get_image request.")
         main_sensor = self.sensors[0]
         if main_sensor == COLOR_SENSOR_STR:
-            return self.worker.get_current_image()
+            return Image.fromarray(self.worker.get_current_image(), 'RGB')
         if main_sensor == DEPTH_SENSOR_STR:
-            return self._np_array_to_image(self.worker.get_current_depth_map())
+            return Image.fromarray(self.worker.get_current_depth_map(), 'L')
         LOGGER.error("get_image failed due to misconfigured `sensors` attribute.")
 
     
@@ -229,6 +229,3 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             LOGGER.debug(f"[GetImage] RAW depth encode: {duration}ms")
 
         return bytes(raw_buf)
-        
-    def _np_array_to_image(self, np_array) -> Image.Image:
-        return Image.fromarray(np_array, 'L')

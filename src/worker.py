@@ -36,9 +36,7 @@ class Worker(Thread):
         super().__init__()
  
     def get_current_image(self):
-        if self.current_image:
-            return self.current_image.copy()
-        return None
+        return self.current_image
     
     def get_current_depth_map(self):
         return self.current_depth_map
@@ -106,12 +104,10 @@ class Worker(Thread):
         # Disparity range is used for normalization
         return 255 / depth.initialConfig.getMaxDisparity()
 
-    def _set_current_image(self, arr):
-        prev_image, self.current_image = self.current_image, Image.fromarray(arr)
-        if prev_image:
-            prev_image.close()
+    def _set_current_image(self, np_arr):
+        self.current_image = np_arr
         self.logger.debug("Setting current_image.")
 
-    def _set_current_depth_map(self, np_array):
-        self.current_depth_map = self.current_depth_map, np_array
+    def _set_current_depth_map(self, np_arr):
+        self.current_depth_map = np_arr
         self.logger.debug(f"Setting current depth map.")
