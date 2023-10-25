@@ -80,6 +80,8 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         if self.debug:
             LOGGER.setLevel(logging.DEBUG)
             LOGGER.debug(f"Running module in debug mode.")
+        self.main_sensor = str(config.attributes.fields["sensors"][0].string_value)
+        self.secondary_sensor = str(config.attributes.fields["sensors"][1].string_value)
         self.height_px = int(config.attributes.fields["height_px"].number_value) or DEFAULT_INPUT_HEIGHT
         LOGGER.debug(f'Set height attr to {self.height_px}')
         self.width_px = int(config.attributes.fields["width_px"].number_value) or DEFAULT_INPUT_WIDTH
@@ -113,7 +115,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             Image | RawImage: The frame
         """
         LOGGER.debug("Handling get_image request.")
-        return self.worker.get_image()
+        return self.worker.get_current_image()
 
     
     async def get_images(self, *, timeout: Optional[float] = None, **kwargs) -> Tuple[List[NamedImage], ResponseMetadata]:
