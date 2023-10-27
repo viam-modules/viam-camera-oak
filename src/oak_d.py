@@ -123,7 +123,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         if main_sensor == COLOR_SENSOR_STR:
             return Image.fromarray(self.worker.get_current_image(), 'RGB')
         if main_sensor == DEPTH_SENSOR_STR:
-            return Image.fromarray(self.worker.get_current_depth_map(), 'L')
+            return Image.fromarray(self.worker.get_current_depth_map(), 'I;16').convert('RGB')
         LOGGER.error("get_image failed due to misconfigured `sensors` attribute.")
 
     
