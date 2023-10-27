@@ -8,6 +8,7 @@ from PIL import Image
 
 RGB_STREAM_NAME = "rgb"
 DISPARITY_STREAM_NAME = "disparity"
+DEPTH_STREAM_NAME = "depth"
 RIGHT_STREAM_NAME = "right"
 LEFT_STREAM_NAME = "left"
 MANIP_STREAM_NAME = "manip"
@@ -56,12 +57,12 @@ class Worker(Thread):
                     rgb_frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
                     self._set_current_image(rgb_frame)
 
-                qDepth = device.getOutputQueue(name=DISPARITY_STREAM_NAME, maxSize=4, blocking=False)
-                depth_frame = qDepth.get()
+                q_depth = device.getOutputQueue(DEPTH_STREAM_NAME, maxSize=4, blocking=False)
+                depth_frame = q_depth.tryGet()
                 if depth_frame:
-                    frame_disparity = depth_frame.getCvFrame()
-                    frame_disparity = (frame_disparity * disparity_multiplier).astype(np.uint8)
-                    self._set_current_depth_map(frame_disparity)
+                    np_depth_arr = depth_frame.getCvFrame()
+                    np_depth_arr = np_depth_arr.astype(np.uint16)
+                    self._set_current_depth_map(np_depth_arr)
         self.logger.info("Worker thread finished.")
 
     def stop(self) -> None:
@@ -80,29 +81,34 @@ class Worker(Thread):
         cam_rgb.video.link(xout_rgb.input)
     
     def _add_depth_node_to(self, pipeline: dai.Pipeline):
-        monoRight = pipeline.create(dai.node.MonoCamera)
-        monoLeft = pipeline.create(dai.node.MonoCamera)
-        depth = pipeline.create(dai.node.StereoDepth)
+        mono_right = pipeline.create(dai.node.MonoCamera)
+        mono_left = pipeline.create(dai.node.MonoCamera)
+        stereo = pipeline.create(dai.node.StereoDepth)
 
-        disparityOut = pipeline.create(dai.node.XLinkOut)
-        disparityOut.setStreamName(DISPARITY_STREAM_NAME)
-        xoutRight = pipeline.create(dai.node.XLinkOut)
-        xoutRight.setStreamName('right')
+        # disparity_out = pipeline.create(dai.node.XLinkOut)
+        # disparity_out.setStreamName(DISPARITY_STREAM_NAME)
+        depth_out = pipeline.create(dai.node.XLinkOut)
+        depth_out.setStreamName(DEPTH_STREAM_NAME)
+        xout_right = pipeline.create(dai.node.XLinkOut)
+        xout_right.setStreamName(RIGHT_STREAM_NAME)
+        xout_left = pipeline.create(dai.node.XLinkOut)
+        xout_left.setStreamName(LEFT_STREAM_NAME)
 
-        monoRight.setCamera("right")
-        monoRight.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
-        monoLeft.setCamera("left")
-        monoLeft.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
+        mono_right.setCamera("right")
+        mono_right.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
+        mono_left.setCamera("left")
+        mono_left.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
 
-        depth.setDefaultProfilePreset(dai.node.StereoDepth.PresetMode.HIGH_DENSITY)
-        depth.setRectifyEdgeFillColor(0) # Black, to better see the cutout
+        stereo.setDefaultProfilePreset(dai.node.StereoDepth.PresetMode.HIGH_DENSITY)
+        stereo.setRectifyEdgeFillColor(0) # Black, to better see the cutout
 
-        monoRight.out.link(depth.right)
-        monoLeft.out.link(depth.left)
-        depth.disparity.link(disparityOut.input)
+        mono_right.out.link(stereo.right)
+        mono_left.out.link(stereo.left)
+        # stereo.disparity.link(disparity_out.input)
+        stereo.depth.link(depth_out.input)
 
         # Disparity range is used for normalization
-        return 255 / depth.initialConfig.getMaxDisparity()
+        return 255 / stereo.initialConfig.getMaxDisparity()
 
     def _set_current_image(self, np_arr):
         self.current_image = np_arr
