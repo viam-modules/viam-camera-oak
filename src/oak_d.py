@@ -50,7 +50,6 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
     """``worker`` handles DepthAI integration in a separate thread"""
     camera_properties: Camera.Properties
 
-    # Constructor
     @classmethod
     def new(cls, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]) -> Self:
         camera_cls = cls(config.name)
@@ -58,7 +57,6 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         camera_cls.reconfigure(config, dependencies)
         return camera_cls
 
-    # Validates JSON Configuration
     @classmethod
     def validate(cls, config: ComponentConfig):
         # here we validate config, the following is just an example and should be updated as needed
@@ -67,7 +65,6 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         #     raise Exception("A some_pin must be defined")
         return
 
-    # Handles attribute reconfiguration
     def reconfigure(self, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]):
         self.validate(config)
         try:
@@ -94,7 +91,8 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         self.frame_rate = float(config.attributes.fields["frame_rate"].number_value) or DEFAULT_INPUT_FRAME_RATE
         LOGGER.debug(f'Set frame_rate attr to {self.frame_rate}')
 
-        self.worker = Worker(self.height_px, self.width_px, self.frame_rate, self.debug, logger=LOGGER)
+        callback = lambda: self.reconfigure(config, dependencies)
+        self.worker = Worker(self.height_px, self.width_px, self.frame_rate, self.debug, LOGGER, callback)
         self.worker.start()
         LOGGER.info("Successfully reconfigured!")
 

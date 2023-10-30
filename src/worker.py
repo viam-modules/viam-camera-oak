@@ -1,24 +1,58 @@
 from logging import Logger
 from threading import Thread
+import time
+from typing import Callable
 
-import depthai as dai
 import cv2
+import depthai as dai
+from numpy.typing import NDArray
 
 RGB_STREAM_NAME = "rgb"
 DEPTH_STREAM_NAME = "depth"
 RIGHT_STREAM_NAME = "right"
 LEFT_STREAM_NAME = "left"
-MANIP_STREAM_NAME = "manip"
 
-# TODO: add logging and debug logging throughout
+
+class WorkerManager(Thread):
+    def __init__(self,
+                debug: bool,
+                logger: Logger,
+                reconfigure: Callable[[None], None],
+                ) -> None:
+        self.debug = debug
+        self.logger = logger
+        self.needs_reconfigure = False
+        self.should_run = True
+        self.reconfigure = reconfigure
+        super().__init__()
+    
+    def run(self):
+        self.logger.info("Starting worker status manager.")
+        while self.should_run:
+            self.logger.debug("Checking if worker must be reconfigured.")
+            if self.needs_reconfigure:
+                self.logger.debug("Worker needs reconfiguring; reconfiguring worker.")
+                self.reconfigure()
+            time.sleep(1)
+
+    def stop(self):
+        self.logger.info("Stopping worker status manager.")
+        self.should_run = False
+
+
 class Worker(Thread):
-    height: int
-    width: int
-    frame_rate: float
-    debug: bool
-    logger: Logger
+    current_image: NDArray
+    current_depth_map: NDArray
+    manager: WorkerManager
 
-    def __init__(self, height: int, width: int, frame_rate: float, debug: bool, logger: Logger) -> None:
+    def __init__(self,
+                height: int,
+                width: int,
+                frame_rate: float,
+                debug: bool,
+                logger: Logger,
+                reconfigure: Callable[[None], None],
+                ) -> None:
         logger.debug("Initializing worker.")
 
         self.height = height
@@ -27,10 +61,11 @@ class Worker(Thread):
         self.debug = debug
         self.logger = logger
 
-        self.running = False
         self.current_image = None
         self.current_depth_map = None
-        self.running = True
+
+        self.manager = WorkerManager(debug, logger, reconfigure)
+        self.manager.start()
         super().__init__()
  
     def get_current_image(self):
@@ -39,33 +74,47 @@ class Worker(Thread):
     def get_current_depth_map(self):
         return self.current_depth_map
 
+    def _pipeline_loop(self):
+        try:
+            self.logger.debug("Initializing worker image pipeline.")
+            pipeline = dai.Pipeline()
+
+            self._add_camera_rgb_node_to(pipeline)
+            self._add_depth_node_to(pipeline)
+            with dai.Device(pipeline) as device:
+                while self.manager.should_run:
+                    rgb_queue = device.getOutputQueue(RGB_STREAM_NAME)
+                    rgb_frame_data = rgb_queue.tryGet()
+                    if rgb_frame_data:
+                        bgr_frame = rgb_frame_data.getCvFrame()  # OpenCV uses reversed (BGR) color order
+                        rgb_frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
+                        self._set_current_image(rgb_frame)
+
+                    q_depth = device.getOutputQueue(DEPTH_STREAM_NAME, maxSize=4, blocking=False)
+                    depth_frame = q_depth.tryGet()
+                    if depth_frame:
+                        np_depth_arr = depth_frame.getCvFrame()
+                        self._set_current_depth_map(np_depth_arr)
+        except Exception as e:
+            self.manager.needs_reconfigure = True
+            self.logger.error(e)
+        finally:
+            self.logger.debug("Exiting worker camera loop.")
+
     def run(self) -> None:
-        self.logger.info("Initializing worker's image pipeline.")
-        pipeline = dai.Pipeline()
-
-        self._add_camera_rgb_node_to(pipeline)
-        self._add_depth_node_to(pipeline)
-        with dai.Device(pipeline) as device:
-            while self.running:
-                q_rgb = device.getOutputQueue(RGB_STREAM_NAME)
-                rgb_frame_data = q_rgb.tryGet()
-                if rgb_frame_data:
-                    bgr_frame = rgb_frame_data.getCvFrame()  # OpenCV uses BGR color order
-                    rgb_frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
-                    self._set_current_image(rgb_frame)
-
-                q_depth = device.getOutputQueue(DEPTH_STREAM_NAME, maxSize=4, blocking=False)
-                depth_frame = q_depth.tryGet()
-                if depth_frame:
-                    np_depth_arr = depth_frame.getCvFrame()
-                    self._set_current_depth_map(np_depth_arr)
-        self.logger.info("Worker thread finished.")
+        try:
+            while self.manager.should_run:
+                self._pipeline_loop()
+        finally:
+            self.logger.info("Exiting worker thread.")
+        
 
     def stop(self) -> None:
-        self.running = False
+        self.logger.info("Stopping worker.")
+        self.manager.stop()
     
     def _add_camera_rgb_node_to(self, pipeline: dai.Pipeline):
-        self.logger.debug("Creating color camera node.")
+        self.logger.debug("Creating pipeline node: color camera.")
         cam_rgb = pipeline.createColorCamera()
         cam_rgb.setBoardSocket(dai.CameraBoardSocket.CAM_A)
         cam_rgb.setVideoSize(self.width, self.height)
@@ -77,6 +126,7 @@ class Worker(Thread):
         cam_rgb.video.link(xout_rgb.input)
     
     def _add_depth_node_to(self, pipeline: dai.Pipeline):
+        self.logger.debug("Creating pipeline node: depth")
         mono_right = pipeline.create(dai.node.MonoCamera)
         mono_left = pipeline.create(dai.node.MonoCamera)
         stereo = pipeline.create(dai.node.StereoDepth)
@@ -101,9 +151,9 @@ class Worker(Thread):
         stereo.depth.link(depth_out.input)
 
     def _set_current_image(self, np_arr):
-        self.current_image = np_arr
         self.logger.debug("Setting current_image.")
+        self.current_image = np_arr
 
     def _set_current_depth_map(self, np_arr):
-        self.current_depth_map = np_arr
         self.logger.debug(f"Setting current depth map.")
+        self.current_depth_map = np_arr
