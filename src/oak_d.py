@@ -9,7 +9,7 @@ from typing_extensions import Self
 from PIL import Image
 
 # Viam module
-from viam.errors import ValidationError
+from viam.errors import ValidationError, ViamError
 from viam.logging import getLogger
 from viam.module.types import Reconfigurable, Stoppable
 from viam.proto.app.robot import ComponentConfig
@@ -39,8 +39,8 @@ DEFAULT_IMAGE_MIMETYPE = CameraMimeType.JPEG
 DEPTH_MIMETYPE = CameraMimeType.VIAM_RAW_DEPTH
 DEFAULT_DEBUGGING = False
 
-COLOR_SENSOR_STR = 'color'
-DEPTH_SENSOR_STR = 'depth'
+COLOR_SENSOR = 'color'
+DEPTH_SENSOR = 'depth'
 
 class OakDModel(Camera, Reconfigurable, Stoppable):
     '''
@@ -129,10 +129,10 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         if len(sensor_list) > 2:
             handle_error('"sensors" attribute list exceeds max length of two.')
         for sensor in sensor_list:
-            if sensor != COLOR_SENSOR_STR and sensor != DEPTH_SENSOR_STR:
+            if sensor != COLOR_SENSOR and sensor != DEPTH_SENSOR:
                 handle_error(f'''
                             unknown sensor type "{sensor}" found in "sensors" attribute list.
-                            Valid sensors include: "{COLOR_SENSOR_STR}" and "{DEPTH_SENSOR_STR}"
+                            Valid sensors include: "{COLOR_SENSOR}" and "{DEPTH_SENSOR}"
                             ''')
                 
         # Validate frame rate
@@ -181,8 +181,15 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         self.frame_rate = attribute_map['frame_rate'].number_value or DEFAULT_FRAME_RATE
         LOGGER.debug(f'Set frame_rate attr to {self.frame_rate}')
 
+        should_get_color, should_get_depth = COLOR_SENSOR in self.sensors, DEPTH_SENSOR in self.sensors
         callback = lambda: self.reconfigure(config, dependencies)
-        cls.worker = Worker(self.height, self.width, self.frame_rate, self.debugging, LOGGER, callback)
+        cls.worker = Worker(height=self.height,
+                            width=self.width,
+                            frame_rate=self.frame_rate,
+                            should_get_color=should_get_color,
+                            should_get_depth=should_get_depth,
+                            reconfigure=callback,
+                            logger=LOGGER)
         cls.worker.start()
 
     # Implements ``stop`` under the Stoppable protocol to free resources
@@ -190,7 +197,6 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         cls = type(self)
         cls.worker.stop()
 
-    ''' TODO: Implement the methods the Viam RDK defines for the Camera API (rdk:component:camera) '''
     async def get_image(
         self, mime_type: str = '', *, extra: Optional[Dict[str, Any]] = None, timeout: Optional[float] = None, **kwargs
     ) -> Union[Image.Image, RawImage]:
@@ -209,10 +215,10 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         # LOGGER.debug('Handling get_image request.')
         cls = type(self)
         main_sensor = self.sensors[0]
-        if main_sensor == COLOR_SENSOR_STR:
-            return Image.fromarray(cls.worker.get_current_image(), 'RGB')
-        if main_sensor == DEPTH_SENSOR_STR:
-            return Image.fromarray(cls.worker.get_current_depth_map(), 'I;16').convert('RGB')
+        if main_sensor == COLOR_SENSOR:
+            return Image.fromarray(cls.worker.get_color_image(), 'RGB')
+        if main_sensor == DEPTH_SENSOR:
+            return Image.fromarray(cls.worker.get_depth_map(), 'I;16').convert('RGB')
         LOGGER.error('get_image failed due to misconfigured `sensors` attribute.')
 
     
@@ -258,7 +264,11 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             bytes: The pointcloud data.
             str: The mimetype of the pointcloud (e.g. PCD).
         '''
-        raise NotImplementedError('Method is not available for this module')
+        if DEPTH_SENSOR not in self.sensors:
+            details = 'Please include "depth" in the "sensors" attribute list.'
+            raise MethodNotAllowed('get_point_cloud', details)
+        cls = type(self)
+        return (cls.worker.get_pcd().tobytes(), CameraMimeType.PCD)
 
     
     async def get_properties(self, *, timeout: Optional[float] = None, **kwargs) -> Properties:
@@ -318,3 +328,13 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             LOGGER.debug(f'[GetImage] RAW depth encode: {duration}ms')
 
         return bytes(raw_buf)
+
+class MethodNotAllowed(ViamError):
+    """
+    Exception raised when attempting to call a method
+    with a configuration that does not support said method.
+    """
+    def __init__(self, name: str, details: str) -> None:
+        self.name = name
+        self.message = f'Cannot invoke method "{name}" with current config. {details}'
+        super().__init__(self.message)
