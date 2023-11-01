@@ -74,7 +74,10 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         # Helper that handles invalid attribute logic
         def handle_error(err_msg: str):
             LOGGER.error(f'Config attribute error: {err_msg}')
-            cls.worker.stop()
+            try:
+                cls.worker.stop()  # stop worker if active
+            except AttributeError:
+                pass
             raise ValidationError("Invalid config attribute.")
         
         # Helper that validates the attribute's value type
