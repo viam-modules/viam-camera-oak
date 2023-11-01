@@ -149,9 +149,9 @@ class Worker(Thread):
 
     def _add_pc_node(self, oak: OakCamera, color: CameraComponent, stereo: StereoComponent) -> Union[PointcloudComponent, None]:
         if self.should_get_depth:
-            pcl = oak.create_pointcloud(stereo=stereo, colorize=color)
-            oak.callback(pcl, callback=self._set_current_pcd)
-            return pcl
+            pcc = oak.create_pointcloud(stereo=stereo, colorize=color)
+            oak.callback(pcc, callback=self._set_current_pcd)
+            return pcc
     
     def _handle_color_output(self, oak: OakCamera) -> None:
         if self.should_get_color:

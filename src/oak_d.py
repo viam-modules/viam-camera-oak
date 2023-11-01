@@ -86,6 +86,8 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
                 expected_type: Literal['null_value', 'number_value', 'string_value', 'bool_value', 'struct_value', 'list_value'],
                 ):
             value = attribute_map.get(key=attribute, default=None)
+            if value is None:
+                return  # user did not supply given attribute
             if value.WhichOneof('kind') != expected_type:
                 handle_error(f'the "{attribute}" attribute must be a {expected_type}, not {value}.')
 
@@ -134,6 +136,8 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
                             unknown sensor type "{sensor}" found in "sensors" attribute list.
                             Valid sensors include: "{COLOR_SENSOR}" and "{DEPTH_SENSOR}"
                             ''')
+        if len(set(sensor_list)) != len(sensor_list):
+            handle_error(f'please remove duplicates in the "sensors" attribute list: {sensor_list}')
                 
         # Validate frame rate
         frame_rate = attribute_map.get(key='frame_rate', default=None)
