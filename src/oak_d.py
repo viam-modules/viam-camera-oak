@@ -7,6 +7,7 @@ from typing_extensions import Self
 
 # Third party
 from PIL import Image
+import numpy as np
 
 # Viam module
 from viam.errors import ValidationError, ViamError
@@ -272,7 +273,25 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             details = 'Please include "depth" in the "sensors" attribute list.'
             raise MethodNotAllowed('get_point_cloud', details)
         cls = type(self)
-        return (cls.worker.get_pcd().tobytes(), CameraMimeType.PCD)
+        arr = cls.worker.get_pcd()
+        # TODO: why do we need to normalize by 1000 when depthAI says they return depth in mm?
+        flat_array = arr.reshape(-1, arr.shape[-1]) / 1000.0
+        # TODO: why do we need to flip the 1st and 2nd dim signs in post-process?
+        flat_array[:, 0:2] = -flat_array[:, 0:2]
+        version = 'VERSION .7\n'
+        fields = 'FIELDS x y z\n'
+        size = 'SIZE 4 4 4\n'
+        type_of = 'TYPE F F F\n'
+        count = 'COUNT 1 1 1\n'
+        height = 'HEIGHT 1\n'
+        viewpoint = 'VIEWPOINT 0 0 0 1 0 0 0\n'
+        data = 'DATA binary\n'
+        width = f'WIDTH {len(flat_array)}\n'
+        points = f'POINTS {len(flat_array)}\n'
+        header = f'{version}{fields}{size}{type_of}{count}{width}{height}{viewpoint}{points}{data}'
+        h = bytes(header, 'UTF-8')
+        a = np.array(flat_array, dtype='f')
+        return (h + a.tobytes(), CameraMimeType.PCD)
 
     
     async def get_properties(self, *, timeout: Optional[float] = None, **kwargs) -> Properties:

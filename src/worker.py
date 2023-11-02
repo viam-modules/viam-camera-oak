@@ -18,6 +18,8 @@ DEPTH_STREAM_NAME = 'depth'
 RIGHT_STREAM_NAME = 'right'
 LEFT_STREAM_NAME = 'left'
 
+MAX_PIPELINE_FAILURES = 3
+
 class WorkerManager(Thread):
     def __init__(self,
                 logger: Logger,
@@ -91,17 +93,16 @@ class Worker(Thread):
                 color = self._add_camera_rgb_node(oak)
                 stereo = self._add_depth_node(oak, color)
                 self._add_pc_node(oak, color, stereo)
-                
-                oak.start(blocking=False)
+                oak.start()
                 while self.manager.running:
                     self._handle_color_output(oak)
                     self._handle_depth_output(oak)
                     self._handle_pcd_output(oak)
         except Exception as e:
             failures += 1
-            if failures > 3:
+            if failures > MAX_PIPELINE_FAILURES:
                 self.manager.needs_reconfigure = True
-                self.logger.error(f"Exceeded max failures on pipeline loop. Error: {e}")
+                self.logger.error(f"Exceeded {MAX_PIPELINE_FAILURES} max failures on pipeline loop. Error: {e}")
             else:
                 self.logger.debug(f"Pipeline failure count: {failures}: Error: {e}")
         finally:
@@ -149,6 +150,7 @@ class Worker(Thread):
 
     def _add_pc_node(self, oak: OakCamera, color: CameraComponent, stereo: StereoComponent) -> Union[PointcloudComponent, None]:
         if self.should_get_depth:
+            self.logger.debug('Creating pipeline node: point cloud.')
             pcc = oak.create_pointcloud(stereo=stereo, colorize=color)
             oak.callback(pcc, callback=self._set_current_pcd)
             return pcc
@@ -185,4 +187,5 @@ class Worker(Thread):
 
     def _set_current_pcd(self, packet: PointcloudPacket) -> None:
         self.logger.debug('Setting current pcd.')
-        self.pcd = packet.points
+        subsampled_points = packet.points[::2, ::2, :]
+        self.pcd = subsampled_points
