@@ -131,6 +131,7 @@ class Worker(Thread):
             xout_color = oak.pipeline.create(dai.node.XLinkOut)
             xout_color.setStreamName(RGB_STREAM_NAME)
             color = oak.camera('color', fps=self.frame_rate, resolution=CAM_RESOLUTION)
+            # setPreviewSize sets the closest supported resolution; inputted height width may not be respected
             color.node.setPreviewSize(self.width, self.height)
             color.node.preview.link(xout_color.input)
             return color
@@ -138,11 +139,14 @@ class Worker(Thread):
     def _add_depth_node(self, oak: OakCamera, color: CameraComponent) -> Union[StereoComponent, None]:
         if self.should_get_depth:
             self.logger.debug('Creating pipeline node: stereo depth.')
-            # TODO: depth resolutions are broken! implement correct way to do resolution once Luxonis replies https://discuss.luxonis.com/d/2434-getting-pcd-format-point-cloud-data
             stereo = oak.stereo(fps=self.frame_rate, resolution=CAM_RESOLUTION)
-            stereo.node.setOutputSize(*color.node.getPreviewSize())
             if self.should_get_color:
                 stereo.config_stereo(align=color)
+                # TODO: make sure that setOutputSize respects alignment https://discuss.luxonis.com/d/2434-getting-pcd-format-point-cloud-data
+                stereo.node.setOutputSize(*color.node.getPreviewSize())
+            else:
+                # setOutputSize sets the closest supported resolution; inputted height width may not be respected
+                stereo.node.setOutputSize(self.width, self.height)
 
             depth_out = oak.pipeline.create(dai.node.XLinkOut)
             depth_out.setStreamName(DEPTH_STREAM_NAME)

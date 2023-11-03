@@ -2,7 +2,6 @@
 import logging
 import io
 import struct
-import time
 from typing import ClassVar, Mapping, Any, Dict, Optional, Tuple, Literal, List, NamedTuple, Union
 from typing_extensions import Self
 
@@ -12,7 +11,7 @@ import numpy as np
 from PIL import Image
 
 # Viam module
-from viam.errors import ValidationError, ViamError
+from viam.errors import NotSupportedError, ValidationError, ViamError
 from viam.logging import getLogger
 from viam.module.types import Reconfigurable, Stoppable
 from viam.proto.app.robot import ComponentConfig
@@ -37,7 +36,7 @@ MAX_FPS = 60
 
 DEFAULT_FRAME_RATE = 30
 DEFAULT_WIDTH = 640
-DEFAULT_HEIGHT = 480
+DEFAULT_HEIGHT = 400
 DEFAULT_IMAGE_MIMETYPE = CameraMimeType.JPEG
 DEPTH_MIMETYPE = CameraMimeType.VIAM_RAW_DEPTH
 DEFAULT_DEBUGGING = False
@@ -178,7 +177,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             LOGGER.debug('No active worker.')
 
         self.camera_properties = Camera.Properties(
-                supports_pcd=False,
+                supports_pcd=False,  # TODO: change to true after https://github.com/viamrobotics/viam-python-sdk/pull/481 is in
                 distortion_parameters=None,
                 intrinsic_parameters=None
             )
@@ -230,14 +229,31 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             Image | RawImage: The frame
         '''
         # LOGGER.debug('Handling get_image request.')
+        if mime_type not in [CameraMimeType.JPEG, CameraMimeType.VIAM_RAW_DEPTH, '']:
+            err = NotSupportedError(
+                f'mime_type "{mime_type}" is not supported for get_image.'
+                f'Please use "{CameraMimeType.JPEG}" or "{CameraMimeType.VIAM_RAW_DEPTH}".'
+            )
+            LOGGER.error(err)
+            raise err
+        if mime_type == '':
+            LOGGER.warn(f'No mime type specified— defaulting to "{CameraMimeType.JPEG}".')
+
         cls: OakDModel = type(self)
         main_sensor = self.sensors[0]
+
         if main_sensor == COLOR_SENSOR:
+            if mime_type != CameraMimeType.JPEG:
+                raise NotSupportedError(f'mime_type "{mime_type}" is not supported for getting color image. Please use "{CameraMimeType.JPEG}"')
             captured_data = cls.worker.get_color_image()
             return Image.fromarray(captured_data.np_array, 'RGB')
+        
         if main_sensor == DEPTH_SENSOR:
-            captured_data = cls.worker.get_depth_map()
-            return Image.fromarray(captured_data.np_array, 'I;16').convert('RGB')
+            arr = cls.worker.get_depth_map().np_array
+            if mime_type == CameraMimeType.VIAM_RAW_DEPTH:
+                encoded_bytes = self._encode_depth_raw(arr.tobytes(), arr.shape)
+                return RawImage(encoded_bytes, mime_type)
+            return Image.fromarray(arr, 'I;16').convert('RGB')
         raise ViamError('get_image failed due to misconfigured "sensors" attribute, but should have been validated in `validate`...')
     
     async def get_images(self, *, timeout: Optional[float] = None, **kwargs) -> Tuple[List[NamedImage], ResponseMetadata]:
@@ -256,7 +272,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         l: List[NamedImage] = []
         seconds_float: float = None
         if COLOR_SENSOR in self.sensors:
-            captured_data: CapturedData = cls.worker.get_color_image()
+            captured_data = cls.worker.get_color_image()
             arr, captured_at = captured_data.np_array, captured_data.captured_at
 
             # Create a Pillow image from the raw data
@@ -269,26 +285,15 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             pil_image.save(output_buffer, format='JPEG')
 
             # Get the bytes from the buffer
-            jpeg_bytes = output_buffer.getvalue()
-            img = NamedImage('color', jpeg_bytes, CameraMimeType.JPEG)
+            jpeg_encoded_bytes = output_buffer.getvalue()
+            img = NamedImage('color', jpeg_encoded_bytes, CameraMimeType.JPEG)
             seconds_float = captured_at
             l.append(img)
         if DEPTH_SENSOR in self.sensors:
-            captured_data: CapturedData = cls.worker.get_depth_map()
-            captured_at = captured_data.captured_at
-    
-            # Create a Pillow image from the np array
-            pil_image = Image.fromarray(captured_data.np_array, 'I;16').convert('RGB')
-
-            # Create a BytesIO buffer to save the image as JPEG
-            output_buffer = io.BytesIO()
-
-            # Save the image as JPEG to the buffer
-            pil_image.save(output_buffer, format='JPEG')
-
-            # Get the bytes from the buffer
-            jpeg_bytes = output_buffer.getvalue()
-            img = NamedImage('depth', jpeg_bytes, CameraMimeType.JPEG)
+            captured_data = cls.worker.get_depth_map()
+            arr, captured_at = captured_data.np_array, captured_data.captured_at
+            depth_encoded_bytes = self._encode_depth_raw(arr.tobytes(), arr.shape)
+            img = NamedImage('depth', depth_encoded_bytes, CameraMimeType.VIAM_RAW_DEPTH)
             seconds_float = captured_at
             l.append(img)
         seconds_int = int(seconds_float)
@@ -358,20 +363,20 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         '''
         return self.camera_properties
 
-    # possibly use later to encode bytes to raw for depth data
-    def _encode_depth_raw(self, data: bytes, little_endian):
-        DEPTH_MAGIC_NUMBER = struct.pack('>Q', 4919426490892632400)  # UTF-8 binary encoding for 'DEPTHMAP', big-endian
-        DEPTH_MAGIC_BYTE_COUNT = struct.calcsize('Q')  # Number of bytes used to represent the depth magic number
-        DEPTH_WIDTH_BYTE_COUNT = struct.calcsize('Q')  # Number of bytes used to represent depth image width
-        DEPTH_HEIGHT_BYTE_COUNT = struct.calcsize('Q')  # Number of bytes used to represent depth image height
-        if self.debugging:
-            start = time.time()
+    def _encode_depth_raw(self, data: bytes, shape: Tuple[int, int]) -> bytes:
+        height, width = shape  # using np array shape for actual outputted height/width
+        MAGIC_NUMBER = struct.pack('>Q', 4919426490892632400)  # UTF-8 binary encoding for 'DEPTHMAP', big-endian
+        MAGIC_BYTE_COUNT = struct.calcsize('Q')  # Number of bytes used to represent the depth magic number
+        WIDTH_BYTE_COUNT = struct.calcsize('Q')  # Number of bytes used to represent depth image width
+        HEIGHT_BYTE_COUNT = struct.calcsize('Q')  # Number of bytes used to represent depth image height
 
         # Depth header contains 8 bytes for the magic number, followed by 8 bytes for width and 8 bytes for height. Each pixel has 2 bytes.
-        pixel_byte_count = 2 * self.width * self.height
-        width_to_encode = struct.pack('>Q', self.width)  # Convert width to big-endian
-        height_to_encode = struct.pack('>Q', self.height)  # Convert height to big-endian
-        total_byte_count = DEPTH_MAGIC_BYTE_COUNT + DEPTH_WIDTH_BYTE_COUNT + DEPTH_HEIGHT_BYTE_COUNT + pixel_byte_count
+        pixel_byte_count = np.dtype(np.uint16).itemsize * width * height
+        width_to_encode = struct.pack('>Q', width)  # Q signifies big-endian
+        height_to_encode = struct.pack('>Q', height)
+        total_byte_count = MAGIC_BYTE_COUNT + WIDTH_BYTE_COUNT + HEIGHT_BYTE_COUNT + pixel_byte_count
+        LOGGER.debug(f'{MAGIC_BYTE_COUNT} + {WIDTH_BYTE_COUNT} + {HEIGHT_BYTE_COUNT} + {pixel_byte_count} = total_byte_count: {total_byte_count}')
+        LOGGER.debug(f'size of data: {len(data)}')
 
         # Create a bytearray to store the encoded data
         raw_buf = bytearray(total_byte_count)
@@ -379,32 +384,17 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         offset = 0
 
         # Copy the depth magic number into the buffer
-        raw_buf[offset:offset + DEPTH_MAGIC_BYTE_COUNT] = DEPTH_MAGIC_NUMBER
-        offset += DEPTH_MAGIC_BYTE_COUNT
+        raw_buf[offset:offset + MAGIC_BYTE_COUNT] = MAGIC_NUMBER
+        offset += MAGIC_BYTE_COUNT
 
         # Copy the encoded width and height into the buffer
-        raw_buf[offset:offset + DEPTH_WIDTH_BYTE_COUNT] = width_to_encode
-        offset += DEPTH_WIDTH_BYTE_COUNT
-        raw_buf[offset:offset + DEPTH_HEIGHT_BYTE_COUNT] = height_to_encode
-        offset += DEPTH_HEIGHT_BYTE_COUNT
+        raw_buf[offset:offset + WIDTH_BYTE_COUNT] = width_to_encode
+        offset += WIDTH_BYTE_COUNT
+        raw_buf[offset:offset + HEIGHT_BYTE_COUNT] = height_to_encode
+        offset += HEIGHT_BYTE_COUNT
 
-        if little_endian:
-            # Copy the data as is
-            raw_buf[offset:offset + pixel_byte_count] = data
-        else:
-            pixel_offset = 0
-            for _ in range(self.width * self.height):
-                pix = struct.unpack_from('<H', data, pixel_offset)[0]
-                pix_encode = struct.pack('>H', pix)  # Convert pixel value to big-endian
-                raw_buf[offset:offset + 2] = pix_encode
-                pixel_offset += 2
-                offset += 2
-
-        if self.debugging:
-            stop = time.time()
-            duration = int((stop - start) * 1000)
-            LOGGER.debug(f'[GetImage] RAW depth encode: {duration}ms')
-
+        # Copy data into rest of the buffer
+        raw_buf[offset:offset + pixel_byte_count] = data
         return bytes(raw_buf)
 
 class MethodNotAllowed(ViamError):
