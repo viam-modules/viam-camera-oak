@@ -19,11 +19,7 @@ RIGHT_STREAM_NAME = 'right'
 LEFT_STREAM_NAME = 'left'
 
 MAX_PIPELINE_FAILURES = 3
-
-RESOLUTION_TO_DAI_RESOLUTION = {
-    "720P": (dai.ColorCameraProperties.SensorResolution.THE_720_P, dai.MonoCameraProperties.SensorResolution.THE_720_P),
-    "800P": (dai.ColorCameraProperties.SensorResolution.THE_800_P, dai.MonoCameraProperties.SensorResolution.THE_800_P),
-}
+CAM_RESOLUTION = dai.ColorCameraProperties.SensorResolution.THE_1080_P
 
 class WorkerManager(Thread):
     def __init__(self,
@@ -63,7 +59,6 @@ class Worker(Thread):
     def __init__(self,
                 height: int,
                 width: int,
-                resolution_str: str,
                 frame_rate: float,
                 should_get_color,
                 should_get_depth,
@@ -74,10 +69,6 @@ class Worker(Thread):
 
         self.height = height
         self.width = width
-        self.resolution_color = RESOLUTION_TO_DAI_RESOLUTION[resolution_str][0]
-        logger.debug(f'Worker self.color_resolution: {self.resolution_color}')
-        self.resolution_depth = RESOLUTION_TO_DAI_RESOLUTION[resolution_str][1]
-        logger.debug(f'Worker self.resolution_depth: {self.resolution_depth}')
         self.frame_rate = frame_rate
         self.should_get_color = should_get_color
         self.should_get_depth = should_get_depth
@@ -139,15 +130,17 @@ class Worker(Thread):
             self.logger.debug('Creating pipeline node: color camera.')
             xout_color = oak.pipeline.create(dai.node.XLinkOut)
             xout_color.setStreamName(RGB_STREAM_NAME)
-            color = oak.camera('color', fps=self.frame_rate, resolution=self.resolution_color)
+            color = oak.camera('color', fps=self.frame_rate, resolution=CAM_RESOLUTION)
+            color.node.setPreviewSize(self.width, self.height)
             color.node.preview.link(xout_color.input)
             return color
 
     def _add_depth_node(self, oak: OakCamera, color: CameraComponent) -> Union[StereoComponent, None]:
         if self.should_get_depth:
             self.logger.debug('Creating pipeline node: stereo depth.')
-            stereo = oak.stereo(fps=self.frame_rate, resolution=self.resolution_depth)  # TODO: depth resolutions are broken! implement correct way to do resolution once Luxonis replies https://discuss.luxonis.com/d/2434-getting-pcd-format-point-cloud-data
-            stereo.node.setInputResolution(self.width, self.height)
+            # TODO: depth resolutions are broken! implement correct way to do resolution once Luxonis replies https://discuss.luxonis.com/d/2434-getting-pcd-format-point-cloud-data
+            stereo = oak.stereo(fps=self.frame_rate, resolution=CAM_RESOLUTION)
+            stereo.node.setOutputSize(*color.node.getPreviewSize())
             if self.should_get_color:
                 stereo.config_stereo(align=color)
 
@@ -178,7 +171,6 @@ class Worker(Thread):
             depth_frame = q_depth.tryGet()
             if depth_frame:
                 np_depth_arr = depth_frame.getCvFrame()
-                np_depth_arr = cv2.resize(np_depth_arr, (self.width, self.height))  # TODO: remove this after we fix depth map resolutions https://discuss.luxonis.com/d/2434-getting-pcd-format-point-cloud-data (it breaks alignment)
                 self._set_current_depth_map(np_depth_arr)
     
     def _handle_pcd_output(self, oak: OakCamera) -> None:

@@ -31,25 +31,19 @@ LOGGER = getLogger(__name__)
 
 VALID_ATTRIBUTES = ['height_px', 'width_px', 'sensors', 'frame_rate', 'debug']
 
+MAX_HEIGHT = 1080
+MAX_WIDTH = 1920
 MAX_FPS = 60
+
 DEFAULT_FRAME_RATE = 30
-# 800P
-DEFAULT_WIDTH = 1280
-DEFAULT_HEIGHT = 800
+DEFAULT_WIDTH = 640
+DEFAULT_HEIGHT = 480
 DEFAULT_IMAGE_MIMETYPE = CameraMimeType.JPEG
 DEPTH_MIMETYPE = CameraMimeType.VIAM_RAW_DEPTH
 DEFAULT_DEBUGGING = False
 
 COLOR_SENSOR = 'color'
 DEPTH_SENSOR = 'depth'
-
-# TODO: refactor map keys to "enums" and stick them in a different file
-# TODO: pending changes to max gRPC message size (APP-2843), add higher resolutions
-# If you make changes to the below, be sure to update resolutions in worker too
-RESOLUTION_DIMENSION_MAP = {
-    "720P": (1280, 720),
-    "800P": (1280, 800),
-}
 
 class OakDModel(Camera, Reconfigurable, Stoppable):
     '''
@@ -106,7 +100,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             if value.WhichOneof('kind') != expected_type:
                 handle_error(f'the "{attribute}" attribute must be a {expected_type}, not {value}.')
 
-        def validate_dimension(attribute: str) -> None:
+        def validate_dimension(attribute: str, max_value: int) -> None:
             '''
             validate_dimension helps validates height and width values.
             '''
@@ -119,8 +113,10 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             int_value = int(number_value)
             if int_value != number_value:
                 handle_error(f'"{attribute}" must be a whole number.')
+            if int_value > max_value:
+                handle_error(f'inputted "{attribute}" of {int_value} cannot be greater than max of {max_value}.')
             if int_value <= 0:
-                handle_error(f'inputted "{attribute}" cannot be less than or equal to 0.')
+                handle_error(f'inputted "{attribute}" of {int_value} cannot be less than or equal to 0.')
         
         # Check config keys are valid
         for attribute in attribute_map.keys():
@@ -162,20 +158,15 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
                 handle_error(f'"frame_rate" must be a number > 0 and <= 60.')
 
         # Check height value
-        validate_dimension('height_px')
+        validate_dimension('height_px', MAX_HEIGHT)
         
         # Check width value
-        validate_dimension('width_px')
+        validate_dimension('width_px', MAX_WIDTH)
 
-        # Check resolution (height and width together)
+        # Check height and width together
         height, width = attribute_map.get(key='height_px', default=None), attribute_map.get(key='width_px', default=None)
         if (height is None and width is not None) or (height is not None and width is None):
             handle_error('received only one dimension attribute. Please supply both "height_px" and "width_px", or neither.')
-        if height and width:
-            for w, h in RESOLUTION_DIMENSION_MAP.values():
-                if width.number_value == w and height.number_value == h:
-                    return
-            raise handle_error(f'"width_px" of {width} and "height_px" of {height} is not a supported resolution i.e. {RESOLUTION_DIMENSION_MAP}')
 
     def reconfigure(self, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]):
         cls: OakDModel = type(self)
@@ -205,13 +196,11 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         self.frame_rate = attribute_map['frame_rate'].number_value or DEFAULT_FRAME_RATE
         LOGGER.debug(f'Set frame_rate attr to {self.frame_rate}')
 
-        resolution_str = self._find_resolution(self.width, self.height)
         should_get_color, should_get_depth = COLOR_SENSOR in self.sensors, DEPTH_SENSOR in self.sensors
         callback = lambda: self.reconfigure(config, dependencies)
         cls.worker = Worker(
             height=self.height,
             width=self.width,
-            resolution_str=resolution_str,
             frame_rate=self.frame_rate,
             should_get_color=should_get_color,
             should_get_depth=should_get_depth,
@@ -417,12 +406,6 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             LOGGER.debug(f'[GetImage] RAW depth encode: {duration}ms')
 
         return bytes(raw_buf)
-    
-    def _find_resolution(self, width: int, height: int) -> str:
-        for name, (w, h) in RESOLUTION_DIMENSION_MAP.items():
-            if width == w and height == h:
-                return name
-        raise ViamError('Somehow an invalid resolution slipped past config validation...')
 
 class MethodNotAllowed(ViamError):
     """
