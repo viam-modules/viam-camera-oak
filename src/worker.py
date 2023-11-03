@@ -6,18 +6,14 @@ from typing import Callable, Union
 import cv2
 import depthai as dai
 from depthai_sdk import OakCamera
-from depthai_sdk.classes.packets import PointcloudPacket
+from depthai_sdk.classes.packets import PointcloudPacket, DisparityDepthPacket
 from depthai_sdk.components.camera_component import CameraComponent
 from depthai_sdk.components.pointcloud_component import PointcloudComponent
 from depthai_sdk.components.stereo_component import StereoComponent
 import numpy as np
 from numpy.typing import NDArray
 
-RGB_STREAM_NAME = 'rgb'
-DEPTH_STREAM_NAME = 'depth'
-RIGHT_STREAM_NAME = 'right'
-LEFT_STREAM_NAME = 'left'
-
+PREVIEW_STREAM_NAME = 'PREVIEW'
 MAX_PIPELINE_FAILURES = 3
 CAM_RESOLUTION = dai.ColorCameraProperties.SensorResolution.THE_1080_P
 
@@ -27,9 +23,10 @@ class WorkerManager(Thread):
                 reconfigure: Callable[[None], None],
                 ) -> None:
         self.logger = logger
+        self.reconfigure = reconfigure
+
         self.needs_reconfigure = False
         self.running = True
-        self.reconfigure = reconfigure
         super().__init__()
     
     def run(self) -> None:
@@ -60,8 +57,8 @@ class Worker(Thread):
                 height: int,
                 width: int,
                 frame_rate: float,
-                should_get_color,
-                should_get_depth,
+                should_get_color: bool,
+                should_get_depth: bool,
                 reconfigure: Callable[[None], None],
                 logger: Logger,
                 ) -> None:
@@ -102,8 +99,7 @@ class Worker(Thread):
                 oak.start()
                 while self.manager.running:
                     self._handle_color_output(oak)
-                    self._handle_depth_output(oak)
-                    self._handle_pcd_output(oak)
+                    self._handle_depth_and_pcd_output(oak)
         except Exception as e:
             failures += 1
             if failures > MAX_PIPELINE_FAILURES:
@@ -129,7 +125,7 @@ class Worker(Thread):
         if self.should_get_color:
             self.logger.debug('Creating pipeline node: color camera.')
             xout_color = oak.pipeline.create(dai.node.XLinkOut)
-            xout_color.setStreamName(RGB_STREAM_NAME)
+            xout_color.setStreamName(PREVIEW_STREAM_NAME)
             color = oak.camera('color', fps=self.frame_rate, resolution=CAM_RESOLUTION)
             # setPreviewSize sets the closest supported resolution; inputted height width may not be respected
             color.node.setPreviewSize(self.width, self.height)
@@ -139,57 +135,51 @@ class Worker(Thread):
     def _add_depth_node(self, oak: OakCamera, color: CameraComponent) -> Union[StereoComponent, None]:
         if self.should_get_depth:
             self.logger.debug('Creating pipeline node: stereo depth.')
-            stereo = oak.stereo(fps=self.frame_rate, resolution=CAM_RESOLUTION)
+            stereo = oak.stereo(fps=self.frame_rate, resolution='max')
             if self.should_get_color:
-                stereo.config_stereo(align=color)
-                # TODO: make sure that setOutputSize respects alignment https://discuss.luxonis.com/d/2434-getting-pcd-format-point-cloud-data
+                stereo.config_stereo(align=color)  # ensures alignment and output resolution are same
                 stereo.node.setOutputSize(*color.node.getPreviewSize())
             else:
-                # setOutputSize sets the closest supported resolution; inputted height width may not be respected
-                stereo.node.setOutputSize(self.width, self.height)
-
-            depth_out = oak.pipeline.create(dai.node.XLinkOut)
-            depth_out.setStreamName(DEPTH_STREAM_NAME)
-            stereo.node.depth.link(depth_out.input)
+                # TODO: find some way for depthai to adjust the output size of depth maps
+                # right now it's being handled as a cv2.resize in _set_depth_map
+                pass
+            oak.callback(stereo, callback=self._set_depth_map)
             return stereo
 
     def _add_pc_node(self, oak: OakCamera, color: CameraComponent, stereo: StereoComponent) -> Union[PointcloudComponent, None]:
         if self.should_get_depth:
             self.logger.debug('Creating pipeline node: point cloud.')
             pcc = oak.create_pointcloud(stereo=stereo, colorize=color)
-            oak.callback(pcc, callback=self._set_current_pcd)
+            oak.callback(pcc, callback=self._set_pcd)
             return pcc
     
     def _handle_color_output(self, oak: OakCamera) -> None:
         if self.should_get_color:
-            rgb_queue = oak.device.getOutputQueue(RGB_STREAM_NAME)
+            # Get frames from preview stream, not direct out, for correct height and width
+            rgb_queue = oak.device.getOutputQueue(PREVIEW_STREAM_NAME)
             rgb_frame_data = rgb_queue.tryGet()
             if rgb_frame_data:
                 bgr_frame = rgb_frame_data.getCvFrame()  # OpenCV uses reversed (BGR) color order
                 rgb_frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
-                self._set_current_image(rgb_frame)
+                self._set_color_image(rgb_frame)
     
-    def _handle_depth_output(self, oak: OakCamera) -> None:
-        if self.should_get_depth:
-            q_depth = oak.device.getOutputQueue(DEPTH_STREAM_NAME, maxSize=4, blocking=False)
-            depth_frame = q_depth.tryGet()
-            if depth_frame:
-                np_depth_arr = depth_frame.getCvFrame()
-                self._set_current_depth_map(np_depth_arr)
-    
-    def _handle_pcd_output(self, oak: OakCamera) -> None:
+    def _handle_depth_and_pcd_output(self, oak: OakCamera) -> None:
         if self.should_get_depth:
             oak.poll()
 
-    def _set_current_image(self, arr: NDArray) -> None:
+    def _set_color_image(self, arr: NDArray) -> None:
         self.logger.debug(f'Setting current_image. Array shape: {arr.shape}. Dtype: {arr.dtype}')
         self.color_image = CapturedData(arr, time.time())
 
-    def _set_current_depth_map(self, arr: NDArray) -> None:
+    def _set_depth_map(self, packet: DisparityDepthPacket) -> None:
+        arr = packet.frame
+        if arr.shape != (self.height, self.width):
+            self.logger.debug(f'Pipeline output shape mismatch: {arr.shape}; Manually resizing to {(self.height, self.width)}.')
+            arr = cv2.resize(arr, (self.width, self.height))
         self.logger.debug(f'Setting current depth map. Array shape: {arr.shape}. Dtype: {arr.dtype}')
         self.depth_map = CapturedData(arr, time.time())
 
-    def _set_current_pcd(self, packet: PointcloudPacket) -> None:
+    def _set_pcd(self, packet: PointcloudPacket) -> None:
         self.logger.debug('Setting current pcd.')
         subsampled_points = packet.points[::2, ::2, :]
         self.pcd = CapturedData(subsampled_points, time.time())

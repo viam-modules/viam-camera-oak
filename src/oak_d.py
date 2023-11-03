@@ -24,7 +24,7 @@ from viam.components.camera import Camera, DistortionParameters, IntrinsicParame
 from viam.media.video import NamedImage, CameraMimeType
 
 # OAK-D module
-from src.worker import Worker, CapturedData
+from src.worker import Worker
 
 LOGGER = getLogger(__name__)
 
@@ -236,8 +236,6 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             )
             LOGGER.error(err)
             raise err
-        if mime_type == '':
-            LOGGER.warn(f'No mime type specified— defaulting to "{CameraMimeType.JPEG}".')
 
         cls: OakDModel = type(self)
         main_sensor = self.sensors[0]
