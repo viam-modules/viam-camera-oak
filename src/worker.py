@@ -20,6 +20,11 @@ LEFT_STREAM_NAME = 'left'
 
 MAX_PIPELINE_FAILURES = 3
 
+RESOLUTION_TO_DAI_RESOLUTION = {
+    "720P": (dai.ColorCameraProperties.SensorResolution.THE_720_P, dai.MonoCameraProperties.SensorResolution.THE_720_P),
+    "800P": (dai.ColorCameraProperties.SensorResolution.THE_800_P, dai.MonoCameraProperties.SensorResolution.THE_800_P),
+}
+
 class WorkerManager(Thread):
     def __init__(self,
                 logger: Logger,
@@ -31,7 +36,7 @@ class WorkerManager(Thread):
         self.reconfigure = reconfigure
         super().__init__()
     
-    def run(self):
+    def run(self) -> None:
         self.logger.debug('Starting worker manager.')
         while self.running:
             self.logger.debug('Checking if worker must be reconfigured.')
@@ -40,19 +45,25 @@ class WorkerManager(Thread):
                 self.reconfigure()
             time.sleep(5)
 
-    def stop(self):
+    def stop(self) -> None:
         self.logger.debug('Stopping worker manager.')
         self.running = False
 
+class CapturedData:
+    def __init__(self, np_array: NDArray, captured_at: float) -> None:
+        self.np_array = np_array
+        self.captured_at = captured_at
 
 class Worker(Thread):
-    color_image: NDArray
-    depth_map: NDArray
+    color_image: CapturedData
+    depth_map: CapturedData
+    pcd: CapturedData
     manager: WorkerManager
 
     def __init__(self,
                 height: int,
                 width: int,
+                resolution_str: str,
                 frame_rate: float,
                 should_get_color,
                 should_get_depth,
@@ -63,26 +74,30 @@ class Worker(Thread):
 
         self.height = height
         self.width = width
+        self.resolution_color = RESOLUTION_TO_DAI_RESOLUTION[resolution_str][0]
+        logger.debug(f'Worker self.color_resolution: {self.resolution_color}')
+        self.resolution_depth = RESOLUTION_TO_DAI_RESOLUTION[resolution_str][1]
+        logger.debug(f'Worker self.resolution_depth: {self.resolution_depth}')
         self.frame_rate = frame_rate
         self.should_get_color = should_get_color
         self.should_get_depth = should_get_depth
         self.logger = logger
 
-        self.color_image = np.array([])
-        self.depth_map = np.array([])
-        self.pcd = np.array([])
+        self.color_image = CapturedData(None, None)
+        self.depth_map = CapturedData(None, None)
+        self.pcd = CapturedData(None, None)
 
         self.manager = WorkerManager(logger, reconfigure)
         self.manager.start()
         super().__init__()
  
-    def get_color_image(self) -> NDArray:
+    def get_color_image(self) -> CapturedData:
         return self.color_image
     
-    def get_depth_map(self) -> NDArray:
+    def get_depth_map(self) -> CapturedData:
         return self.depth_map
     
-    def get_pcd(self) -> NDArray:
+    def get_pcd(self) -> CapturedData:
         return self.pcd
 
     def _pipeline_loop(self) -> None:
@@ -124,27 +139,20 @@ class Worker(Thread):
             self.logger.debug('Creating pipeline node: color camera.')
             xout_color = oak.pipeline.create(dai.node.XLinkOut)
             xout_color.setStreamName(RGB_STREAM_NAME)
-            color = oak.camera('color', fps=self.frame_rate)
-            color.node.setPreviewSize(self.width, self.height)
+            color = oak.camera('color', fps=self.frame_rate, resolution=self.resolution_color)
             color.node.preview.link(xout_color.input)
             return color
 
     def _add_depth_node(self, oak: OakCamera, color: CameraComponent) -> Union[StereoComponent, None]:
         if self.should_get_depth:
             self.logger.debug('Creating pipeline node: stereo depth.')
-            mono_right = oak.pipeline.create(dai.node.MonoCamera)
-            mono_left = oak.pipeline.create(dai.node.MonoCamera)
+            stereo = oak.stereo(fps=self.frame_rate, resolution=self.resolution_depth)  # TODO: depth resolutions are broken! implement correct way to do resolution once Luxonis replies https://discuss.luxonis.com/d/2434-getting-pcd-format-point-cloud-data
+            stereo.node.setInputResolution(self.width, self.height)
+            if self.should_get_color:
+                stereo.config_stereo(align=color)
 
             depth_out = oak.pipeline.create(dai.node.XLinkOut)
             depth_out.setStreamName(DEPTH_STREAM_NAME)
-            xout_right = oak.pipeline.create(dai.node.XLinkOut)
-            xout_right.setStreamName(RIGHT_STREAM_NAME)
-            xout_left = oak.pipeline.create(dai.node.XLinkOut)
-            xout_left.setStreamName(LEFT_STREAM_NAME)
-
-            stereo = oak.stereo(fps=self.frame_rate, left=mono_left, right=mono_right)
-            if self.should_get_color:
-                stereo.config_stereo(align=color)
             stereo.node.depth.link(depth_out.input)
             return stereo
 
@@ -170,7 +178,7 @@ class Worker(Thread):
             depth_frame = q_depth.tryGet()
             if depth_frame:
                 np_depth_arr = depth_frame.getCvFrame()
-                np_depth_arr = cv2.resize(np_depth_arr, (self.width, self.height))
+                np_depth_arr = cv2.resize(np_depth_arr, (self.width, self.height))  # TODO: remove this after we fix depth map resolutions https://discuss.luxonis.com/d/2434-getting-pcd-format-point-cloud-data (it breaks alignment)
                 self._set_current_depth_map(np_depth_arr)
     
     def _handle_pcd_output(self, oak: OakCamera) -> None:
@@ -178,14 +186,14 @@ class Worker(Thread):
             oak.poll()
 
     def _set_current_image(self, arr: NDArray) -> None:
-        self.logger.debug('Setting current_image.')
-        self.color_image = arr
+        self.logger.debug(f'Setting current_image. Array shape: {arr.shape}. Dtype: {arr.dtype}')
+        self.color_image = CapturedData(arr, time.time())
 
     def _set_current_depth_map(self, arr: NDArray) -> None:
-        self.logger.debug('Setting current depth map.')
-        self.depth_map = arr
+        self.logger.debug(f'Setting current depth map. Array shape: {arr.shape}. Dtype: {arr.dtype}')
+        self.depth_map = CapturedData(arr, time.time())
 
     def _set_current_pcd(self, packet: PointcloudPacket) -> None:
         self.logger.debug('Setting current pcd.')
         subsampled_points = packet.points[::2, ::2, :]
-        self.pcd = subsampled_points
+        self.pcd = CapturedData(subsampled_points, time.time())

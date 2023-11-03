@@ -1,13 +1,15 @@
 # Standard library
 import logging
+import io
 import struct
 import time
 from typing import ClassVar, Mapping, Any, Dict, Optional, Tuple, Literal, List, NamedTuple, Union
 from typing_extensions import Self
 
 # Third party
-from PIL import Image
+from google.protobuf.timestamp_pb2 import Timestamp
 import numpy as np
+from PIL import Image
 
 # Viam module
 from viam.errors import ValidationError, ViamError
@@ -23,25 +25,31 @@ from viam.components.camera import Camera, DistortionParameters, IntrinsicParame
 from viam.media.video import NamedImage, CameraMimeType
 
 # OAK-D module
-from src.worker import Worker
+from src.worker import Worker, CapturedData
 
 LOGGER = getLogger(__name__)
 
 VALID_ATTRIBUTES = ['height_px', 'width_px', 'sensors', 'frame_rate', 'debug']
 
 MAX_FPS = 60
-MAX_WIDTH = 1280
-MAX_HEIGHT = 720
-
 DEFAULT_FRAME_RATE = 30
-DEFAULT_WIDTH = MAX_WIDTH
-DEFAULT_HEIGHT = MAX_HEIGHT
+# 800P
+DEFAULT_WIDTH = 1280
+DEFAULT_HEIGHT = 800
 DEFAULT_IMAGE_MIMETYPE = CameraMimeType.JPEG
 DEPTH_MIMETYPE = CameraMimeType.VIAM_RAW_DEPTH
 DEFAULT_DEBUGGING = False
 
 COLOR_SENSOR = 'color'
 DEPTH_SENSOR = 'depth'
+
+# TODO: refactor map keys to "enums" and stick them in a different file
+# TODO: pending changes to max gRPC message size (APP-2843), add higher resolutions
+# If you make changes to the below, be sure to update resolutions in worker too
+RESOLUTION_DIMENSION_MAP = {
+    "720P": (1280, 720),
+    "800P": (1280, 800),
+}
 
 class OakDModel(Camera, Reconfigurable, Stoppable):
     '''
@@ -72,8 +80,11 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
     def validate(cls, config: ComponentConfig) -> None:
         attribute_map = config.attributes.fields
 
-        # Helper that handles invalid attribute logic
-        def handle_error(err_msg: str):
+        def handle_error(err_msg: str) -> None:
+            '''
+            handle_error is invoked when there is an error in validation.
+            It logs a helpful error log, stops the worker if active, and raises & propagates the error
+            '''
             LOGGER.error(f'Config attribute error: {err_msg}')
             try:
                 cls.worker.stop()  # stop worker if active
@@ -81,43 +92,45 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
                 pass
             raise ValidationError("Invalid config attribute.")
         
-        # Helper that validates the attribute's value type
-        def validate_type(
+        def validate_attribute_type(
                 attribute: str,
                 expected_type: Literal['null_value', 'number_value', 'string_value', 'bool_value', 'struct_value', 'list_value'],
-                ):
+                ) -> None:
+            '''
+            validate_attribute_type exits and returns if the attribute doesn't exist,
+            and handles the error for when the attribute does exist, but has an incorrect value type.
+            '''
             value = attribute_map.get(key=attribute, default=None)
             if value is None:
                 return  # user did not supply given attribute
             if value.WhichOneof('kind') != expected_type:
                 handle_error(f'the "{attribute}" attribute must be a {expected_type}, not {value}.')
 
-        # Helper that validates height and width
-        def validate_dimension(attribute: str, max_value: int):
+        def validate_dimension(attribute: str) -> None:
+            '''
+            validate_dimension helps validates height and width values.
+            '''
             value = attribute_map.get(key=attribute, default=None)
             if value is None:
-                return False  # user did not supply given dimension
+                return
 
-            validate_type(attribute, 'number_value')
+            validate_attribute_type(attribute, 'number_value')
             number_value = value.number_value
             int_value = int(number_value)
             if int_value != number_value:
                 handle_error(f'"{attribute}" must be a whole number.')
-            if int_value > max_value:
-                handle_error(f'inputted "{attribute}" of {int_value} exceeds max "{attribute}" of {max_value}.')
             if int_value <= 0:
                 handle_error(f'inputted "{attribute}" cannot be less than or equal to 0.')
-            return True  # user supplied a valid dimension
         
-        # Validate config keys
+        # Check config keys are valid
         for attribute in attribute_map.keys():
             if attribute not in VALID_ATTRIBUTES:
                 handle_error(f'"{attribute}" is not a valid attribute i.e. {VALID_ATTRIBUTES}')
 
-        # Validate debug
-        validate_type('debug', 'bool_value')
+        # Check debug is bool
+        validate_attribute_type('debug', 'bool_value')
 
-        # Validate sensors list
+        # Check sensors is valid
         sensors_value = attribute_map.get(key='sensors', default=None)
         if sensors_value is None:
             handle_error('''
@@ -125,7 +138,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
                         e.g. ["depth", "color"], with the first sensor in the list being the main sensor
                         that get_image uses.
                         ''')
-        validate_type('sensors', 'list_value')
+        validate_attribute_type('sensors', 'list_value')
         sensor_list = list(sensors_value.list_value)
         if len(sensor_list) == 0:
             handle_error('"sensors" attribute list cannot be empty.')
@@ -148,18 +161,24 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             if frame_rate.number_value > 60 or frame_rate.number_value <= 0:
                 handle_error(f'"frame_rate" must be a number > 0 and <= 60.')
 
-        # Validate height
-        contains_height = validate_dimension('height_px', MAX_HEIGHT)
+        # Check height value
+        validate_dimension('height_px')
         
-        # Validate width
-        contains_width = validate_dimension('width_px', MAX_WIDTH)
+        # Check width value
+        validate_dimension('width_px')
 
-        # Validate dimensions together
-        if (contains_height and not contains_width) or (contains_width and not contains_height):
+        # Check resolution (height and width together)
+        height, width = attribute_map.get(key='height_px', default=None), attribute_map.get(key='width_px', default=None)
+        if (height is None and width is not None) or (height is not None and width is None):
             handle_error('received only one dimension attribute. Please supply both "height_px" and "width_px", or neither.')
+        if height and width:
+            for w, h in RESOLUTION_DIMENSION_MAP.values():
+                if width.number_value == w and height.number_value == h:
+                    return
+            raise handle_error(f'"width_px" of {width} and "height_px" of {height} is not a supported resolution i.e. {RESOLUTION_DIMENSION_MAP}')
 
     def reconfigure(self, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]):
-        cls = type(self)
+        cls: OakDModel = type(self)
         try:
             LOGGER.debug('Trying to stop worker.')
             cls.worker.stop()
@@ -186,20 +205,24 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         self.frame_rate = attribute_map['frame_rate'].number_value or DEFAULT_FRAME_RATE
         LOGGER.debug(f'Set frame_rate attr to {self.frame_rate}')
 
+        resolution_str = self._find_resolution(self.width, self.height)
         should_get_color, should_get_depth = COLOR_SENSOR in self.sensors, DEPTH_SENSOR in self.sensors
         callback = lambda: self.reconfigure(config, dependencies)
-        cls.worker = Worker(height=self.height,
-                            width=self.width,
-                            frame_rate=self.frame_rate,
-                            should_get_color=should_get_color,
-                            should_get_depth=should_get_depth,
-                            reconfigure=callback,
-                            logger=LOGGER)
+        cls.worker = Worker(
+            height=self.height,
+            width=self.width,
+            resolution_str=resolution_str,
+            frame_rate=self.frame_rate,
+            should_get_color=should_get_color,
+            should_get_depth=should_get_depth,
+            reconfigure=callback,
+            logger=LOGGER
+        )
         cls.worker.start()
 
     # Implements ``stop`` under the Stoppable protocol to free resources
     def stop(self, *, extra: Optional[Mapping[str, Any]] = None, timeout: Optional[float] = None, **kwargs):
-        cls = type(self)
+        cls: OakDModel = type(self)
         cls.worker.stop()
 
     async def get_image(
@@ -218,14 +241,15 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             Image | RawImage: The frame
         '''
         # LOGGER.debug('Handling get_image request.')
-        cls = type(self)
+        cls: OakDModel = type(self)
         main_sensor = self.sensors[0]
         if main_sensor == COLOR_SENSOR:
-            return Image.fromarray(cls.worker.get_color_image(), 'RGB')
+            captured_data = cls.worker.get_color_image()
+            return Image.fromarray(captured_data.np_array, 'RGB')
         if main_sensor == DEPTH_SENSOR:
-            return Image.fromarray(cls.worker.get_depth_map(), 'I;16').convert('RGB')
-        LOGGER.error('get_image failed due to misconfigured `sensors` attribute.')
-
+            captured_data = cls.worker.get_depth_map()
+            return Image.fromarray(captured_data.np_array, 'I;16').convert('RGB')
+        raise ViamError('get_image failed due to misconfigured "sensors" attribute, but should have been validated in `validate`...')
     
     async def get_images(self, *, timeout: Optional[float] = None, **kwargs) -> Tuple[List[NamedImage], ResponseMetadata]:
         '''Get simultaneous images from different imagers, along with associated metadata.
@@ -239,7 +263,49 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
                 - ResponseMetadata:
                   The metadata associated with this response
         '''
-        raise Exception('under construction...')
+        cls: OakDModel = type(self)
+        l: List[NamedImage] = []
+        seconds_float: float = None
+        if COLOR_SENSOR in self.sensors:
+            captured_data: CapturedData = cls.worker.get_color_image()
+            arr, captured_at = captured_data.np_array, captured_data.captured_at
+
+            # Create a Pillow image from the raw data
+            pil_image = Image.fromarray(arr)
+
+            # Create a BytesIO buffer to save the image as JPEG
+            output_buffer = io.BytesIO()
+
+            # Save the image as JPEG to the buffer
+            pil_image.save(output_buffer, format='JPEG')
+
+            # Get the bytes from the buffer
+            jpeg_bytes = output_buffer.getvalue()
+            img = NamedImage('color', jpeg_bytes, CameraMimeType.JPEG)
+            seconds_float = captured_at
+            l.append(img)
+        if DEPTH_SENSOR in self.sensors:
+            captured_data: CapturedData = cls.worker.get_depth_map()
+            captured_at = captured_data.captured_at
+    
+            # Create a Pillow image from the np array
+            pil_image = Image.fromarray(captured_data.np_array, 'I;16').convert('RGB')
+
+            # Create a BytesIO buffer to save the image as JPEG
+            output_buffer = io.BytesIO()
+
+            # Save the image as JPEG to the buffer
+            pil_image.save(output_buffer, format='JPEG')
+
+            # Get the bytes from the buffer
+            jpeg_bytes = output_buffer.getvalue()
+            img = NamedImage('depth', jpeg_bytes, CameraMimeType.JPEG)
+            seconds_float = captured_at
+            l.append(img)
+        seconds_int = int(seconds_float)
+        nanoseconds_int = int((seconds_float - seconds_int) * 1e9)
+        metadata = ResponseMetadata(captured_at=Timestamp(seconds=seconds_int, nanos=nanoseconds_int))
+        return l, metadata
     
     async def get_point_cloud(
         self, *, extra: Optional[Dict[str, Any]] = None, timeout: Optional[float] = None, **kwargs
@@ -273,10 +339,10 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             details = 'Please include "depth" in the "sensors" attribute list.'
             raise MethodNotAllowed('get_point_cloud', details)
         cls = type(self)
-        arr = cls.worker.get_pcd()
+        arr = cls.worker.get_pcd().np_array
         # TODO: why do we need to normalize by 1000 when depthAI says they return depth in mm?
         flat_array = arr.reshape(-1, arr.shape[-1]) / 1000.0
-        # TODO: why do we need to flip the 1st and 2nd dim signs in post-process?
+        # TODO: why do we need to negate the 1st and 2nd dimensions for image to be the correct orientation?
         flat_array[:, 0:2] = -flat_array[:, 0:2]
         version = 'VERSION .7\n'
         fields = 'FIELDS x y z\n'
@@ -351,6 +417,12 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             LOGGER.debug(f'[GetImage] RAW depth encode: {duration}ms')
 
         return bytes(raw_buf)
+    
+    def _find_resolution(self, width: int, height: int) -> str:
+        for name, (w, h) in RESOLUTION_DIMENSION_MAP.items():
+            if width == w and height == h:
+                return name
+        raise ViamError('Somehow an invalid resolution slipped past config validation...')
 
 class MethodNotAllowed(ViamError):
     """
