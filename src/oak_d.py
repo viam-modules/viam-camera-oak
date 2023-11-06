@@ -2,7 +2,8 @@
 import logging
 import io
 import struct
-from typing import ClassVar, Mapping, Any, Dict, Optional, Tuple, Literal, List, NamedTuple, Union
+import threading
+from typing import Callable, ClassVar, Mapping, Any, Dict, Optional, Tuple, Literal, List, NamedTuple, Union
 from typing_extensions import Self
 
 # Third party
@@ -63,6 +64,16 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
 
     @classmethod
     def new(cls, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]) -> Self:
+        '''
+        Used to register the module model class as a resource.
+
+        Args:
+            config (ComponentConfig)
+            dependencies (Mapping[ResourceName, ResourceBase])
+
+        Returns:
+            Self: the OAK-D model class
+        '''        
         camera_cls = cls(config.name)
         camera_cls.validate(config)
         camera_cls.reconfigure(config, dependencies)
@@ -70,6 +81,18 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
 
     @classmethod
     def validate(cls, config: ComponentConfig) -> None:
+        '''
+        A procedure called in reconfigure to validate the robot config.
+
+        Args:
+            config (ComponentConfig)
+
+        Raises:
+            ValidationError: with a description of what is wrong about the config
+
+        Returns:
+            None
+        '''        
         attribute_map = config.attributes.fields
 
         def handle_error(err_msg: str) -> None:
@@ -166,7 +189,15 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         if (height is None and width is not None) or (height is not None and width is None):
             handle_error('received only one dimension attribute. Please supply both "height_px" and "width_px", or neither.')
 
-    def reconfigure(self, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]):
+    def reconfigure(self, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]) -> None:
+        '''
+        A procedure both the RDK and module invokes to (re)configure and (re)boot the module—
+        serving as an initializer and restart method.
+
+        Args:
+            config (ComponentConfig)
+            dependencies (Mapping[ResourceName, ResourceBase])
+        '''        
         cls: OakDModel = type(self)
         try:
             LOGGER.debug('Trying to stop worker.')
@@ -207,25 +238,39 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         )
         cls.worker.start()
 
-    # Implements ``stop`` under the Stoppable protocol to free resources
-    def stop(self, *, extra: Optional[Mapping[str, Any]] = None, timeout: Optional[float] = None, **kwargs):
+    def stop(self, *, extra: Optional[Mapping[str, Any]] = None, timeout: Optional[float] = None, **kwargs) -> None:
+        '''
+        Implements ``stop`` under the Stoppable protocol to free resources.
+
+        Args:
+            extra (Optional[Mapping[str, Any]], optional): Unused.
+            timeout (Optional[float], optional): Accepted. Defaults to None and will run with no timeout.
+        '''
         cls: OakDModel = type(self)
-        cls.worker.stop()
+        if timeout:
+            self._run_with_timeout(timeout, cls.worker.stop)
+        else:
+            cls.worker.stop()
 
     async def get_image(
         self, mime_type: str = '', *, extra: Optional[Dict[str, Any]] = None, timeout: Optional[float] = None, **kwargs
     ) -> Union[Image.Image, RawImage]:
-        '''Get the next image from the camera as an Image or RawImage.
+        '''
+        Gets the next image from the camera as an Image or RawImage.
         Be sure to close the image when finished.
 
         NOTE: If the mime type is ``image/vnd.viam.dep`` you can use :func:`viam.media.video.RawImage.bytes_to_depth_array`
         to convert the data to a standard representation.
 
         Args:
-            mime_type (str): The desired mime type of the image. This does not guarantee output type
+            mime_type (str): The desired mime type of the image. This does not guarantee output type.
+
+        Raises:
+            NotSupportedError: if mime_type is not supported for the method
+            ViamError: if validation somehow failed and no sensors are configured
 
         Returns:
-            Image | RawImage: The frame
+            PIL.Image.Image | RawImage: The frame
         '''
         # LOGGER.debug('Handling get_image request.')
         mime_type =self._validate_get_image_mime_type(mime_type)
@@ -250,7 +295,8 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         raise ViamError('get_image failed due to misconfigured "sensors" attribute, but should have been validated in `validate`...')
     
     async def get_images(self, *, timeout: Optional[float] = None, **kwargs) -> Tuple[List[NamedImage], ResponseMetadata]:
-        '''Get simultaneous images from different imagers, along with associated metadata.
+        '''
+        Gets simultaneous images from different imagers, along with associated metadata.
         This should not be used for getting a time series of images from the same imager.
 
         Returns:
@@ -298,7 +344,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         self, *, extra: Optional[Dict[str, Any]] = None, timeout: Optional[float] = None, **kwargs
     ) -> Tuple[bytes, str]:
         '''
-        Get the next point cloud from the camera. This will be
+        Gets the next point cloud from the camera. This will be
         returned as bytes with a mimetype describing
         the structure of the data. The consumer of this call
         should encode the bytes into the formatted suggested
@@ -318,9 +364,12 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             pcd = o3d.io.read_point_cloud('/tmp/pointcloud_data.pcd')
             points = np.asarray(pcd.points)
 
+        Raises:
+            MethodNotAllowed: when config doesn't supply "depth" as a sensor
+
         Returns:
-            bytes: The pointcloud data.
-            str: The mimetype of the pointcloud (e.g. PCD).
+            bytes: The serialized point cloud data.
+            str: The mimetype of the point cloud (e.g. PCD).
         '''
         if DEPTH_SENSOR not in self.sensors:
             details = 'Please include "depth" in the "sensors" attribute list.'
@@ -350,7 +399,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
     
     async def get_properties(self, *, timeout: Optional[float] = None, **kwargs) -> Properties:
         '''
-        Get the camera intrinsic parameters and camera distortion parameters
+        Gets the camera intrinsic parameters and camera distortion parameters
 
         Returns:
             Properties: The properties of the camera
@@ -358,6 +407,16 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         return self.camera_properties
 
     def _encode_depth_raw(self, data: bytes, shape: Tuple[int, int]) -> bytes:
+        '''
+        Encodes raw data into a bytes payload deserializable by the Viam SDK (camera mime type depth)
+
+        Args:
+            data (bytes): raw bytes
+            shape (Tuple[int, int]): output dimensions of depth map (height x width)
+
+        Returns:
+            bytes: encoded bytes
+        '''        
         height, width = shape  # using np array shape for actual outputted height/width
         MAGIC_NUMBER = struct.pack('>Q', 4919426490892632400)  # UTF-8 binary encoding for 'DEPTHMAP', big-endian
         MAGIC_BYTE_COUNT = struct.calcsize('Q')  # Number of bytes used to represent the depth magic number
@@ -392,19 +451,31 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         return bytes(raw_buf)
     
     def _validate_get_image_mime_type(self, mime_type: CameraMimeType) -> CameraMimeType:
-        # guard for empty str (no inputted mime_type)
+        '''
+        Validates inputted mime type for get_image calls.
+
+        Args:
+            mime_type (CameraMimeType): user inputted mime_type
+
+        Raises:
+            err: NotSupportedError
+
+        Returns:
+            CameraMimeType: validated/converted mime type
+        '''        
+        # Guard for empty str (no inputted mime_type)
         if mime_type == '':
             LOGGER.warn(f'mime_type was empty str or null; defaulting to {CameraMimeType.JPEG}.')
             return CameraMimeType.JPEG
 
-        # get valid types based on main sensor
+        # Get valid types based on main sensor
         main_sensor = self.sensors[0]
         if main_sensor == 'color':
             valid_mime_types = [CameraMimeType.JPEG]
         else:  # depth
             valid_mime_types = [CameraMimeType.JPEG, CameraMimeType.VIAM_RAW_DEPTH]
 
-        # check validity
+        # Check validity
         if mime_type not in valid_mime_types:
             err = NotSupportedError(
                 f'mime_type "{mime_type}" is not supported for get_image.'
@@ -414,12 +485,27 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             raise err
 
         return mime_type
+    
+    def _run_with_timeout(self, timeout: float, function: Callable) -> None:
+        '''
+        Run a function with timeout.
+
+        Args:
+            timeout (float)
+            function (Callable)
+        '''        
+        thread = threading.Thread(target=function)
+        thread.start()
+        thread.join(timeout)
+        if thread.is_alive():
+            thread.join()
+            LOGGER.error(f'{function.__name__} timed out after {timeout} seconds.')
 
 class MethodNotAllowed(ViamError):
-    """
+    '''
     Exception raised when attempting to call a method
     with a configuration that does not support said method.
-    """
+    '''
     def __init__(self, method_name: str, details: str) -> None:
         self.name = method_name
         self.message = f'Cannot invoke method "{method_name}" with current config. {details}'
