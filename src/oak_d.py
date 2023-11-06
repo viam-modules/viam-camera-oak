@@ -229,30 +229,25 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             Image | RawImage: The frame
         '''
         # LOGGER.debug('Handling get_image request.')
-        if mime_type not in [CameraMimeType.JPEG, CameraMimeType.VIAM_RAW_DEPTH, '']:
-            err = NotSupportedError(
-                f'mime_type "{mime_type}" is not supported for get_image.'
-                f'Please use "{CameraMimeType.JPEG}" or "{CameraMimeType.VIAM_RAW_DEPTH}".'
-            )
-            LOGGER.error(err)
-            raise err
-
+        mime_type =self._validate_get_image_mime_type(mime_type)
         cls: OakDModel = type(self)
-        main_sensor = self.sensors[0]
 
+        main_sensor = self.sensors[0]
         if main_sensor == COLOR_SENSOR:
-            if mime_type != CameraMimeType.JPEG:
-                raise NotSupportedError(f'mime_type "{mime_type}" is not supported for getting color image. Please use "{CameraMimeType.JPEG}"')
-            captured_data = await cls.worker.get_color_image()
-            return Image.fromarray(captured_data.np_array, 'RGB')
+            if mime_type == CameraMimeType.JPEG:
+                captured_data = await cls.worker.get_color_image()
+                return Image.fromarray(captured_data.np_array, 'RGB')
+            raise NotSupportedError(f'mime_type "{mime_type}" is not supported for color. Please use {CameraMimeType.JPEG}')
         
         if main_sensor == DEPTH_SENSOR:
             captured_data = await cls.worker.get_depth_map()
             arr = captured_data.np_array
+            if mime_type == CameraMimeType.JPEG:
+                return Image.fromarray(arr, 'I;16').convert('RGB')
             if mime_type == CameraMimeType.VIAM_RAW_DEPTH:
                 encoded_bytes = self._encode_depth_raw(arr.tobytes(), arr.shape)
                 return RawImage(encoded_bytes, mime_type)
-            return Image.fromarray(arr, 'I;16').convert('RGB')
+            raise NotSupportedError(f'mime_type {mime_type} is not supported for depth. Please use {CameraMimeType.JPEG} or {CameraMimeType.VIAM_RAW_DEPTH}.')
         raise ViamError('get_image failed due to misconfigured "sensors" attribute, but should have been validated in `validate`...')
     
     async def get_images(self, *, timeout: Optional[float] = None, **kwargs) -> Tuple[List[NamedImage], ResponseMetadata]:
@@ -396,6 +391,30 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         # Copy data into rest of the buffer
         raw_buf[offset:offset + pixel_byte_count] = data
         return bytes(raw_buf)
+    
+    def _validate_get_image_mime_type(self, mime_type: CameraMimeType) -> CameraMimeType:
+        # guard for empty str (no inputted mime_type)
+        if mime_type == '':
+            LOGGER.warn(f'mime_type was empty str or null; defaulting to {CameraMimeType.JPEG}.')
+            return CameraMimeType.JPEG
+
+        # get valid types based on main sensor
+        main_sensor = self.sensors[0]
+        if main_sensor == 'color':
+            valid_mime_types = [CameraMimeType.JPEG]
+        else:  # depth
+            valid_mime_types = [CameraMimeType.JPEG, CameraMimeType.VIAM_RAW_DEPTH]
+
+        # check validity
+        if mime_type not in valid_mime_types:
+            err = NotSupportedError(
+                f'mime_type "{mime_type}" is not supported for get_image.'
+                f'Valid mime type(s): {valid_mime_types}.'
+            )
+            LOGGER.error(err)
+            raise err
+
+        return mime_type
 
 class MethodNotAllowed(ViamError):
     """
