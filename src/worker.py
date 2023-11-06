@@ -19,6 +19,7 @@ MAX_GRPC_MESSAGE_BYTE_COUNT = 4194304  # Update this if the gRPC config ever cha
 CAM_RESOLUTION = dai.ColorCameraProperties.SensorResolution.THE_1080_P
 
 class WorkerManager(Thread):
+    '''WorkerManager is embedded in Worker, managing the life of the worker thread as a watcher.'''    
     def __init__(self,
                 logger: Logger,
                 reconfigure: Callable[[None], None],
@@ -36,7 +37,9 @@ class WorkerManager(Thread):
             self.logger.debug('Checking if worker must be reconfigured.')
             if self.needs_reconfigure:
                 self.logger.debug('Worker needs reconfiguring; reconfiguring worker.')
+                # set worker to newly instantiated worker; current worker is garbage collected
                 self.reconfigure()
+                self.running = False
             time.sleep(5)
 
     def stop(self) -> None:
@@ -44,15 +47,17 @@ class WorkerManager(Thread):
         self.running = False
 
 class CapturedData:
+    '''CapturedData is the data as an np array, plus the time.time() it was captured at.'''
     def __init__(self, np_array: NDArray, captured_at: float) -> None:
         self.np_array = np_array
         self.captured_at = captured_at
 
 class Worker(Thread):
+    '''OakDModel class <-> Worker <-> DepthAI API <-> the actual OAK-D camera'''
     color_image: Union[CapturedData, None]
     depth_map: Union[CapturedData, None]
     pcd: Union[CapturedData, None]
-    user_called_pcd: bool
+    get_pcd_was_invoked: bool
 
     manager: WorkerManager
 
@@ -65,7 +70,7 @@ class Worker(Thread):
                 reconfigure: Callable[[None], None],
                 logger: Logger,
                 ) -> None:
-        logger.info('Initializing camera pipeline worker.')
+        logger.info('Initializing worker.')
 
         self.height = height
         self.width = width
@@ -77,7 +82,7 @@ class Worker(Thread):
         self.color_image = None
         self.depth_map = None
         self.pcd = None
-        self.user_called_pcd = False
+        self.get_pcd_was_invoked = False
 
         self.manager = WorkerManager(logger, reconfigure)
         self.manager.start()
@@ -96,14 +101,18 @@ class Worker(Thread):
         return self.depth_map
     
     async def get_pcd(self) -> CapturedData:
-        if not self.user_called_pcd:
-            self.user_called_pcd = True
+        if not self.get_pcd_was_invoked:
+            self.get_pcd_was_invoked = True
         while not self.pcd and self.manager.running:
             self.logger.debug('Waiting for pcd...')
             await asyncio.sleep(1)
         return self.pcd
 
     def _pipeline_loop(self) -> None:
+        '''
+        Initializes the integration with DepthAI using OakCamera API. It builds the pipeline
+        and reads from output queues and polls callback functions to get camera data.
+        '''        
         failures = 0
         try:
             self.logger.debug('Initializing worker image pipeline.')
@@ -111,10 +120,10 @@ class Worker(Thread):
                 color = self._configure_color(oak)
                 stereo = self._configure_stereo(oak, color)
                 self._configure_pc(oak, stereo, color)
-                prev_user_called_pcd = self.user_called_pcd
+                previous_get_pcd_was_invoked = self.get_pcd_was_invoked
                 oak.start()
                 while self.manager.running:
-                    if prev_user_called_pcd != self.user_called_pcd:
+                    if previous_get_pcd_was_invoked != self.get_pcd_was_invoked:
                         break  # to restart pipeline with PCD support
                     self._handle_color_output(oak)
                     self._handle_depth_and_pcd_output(oak)
@@ -126,9 +135,13 @@ class Worker(Thread):
             else:
                 self.logger.debug(f"Pipeline loop failure count: {failures}. Error: {e}. ")
         finally:
-            self.logger.debug('Exiting worker camera loop.')
+            self.logger.debug('Exiting worker pipeline loop.')
 
     def run(self) -> None:
+        '''
+        Implements `run` of the Thread protocol. (Re)starts and (re)runs the pipeline loop
+        according to the worker manager.
+        '''    
         try:
             while self.manager.running:
                 self._pipeline_loop()
@@ -136,10 +149,21 @@ class Worker(Thread):
             self.logger.info('Stopped and exited worker thread.')
 
     def stop(self) -> None:
+        '''Implements `stop` of the Thread protocol.'''
         self.logger.info('Stopping worker.')
         self.manager.stop()
     
-    def _configure_color(self, oak: OakCamera) -> Union[CameraComponent, None] :
+    def _configure_color(self, oak: OakCamera) -> Union[CameraComponent, None]:
+        '''
+        Creates and configures color component— or doesn't
+        (based on config).
+
+        Args:
+            oak (OakCamera)
+
+        Returns:
+            Union[CameraComponent, None]
+        '''        
         if self.user_wants_color:
             self.logger.debug('Creating pipeline node: color camera.')
             xout_color = oak.pipeline.create(dai.node.XLinkOut)
@@ -151,11 +175,21 @@ class Worker(Thread):
             return color
 
     def _configure_stereo(self, oak: OakCamera, color: CameraComponent) -> Union[StereoComponent, None]:
+        '''
+        Creates and configures stereo depth component— or doesn't
+        (based on config).
+
+        Args:
+            oak (OakCamera)
+
+        Returns:
+            Union[StereoComponent, None]
+        '''   
         if self.user_wants_depth:
             self.logger.debug('Creating pipeline node: stereo depth.')
-            # TODO: Figure out how to use DepthAI to adjust the output size of depth maps
-            # Right now it's being handled as a cv2.resize in _set_depth_map
-            # The below commented code should fix, but DepthAI hasn't implemented config_camera for mono cameras yet
+            # TODO: Figure out how to use DepthAI to adjust the output size of depth maps.
+            # Right now it's being handled as a cv2.resize in _set_depth_map.
+            # The below commented code should fix this, but DepthAI hasn't implemented config_camera for mono cameras yet.
             # mono_left = oak.camera(dai.CameraBoardSocket.LEFT, fps=self.frame_rate)
             # mono_left.config_camera((self.width, self.height))
             # mono_right = oak.camera(dai.CameraBoardSocket.RIGHT, fps=self.frame_rate)
@@ -169,15 +203,32 @@ class Worker(Thread):
             return stereo
 
     def _configure_pc(self, oak: OakCamera, stereo: StereoComponent, color: CameraComponent) -> Union[PointcloudComponent, None]:
-        if self.user_wants_depth and self.user_called_pcd:
+        '''
+        Creates and configures point cloud component— or doesn't
+        (based on config and if the module invokes get_pcd).
+
+        Args:
+            oak (OakCamera)
+
+        Returns:
+            Union[PointcloudComponent, None]
+        '''   
+        if self.user_wants_depth and self.get_pcd_was_invoked:
             self.logger.debug('Creating pipeline node: point cloud.')
             pcc = oak.create_pointcloud(stereo, color)
             oak.callback(pcc, callback=self._set_pcd)
             return pcc
     
     def _handle_color_output(self, oak: OakCamera) -> None:
+        '''
+        Handles getting color image frames from preview stream
+        (not from direct out, for correct height and width). Does nothing
+        if module not handling color outputs.
+
+        Args:
+            oak (OakCamera)
+        '''        
         if self.user_wants_color:
-            # Get frames from preview stream, not direct out, for correct height and width
             rgb_queue = oak.device.getOutputQueue(PREVIEW_STREAM_NAME)
             rgb_frame_data = rgb_queue.tryGet()
             if rgb_frame_data:
@@ -186,6 +237,13 @@ class Worker(Thread):
                 self._set_color_image(rgb_frame)
     
     def _handle_depth_and_pcd_output(self, oak: OakCamera) -> None:
+        '''
+        Handles polling OakCamera to get depth map and PCD. Does nothing
+        if module not handling depth outputs.
+
+        Args:
+            oak (OakCamera)
+        '''    
         if self.user_wants_depth:
             oak.poll()
 
