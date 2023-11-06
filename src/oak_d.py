@@ -195,14 +195,14 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         self.frame_rate = attribute_map['frame_rate'].number_value or DEFAULT_FRAME_RATE
         LOGGER.debug(f'Set frame_rate attr to {self.frame_rate}')
 
-        should_get_color, should_get_depth = COLOR_SENSOR in self.sensors, DEPTH_SENSOR in self.sensors
+        user_wants_color, user_wants_depth = COLOR_SENSOR in self.sensors, DEPTH_SENSOR in self.sensors
         callback = lambda: self.reconfigure(config, dependencies)
         cls.worker = Worker(
             height=self.height,
             width=self.width,
             frame_rate=self.frame_rate,
-            should_get_color=should_get_color,
-            should_get_depth=should_get_depth,
+            user_wants_color=user_wants_color,
+            user_wants_depth=user_wants_depth,
             reconfigure=callback,
             logger=LOGGER
         )
@@ -243,11 +243,12 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         if main_sensor == COLOR_SENSOR:
             if mime_type != CameraMimeType.JPEG:
                 raise NotSupportedError(f'mime_type "{mime_type}" is not supported for getting color image. Please use "{CameraMimeType.JPEG}"')
-            captured_data = cls.worker.get_color_image()
+            captured_data = await cls.worker.get_color_image()
             return Image.fromarray(captured_data.np_array, 'RGB')
         
         if main_sensor == DEPTH_SENSOR:
-            arr = cls.worker.get_depth_map().np_array
+            captured_data = await cls.worker.get_depth_map()
+            arr = captured_data.np_array
             if mime_type == CameraMimeType.VIAM_RAW_DEPTH:
                 encoded_bytes = self._encode_depth_raw(arr.tobytes(), arr.shape)
                 return RawImage(encoded_bytes, mime_type)
@@ -270,7 +271,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         l: List[NamedImage] = []
         seconds_float: float = None
         if COLOR_SENSOR in self.sensors:
-            captured_data = cls.worker.get_color_image()
+            captured_data = await cls.worker.get_color_image()
             arr, captured_at = captured_data.np_array, captured_data.captured_at
 
             # Create a Pillow image from the raw data
@@ -288,7 +289,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             seconds_float = captured_at
             l.append(img)
         if DEPTH_SENSOR in self.sensors:
-            captured_data = cls.worker.get_depth_map()
+            captured_data = await cls.worker.get_depth_map()
             arr, captured_at = captured_data.np_array, captured_data.captured_at
             depth_encoded_bytes = self._encode_depth_raw(arr.tobytes(), arr.shape)
             img = NamedImage('depth', depth_encoded_bytes, CameraMimeType.VIAM_RAW_DEPTH)
@@ -331,7 +332,8 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             details = 'Please include "depth" in the "sensors" attribute list.'
             raise MethodNotAllowed('get_point_cloud', details)
         cls = type(self)
-        arr = cls.worker.get_pcd().np_array
+        pcd_obj = await cls.worker.get_pcd()
+        arr = pcd_obj.np_array
         # TODO: why do we need to normalize by 1000 when depthAI says they return depth in mm?
         flat_array = arr.reshape(-1, arr.shape[-1]) / 1000.0
         # TODO: why do we need to negate the 1st and 2nd dimensions for image to be the correct orientation?
