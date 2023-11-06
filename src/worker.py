@@ -1,8 +1,9 @@
 import asyncio
-from logging import Logger
-from threading import Thread
 import time
 from typing import Callable, Union
+
+from logging import Logger
+from threading import Thread
 
 import cv2
 import depthai as dai

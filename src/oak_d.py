@@ -1,9 +1,9 @@
 # Standard library
-import logging
 import io
+import logging
 import struct
 import threading
-from typing import Callable, ClassVar, Mapping, Any, Dict, Optional, Tuple, Literal, List, NamedTuple, Union
+from typing import Any, Callable, ClassVar, Dict, Literal, List, Mapping, NamedTuple, Optional, Tuple, Union
 from typing_extensions import Self
 
 # Third party
@@ -22,7 +22,7 @@ from viam.resource.types import Model, ModelFamily
 
 # Viam camera
 from viam.components.camera import Camera, DistortionParameters, IntrinsicParameters, RawImage
-from viam.media.video import NamedImage, CameraMimeType
+from viam.media.video import CameraMimeType, NamedImage
 
 # OAK-D module
 from src.worker import Worker
