@@ -156,7 +156,7 @@ class Worker(Thread):
     def _configure_color(self, oak: OakCamera) -> Union[CameraComponent, None]:
         '''
         Creates and configures color component— or doesn't
-        (based on config).
+        (based on the config).
 
         Args:
             oak (OakCamera)
@@ -177,7 +177,7 @@ class Worker(Thread):
     def _configure_stereo(self, oak: OakCamera, color: CameraComponent) -> Union[StereoComponent, None]:
         '''
         Creates and configures stereo depth component— or doesn't
-        (based on config).
+        (based on the config).
 
         Args:
             oak (OakCamera)
@@ -205,7 +205,7 @@ class Worker(Thread):
     def _configure_pc(self, oak: OakCamera, stereo: StereoComponent, color: CameraComponent) -> Union[PointcloudComponent, None]:
         '''
         Creates and configures point cloud component— or doesn't
-        (based on config and if the module invokes get_pcd).
+        (based on the config and if the module has invoked get_pcd).
 
         Args:
             oak (OakCamera)
@@ -223,7 +223,7 @@ class Worker(Thread):
         '''
         Handles getting color image frames from preview stream
         (not from direct out, for correct height and width). Does nothing
-        if module not handling color outputs.
+        if the module is not configured to get color outputs.
 
         Args:
             oak (OakCamera)
@@ -238,8 +238,8 @@ class Worker(Thread):
     
     def _handle_depth_and_pcd_output(self, oak: OakCamera) -> None:
         '''
-        Handles polling OakCamera to get depth map and PCD. Does nothing
-        if module not handling depth outputs.
+        Handles polling OakCamera to get depth map and PCD (if configured). Does nothing
+        if the module is not configured to get depth outputs.
 
         Args:
             oak (OakCamera)
