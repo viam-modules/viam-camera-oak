@@ -38,7 +38,6 @@ DEFAULT_FRAME_RATE = 30
 DEFAULT_WIDTH = 640
 DEFAULT_HEIGHT = 400
 DEFAULT_IMAGE_MIMETYPE = CameraMimeType.JPEG
-DEPTH_MIMETYPE = CameraMimeType.VIAM_RAW_DEPTH
 DEFAULT_DEBUGGING = False
 
 COLOR_SENSOR = 'color'
@@ -325,7 +324,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         '''
         if DEPTH_SENSOR not in self.sensors:
             details = 'Please include "depth" in the "sensors" attribute list.'
-            raise MethodNotAllowed('get_point_cloud', details)
+            raise MethodNotAllowed(method_name='get_point_cloud', details=details)
         cls = type(self)
         pcd_obj = await cls.worker.get_pcd()
         arr = pcd_obj.np_array
@@ -421,7 +420,7 @@ class MethodNotAllowed(ViamError):
     Exception raised when attempting to call a method
     with a configuration that does not support said method.
     """
-    def __init__(self, name: str, details: str) -> None:
-        self.name = name
-        self.message = f'Cannot invoke method "{name}" with current config. {details}'
+    def __init__(self, method_name: str, details: str) -> None:
+        self.name = method_name
+        self.message = f'Cannot invoke method "{method_name}" with current config. {details}'
         super().__init__(self.message)

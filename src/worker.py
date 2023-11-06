@@ -11,7 +11,6 @@ from depthai_sdk.classes.packets import PointcloudPacket, DisparityDepthPacket
 from depthai_sdk.components.camera_component import CameraComponent
 from depthai_sdk.components.pointcloud_component import PointcloudComponent
 from depthai_sdk.components.stereo_component import StereoComponent
-import numpy as np
 from numpy.typing import NDArray
 
 PREVIEW_STREAM_NAME = 'PREVIEW'
@@ -154,9 +153,9 @@ class Worker(Thread):
     def _configure_stereo(self, oak: OakCamera, color: CameraComponent) -> Union[StereoComponent, None]:
         if self.user_wants_depth:
             self.logger.debug('Creating pipeline node: stereo depth.')
-            # TODO: Find some way for depthai to adjust the output size of depth maps
+            # TODO: Figure out how to use DepthAI to adjust the output size of depth maps
             # Right now it's being handled as a cv2.resize in _set_depth_map
-            # The below commented code should fix, but config_camera for mono camera resizing is not implemented yet
+            # The below commented code should fix, but DepthAI hasn't implemented config_camera for mono cameras yet
             # mono_left = oak.camera(dai.CameraBoardSocket.LEFT, fps=self.frame_rate)
             # mono_left.config_camera((self.width, self.height))
             # mono_right = oak.camera(dai.CameraBoardSocket.RIGHT, fps=self.frame_rate)
@@ -164,7 +163,7 @@ class Worker(Thread):
             # stereo = oak.stereo(fps=self.frame_rate, left=mono_left, right=mono_right)
             stereo = oak.stereo(fps=self.frame_rate, resolution='max')
             if self.user_wants_color:
-                stereo.config_stereo(align=color)  # ensures alignment and output resolution are same
+                stereo.config_stereo(align=color)  # ensures alignment and output resolution are same for color and depth
                 stereo.node.setOutputSize(*color.node.getPreviewSize())
             oak.callback(stereo, callback=self._set_depth_map)
             return stereo
