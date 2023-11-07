@@ -27,6 +27,7 @@ from viam.media.video import CameraMimeType, NamedImage
 # OAK-D module
 from src.worker import Worker
 
+
 LOGGER = getLogger(__name__)
 
 VALID_ATTRIBUTES = ['height_px', 'width_px', 'sensors', 'frame_rate', 'debug']
@@ -55,6 +56,7 @@ for handler in root_logger.handlers[:]:
 addHandlers(root_logger)
 ### TODO
 
+
 class OakDModel(Camera, Reconfigurable, Stoppable):
     '''
     OakDModel represents a physical OAK-D camera that can capture frames.
@@ -66,7 +68,6 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         '''The distortion parameters of the camera'''
         supports_pcd: bool = True
         '''Whether the camera has a valid implementation of ``get_point_cloud``'''
-    
 
     MODEL: ClassVar[Model] = Model(ModelFamily('viam', 'camera'), 'oak-d')
     worker: ClassVar[Worker]
@@ -511,6 +512,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         if thread.is_alive():
             thread.join()
             LOGGER.error(f'{function.__name__} timed out after {timeout} seconds.')
+
 
 class MethodNotAllowed(ViamError):
     '''
