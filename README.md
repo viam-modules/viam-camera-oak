@@ -1,6 +1,6 @@
 # OAK-D Modular Component
 
-This is a [Viam module](https://docs.viam.com/manage/configuration/#modules) for the [OAK-D](https://shop.luxonis.com/products/oak-d) camera. Registered at ___.
+This is a [Viam module](https://docs.viam.com/manage/configuration/#modules) for the [OAK-D](https://shop.luxonis.com/products/oak-d) camera. Registered at https://app.viam.com/module/viam/oak-d.
 
 ## Getting Started
 
@@ -27,11 +27,11 @@ This will automatically install the module to your robot.
 
 ### Locally installing the module
 
-If you do not want to use the Viam registry, you can use the module from source [here](___)
+If you do not want to use the Viam registry, you can use the module from source [here](https://app.viam.com/module/viam/oak-d)
 
 ```
 cd <your-directory>
-git clone ___
+git clone https://github.com/viamrobotics/viam-camera-oak-d.git
 ```
 
 Then modify your robot's JSON file as follows

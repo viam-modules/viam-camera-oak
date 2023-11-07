@@ -1,5 +1,5 @@
 {
-  "name": "viam:oak-d",
+  "module_id": "viam:oak-d",
   "visibility": "public",
   "url": "https://github.com/viamrobotics/viam-camera-oak-d",
   "description": "Python camera module for the Luxonis OAK-D",
