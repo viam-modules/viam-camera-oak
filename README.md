@@ -1,8 +1,18 @@
-# Intel RealSense Modular Component
+# OAK-D Modular Component
 
 This is a [Viam module](https://docs.viam.com/manage/configuration/#modules) for the [OAK-D](https://shop.luxonis.com/products/oak-d) camera. Registered at ___.
 
 ## Getting Started
+
+### Checking Python Version
+
+First and foremost, open a terminal on your robot, and run the following command to check its Python version:
+
+```
+python3 --version
+```
+
+Verify that your robot has Python 3.8 or a later version installed to avoid compatibility issues.
 
 ### Using the Registry
 
@@ -18,12 +28,6 @@ This will automatically install the module to your robot.
 ### Locally installing the module
 
 If you do not want to use the Viam registry, you can use the module from source [here](___)
-
-First run
-```
-python --version
-```
-Verify your machine is running Python 3.8 or later to avoid compatibility issues.
 
 ```
 cd <your-directory>

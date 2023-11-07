@@ -1,4 +1,6 @@
 #!/bin/bash
+#!/usr/bin/env python3.8
+
 echo "[Script] Setting up module."
 
 cd "$(dirname "$0")"
