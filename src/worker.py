@@ -119,7 +119,7 @@ class Worker(Thread):
                 if self.needs_reconfigure:
                     self.logger.debug('Worker needs reconfiguring; reconfiguring worker.')
                     self.reconfigure()
-                    self.running = False
+                    self.stop()
         finally:
             self.logger.info('Stopped and exited worker thread.')
 
