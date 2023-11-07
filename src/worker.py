@@ -14,16 +14,19 @@ from depthai_sdk.components.pointcloud_component import PointcloudComponent
 from depthai_sdk.components.stereo_component import StereoComponent
 from numpy.typing import NDArray
 
+
 PREVIEW_STREAM_NAME = 'PREVIEW'
 MAX_PIPELINE_FAILURES = 3
 MAX_GRPC_MESSAGE_BYTE_COUNT = 4194304  # Update this if the gRPC config ever changes (RSDK-5632)
 CAM_RESOLUTION = dai.ColorCameraProperties.SensorResolution.THE_1080_P
+
 
 class CapturedData:
     '''CapturedData is the data as an np array, plus the time.time() it was captured at.'''
     def __init__(self, np_array: NDArray, captured_at: float) -> None:
         self.np_array = np_array
         self.captured_at = captured_at
+
 
 class Worker(Thread):
     '''OakDModel class <-> Worker <-> DepthAI SDK <-> DepthAI API (C++) <-> the actual OAK-D camera'''
