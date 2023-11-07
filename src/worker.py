@@ -16,7 +16,7 @@ from numpy.typing import NDArray
 
 PREVIEW_STREAM_NAME = 'PREVIEW'
 MAX_PIPELINE_FAILURES = 3
-MAX_GRPC_MESSAGE_BYTE_COUNT = 4194304  # Update this if the gRPC config ever changes
+MAX_GRPC_MESSAGE_BYTE_COUNT = 4194304  # Update this if the gRPC config ever changes (RSDK-5632)
 CAM_RESOLUTION = dai.ColorCameraProperties.SensorResolution.THE_1080_P
 
 class CapturedData:
