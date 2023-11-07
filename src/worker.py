@@ -19,34 +19,6 @@ MAX_PIPELINE_FAILURES = 3
 MAX_GRPC_MESSAGE_BYTE_COUNT = 4194304  # Update this if the gRPC config ever changes
 CAM_RESOLUTION = dai.ColorCameraProperties.SensorResolution.THE_1080_P
 
-class WorkerManager(Thread):
-    '''WorkerManager is embedded in Worker, managing the life of the worker thread as a watcher.'''    
-    def __init__(self,
-                logger: Logger,
-                reconfigure: Callable[[None], None],
-                ) -> None:
-        self.logger = logger
-        self.reconfigure = reconfigure
-
-        self.needs_reconfigure = False
-        self.running = True
-        super().__init__()
-    
-    def run(self) -> None:
-        self.logger.debug('Starting worker manager.')
-        while self.running:
-            self.logger.debug('Checking if worker must be reconfigured.')
-            if self.needs_reconfigure:
-                self.logger.debug('Worker needs reconfiguring; reconfiguring worker.')
-                # set worker to newly instantiated worker; current worker is garbage collected
-                self.reconfigure()
-                self.running = False
-            time.sleep(5)
-
-    def stop(self) -> None:
-        self.logger.debug('Stopping worker manager.')
-        self.running = False
-
 class CapturedData:
     '''CapturedData is the data as an np array, plus the time.time() it was captured at.'''
     def __init__(self, np_array: NDArray, captured_at: float) -> None:
@@ -54,13 +26,11 @@ class CapturedData:
         self.captured_at = captured_at
 
 class Worker(Thread):
-    '''OakDModel class <-> Worker <-> DepthAI API <-> the actual OAK-D camera'''
+    '''OakDModel class <-> Worker <-> DepthAI SDK <-> DepthAI API (C++) <-> the actual OAK-D camera'''
     color_image: Union[CapturedData, None]
     depth_map: Union[CapturedData, None]
     pcd: Union[CapturedData, None]
     get_pcd_was_invoked: bool
-
-    manager: WorkerManager
 
     def __init__(self,
                 height: int,
@@ -78,25 +48,25 @@ class Worker(Thread):
         self.frame_rate = frame_rate
         self.user_wants_color = user_wants_color
         self.user_wants_depth = user_wants_depth
+        self.reconfigure = reconfigure
         self.logger = logger
 
         self.color_image = None
         self.depth_map = None
         self.pcd = None
+        self.running = True
+        self.needs_reconfigure = False
         self.get_pcd_was_invoked = False
-
-        self.manager = WorkerManager(logger, reconfigure)
-        self.manager.start()
         super().__init__()
  
     async def get_color_image(self) -> CapturedData:
-        while not self.color_image and self.manager.running:
+        while not self.color_image and self.running:
             self.logger.debug('Waiting for color image...')
             await asyncio.sleep(1)
         return self.color_image
     
     async def get_depth_map(self) -> CapturedData:
-        while not self.depth_map and self.manager.running:
+        while not self.depth_map and self.running:
             self.logger.debug('Waiting for depth map...')
             await asyncio.sleep(1)
         return self.depth_map
@@ -104,7 +74,7 @@ class Worker(Thread):
     async def get_pcd(self) -> CapturedData:
         if not self.get_pcd_was_invoked:
             self.get_pcd_was_invoked = True
-        while not self.pcd and self.manager.running:
+        while not self.pcd and self.running:
             self.logger.debug('Waiting for pcd...')
             await asyncio.sleep(1)
         return self.pcd
@@ -123,7 +93,7 @@ class Worker(Thread):
                 self._configure_pc(oak, stereo, color)
                 previous_get_pcd_was_invoked = self.get_pcd_was_invoked
                 oak.start()
-                while self.manager.running:
+                while self.running:
                     if previous_get_pcd_was_invoked != self.get_pcd_was_invoked:
                         break  # to restart pipeline with PCD support
                     self._handle_color_output(oak)
@@ -131,8 +101,8 @@ class Worker(Thread):
         except Exception as e:
             failures += 1
             if failures > MAX_PIPELINE_FAILURES:
-                self.manager.needs_reconfigure = True
                 self.logger.error(f"Reached {MAX_PIPELINE_FAILURES} max failures in pipeline loop. Error: {e}")
+                self.needs_reconfigure = True
             else:
                 self.logger.debug(f"Pipeline loop failure count: {failures}. Error: {e}. ")
         finally:
@@ -144,15 +114,19 @@ class Worker(Thread):
         according to the worker manager.
         '''    
         try:
-            while self.manager.running:
+            while self.running:
                 self._pipeline_loop()
+                if self.needs_reconfigure:
+                    self.logger.debug('Worker needs reconfiguring; reconfiguring worker.')
+                    self.reconfigure()
+                    self.running = False
         finally:
             self.logger.info('Stopped and exited worker thread.')
 
     def stop(self) -> None:
         '''Implements `stop` of the Thread protocol.'''
         self.logger.info('Stopping worker.')
-        self.manager.stop()
+        self.running = False
     
     def _configure_color(self, oak: OakCamera) -> Union[CameraComponent, None]:
         '''
