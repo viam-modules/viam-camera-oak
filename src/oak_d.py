@@ -44,8 +44,7 @@ DEFAULT_DEBUGGING = False
 COLOR_SENSOR = 'color'
 DEPTH_SENSOR = 'depth'
 
-
-### BANDAID FIX FOR LOGGING BUG CAUSED BY DEPTHAI LOGGER:
+### TODO RSDK-5592: remove the below bandaid fix once https://github.com/luxonis/depthai/pull/1135 is in a new release
 root_logger = logging.getLogger()
 
 # Remove all handlers from the root logger
@@ -54,7 +53,7 @@ for handler in root_logger.handlers[:]:
 
 # Apply Viam's logging handlers
 addHandlers(root_logger)
-### TODO: remove the above bandaid fix once https://github.com/luxonis/depthai/pull/1135 is resolved and in the newest ver
+### TODO RSDK-5592
 
 class OakDModel(Camera, Reconfigurable, Stoppable):
     '''
@@ -389,9 +388,9 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         cls = type(self)
         pcd_obj = await cls.worker.get_pcd()
         arr = pcd_obj.np_array
-        # TODO: why do we need to normalize by 1000 when depthAI says they return depth in mm?
+        # TODO RSDK-5676: why do we need to normalize by 1000 when depthAI says they return depth in mm?
         flat_array = arr.reshape(-1, arr.shape[-1]) / 1000.0
-        # TODO: why do we need to negate the 1st and 2nd dimensions for image to be the correct orientation?
+        # TODO RSDK-5676: why do we need to negate the 1st and 2nd dimensions for image to be the correct orientation?
         flat_array[:, 0:2] = -flat_array[:, 0:2]
         version = 'VERSION .7\n'
         fields = 'FIELDS x y z\n'

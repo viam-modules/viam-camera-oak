@@ -162,8 +162,8 @@ class Worker(Thread):
         '''   
         if self.user_wants_depth:
             self.logger.debug('Creating pipeline node: stereo depth.')
-            # TODO: Figure out how to use DepthAI to adjust the output size of depth maps.
-            # Right now it's being handled as a cv2.resize in _set_depth_map.
+            # TODO RSDK-5633: Figure out how to use DepthAI to adjust the output size of depth maps.
+            # Right now it's being handled as a manual crop resize in _set_depth_map.
             # The below commented code should fix this, but DepthAI hasn't implemented config_camera for mono cameras yet.
             # mono_left = oak.camera(dai.CameraBoardSocket.LEFT, fps=self.frame_rate)
             # mono_left.config_camera((self.width, self.height))
