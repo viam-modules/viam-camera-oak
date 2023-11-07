@@ -230,7 +230,10 @@ class Worker(Thread):
         arr = packet.frame
         if arr.shape != (self.height, self.width):
             self.logger.debug(f'Pipeline output shape mismatch: {arr.shape}; Manually resizing to {(self.height, self.width)}.')
-            arr = cv2.resize(arr, (self.width, self.height))
+            top_left_x = (arr.shape[1] - self.width) // 2
+            top_left_y = (arr.shape[0] - self.height) // 2
+            arr = arr[top_left_y:top_left_y + self.height, top_left_x:top_left_x + self.width]
+
         self.logger.debug(f'Setting current depth map. Array shape: {arr.shape}. Dtype: {arr.dtype}')
         self.depth_map = CapturedData(arr, time.time())
 

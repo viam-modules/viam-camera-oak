@@ -12,7 +12,7 @@ First and foremost, open a terminal on your robot, and run the following command
 python3 --version
 ```
 
-Verify that your robot has Python 3.8 or a later version installed to avoid compatibility issues.
+Verify that your robot has Python 3.8 or a later version installed and running to avoid compatibility issues.
 
 ### Using the registry
 
