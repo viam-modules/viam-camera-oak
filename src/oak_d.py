@@ -53,7 +53,7 @@ for handler in root_logger.handlers[:]:
 
 # Apply Viam's logging handlers
 addHandlers(root_logger)
-### TODO RSDK-5592
+### 
 
 class OakDModel(Camera, Reconfigurable, Stoppable):
     '''
