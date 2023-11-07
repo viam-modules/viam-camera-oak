@@ -13,7 +13,7 @@ from PIL import Image
 
 # Viam module
 from viam.errors import NotSupportedError, ValidationError, ViamError
-from viam.logging import getLogger
+from viam.logging import getLogger, addHandlers
 from viam.module.types import Reconfigurable, Stoppable
 from viam.proto.app.robot import ComponentConfig
 from viam.proto.common import ResourceName, ResponseMetadata
@@ -43,6 +43,18 @@ DEFAULT_DEBUGGING = False
 
 COLOR_SENSOR = 'color'
 DEPTH_SENSOR = 'depth'
+
+
+### BANDAID FIX FOR LOGGING BUG CAUSED BY DEPTHAI LOGGER:
+root_logger = logging.getLogger()
+
+# Remove all handlers from the root logger
+for handler in root_logger.handlers[:]:
+    root_logger.removeHandler(handler)
+
+# Apply Viam's logging handlers
+addHandlers(root_logger)
+### TODO: remove the above bandaid fix once https://github.com/luxonis/depthai/pull/1135 is resolved and in the newest ver
 
 class OakDModel(Camera, Reconfigurable, Stoppable):
     '''
