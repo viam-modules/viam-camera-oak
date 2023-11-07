@@ -4,7 +4,7 @@ This is a [Viam module](https://docs.viam.com/manage/configuration/#modules) for
 
 ## Getting Started
 
-### Checking Python Version
+### Checking Python version
 
 First and foremost, open a terminal on your robot, and run the following command to check its Python version:
 
@@ -14,7 +14,7 @@ python3 --version
 
 Verify that your robot has Python 3.8 or a later version installed to avoid compatibility issues.
 
-### Using the Registry
+### Using the registry
 
 The recommended way to install the module is through the Viam registry.
 
