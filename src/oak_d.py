@@ -125,7 +125,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
     @classmethod
     def validate(cls, config: ComponentConfig) -> None:
         """
-        A procedure called to validate the robot config.
+        A procedure called to validate the camera config.
 
         Args:
             config (ComponentConfig)
