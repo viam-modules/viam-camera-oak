@@ -8,7 +8,7 @@ This is a [Viam module](https://docs.viam.com/manage/configuration/#modules) for
 
 First and foremost, open a terminal on your robot, and run the following command to check its Python version:
 
-```
+```console
 python3 --version
 ```
 
@@ -29,7 +29,7 @@ This will automatically install the module to your robot.
 
 If you do not want to use the Viam registry, you can use the module from source [here.](https://github.com/viamrobotics/viam-camera-oak-d)
 
-```
+```console
 cd <your-directory>
 git clone https://github.com/viamrobotics/viam-camera-oak-d.git
 ```
