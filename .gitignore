@@ -1,2 +1,10 @@
+# Top level
+
 viam-env
 .installed
+
+# src
+src/__pycache__
+
+# tests
+tests/__pycache__
