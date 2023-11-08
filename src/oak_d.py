@@ -62,7 +62,7 @@ DEFAULT_DEBUGGING = False
 COLOR_SENSOR = "color"
 DEPTH_SENSOR = "depth"
 
-### TODO RSDK-5592: remove the below bandaid fix
+### TODO RSDK-5592: remove the below bandaid fix:
 # once https://github.com/luxonis/depthai/pull/1135 is in a new release
 root_logger = logging.getLogger()
 
