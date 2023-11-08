@@ -19,169 +19,169 @@ def make_component_config(dictionary: Mapping[str, Any]) -> ComponentConfig:
 
 invalid_attribute_name = (
     make_component_config({
-        'sensors': ['color'],
-        'foo': 'bar'
+        "sensors": ["color"],
+        "foo": "bar"
     }),
-    'is not a valid attribute'
+    "is not a valid attribute"
 )
 
 debug_not_bool = (
     make_component_config({
-        'debug': 'true'
+        "debug": "true"
     }),
-    'attribute must be a bool_value'
+    "attribute must be a bool_value"
 )
 
 sensors_not_present = (
     make_component_config(dict()),
-    'a "sensors" attribute of a list of sensor(s)'
+    "a "sensors" attribute of a list of sensor(s)"
 )
 
 sensors_is_not_list = (
     make_component_config({
-        'sensors': 'color'
+        "sensors": "color"
     }),
-    'attribute must be a list_value'
+    "attribute must be a list_value"
 )
 
 sensors_is_empty_list = (
     make_component_config({
-        'sensors': []
+        "sensors": []
     }),
-    'attribute list cannot be empty'
+    "attribute list cannot be empty"
 )
 
 sensors_list_too_long = (
     make_component_config({
-        'sensors': ['color', 'depth', 'fake']
+        "sensors": ["color", "depth", "fake"]
     }),
-    'attribute list exceeds max length of two.'
+    "attribute list exceeds max length of two."
 )
 
 sensors_has_unknown_type = (
     make_component_config({
-        'sensors': ['fake']
+        "sensors": ["fake"]
     }),
-    'unknown sensor type'
+    "unknown sensor type"
 )
 
 sensors_has_duplicates = (
     make_component_config({
-        'sensors': ['color', 'color']
+        "sensors": ["color", "color"]
     }),
-    'duplicates'
+    "duplicates"
 )
 
 frame_rate_not_number_value = (
     make_component_config({
-        'sensors': ['color', 'depth'],
-        'frame_rate': '30'
+        "sensors": ["color", "depth"],
+        "frame_rate": "30"
     }),
-    'attribute must be a number value'
+    "attribute must be a number value"
 )
 
 frame_rate_exceeds_max = (
     make_component_config({
-        'sensors': ['color', 'depth'],
-        'frame_rate': MAX_FRAME_RATE + 1
+        "sensors": ["color", "depth"],
+        "frame_rate": MAX_FRAME_RATE + 1
     }),
-    f'must be a float > 0 and <= {MAX_FRAME_RATE}'
+    f"must be a float > 0 and <= {MAX_FRAME_RATE}"
 )
 
 frame_rate_is_zero = (
     make_component_config({
-        'sensors': ['color', 'depth'],
-        'frame_rate': 0
+        "sensors": ["color", "depth"],
+        "frame_rate": 0
     }),
-    f'must be a float > 0 and <= {MAX_FRAME_RATE}'
+    f"must be a float > 0 and <= {MAX_FRAME_RATE}"
 )
 
 frame_rate_is_negative = (
     make_component_config({
-        'sensors': ['color', 'depth'],
-        'frame_rate': -1
+        "sensors": ["color", "depth"],
+        "frame_rate": -1
     }),
-    f'must be a float > 0 and <= {MAX_FRAME_RATE}'
+    f"must be a float > 0 and <= {MAX_FRAME_RATE}"
 )
 
 dimension_not_number_value = (
     make_component_config({
-        'sensors': ['color', 'depth'],
-        'height_px': '500px'
+        "sensors": ["color", "depth"],
+        "height_px": "500px"
     }),
-    'attribute must be a number_value'
+    "attribute must be a number_value"
 )
 
 dimension_not_whole_number = (
     make_component_config({
-        'sensors': ['color', 'depth'],
-        'height_px': 88.8
+        "sensors": ["color", "depth"],
+        "height_px": 88.8
     }),
-    'must be a whole number'
+    "must be a whole number"
 )
 
 height_exceeds_max_value = (
     make_component_config({
-        'sensors': ['color', 'depth'],
-        'height_px': MAX_HEIGHT + 1
+        "sensors": ["color", "depth"],
+        "height_px": MAX_HEIGHT + 1
     }),
-    f'cannot be greater than max of {MAX_HEIGHT}'
+    f"cannot be greater than max of {MAX_HEIGHT}"
 )
 
 height_is_zero = (
     make_component_config({
-        'sensors': ['color', 'depth'],
-        'height_px': 0
+        "sensors": ["color", "depth"],
+        "height_px": 0
     }),
-    'cannot be less than or equal to 0'
+    "cannot be less than or equal to 0"
 )
 
 height_is_negative = (
     make_component_config({
-        'sensors': ['color', 'depth'],
-        'height_px': -1
+        "sensors": ["color", "depth"],
+        "height_px": -1
     }),
-    'cannot be less than or equal to 0'
+    "cannot be less than or equal to 0"
 )
 
 width_exceeds_max_value = (
     make_component_config({
-        'sensors': ['color', 'depth'],
-        'width_px': MAX_WIDTH + 1
+        "sensors": ["color", "depth"],
+        "width_px": MAX_WIDTH + 1
     }),
-    f'cannot be greater than max of {MAX_WIDTH}'
+    f"cannot be greater than max of {MAX_WIDTH}"
 )
 
 width_is_zero = (
     make_component_config({
-        'sensors': ['color', 'depth'],
-        'width_px': 0
+        "sensors": ["color", "depth"],
+        "width_px": 0
     }),
-    'cannot be less than or equal to 0'
+    "cannot be less than or equal to 0"
 )
 
 width_is_negative = (
     make_component_config({
-        'sensors': ['color', 'depth'],
-        'width_px': -1
+        "sensors": ["color", "depth"],
+        "width_px": -1
     }),
-    'cannot be less than or equal to 0'
+    "cannot be less than or equal to 0"
 )
 
 only_received_height = (
     make_component_config({
-        'sensors': ['color', 'depth'],
-        'height_px': 720
+        "sensors": ["color", "depth"],
+        "height_px": 720
     }),
-    'poop'
+    "received only one dimension attribute"
 )
 
 only_received_width = (
     make_component_config({
-        'sensors': ['color', 'depth'],
-        'width_px': 1280
+        "sensors": ["color", "depth"],
+        "width_px": 1280
     }),
-    'received only one dimension attribute'
+    "received only one dimension attribute"
 )
 
 configs_and_msgs = [
@@ -210,11 +210,11 @@ configs_and_msgs = [
 ]
 
 full_correct_config = make_component_config({
-    'sensors': ['color', 'depth'],
-    'height_px': 800,
-    'width_px': 1280,
-    'frame_rate': 60,
-    'debug': False
+    "sensors": ["color", "depth"],
+    "height_px": 800,
+    "width_px": 1280,
+    "frame_rate": 60,
+    "debug": False
 })
 
 @pytest.mark.parametrize("config,msg", configs_and_msgs)
@@ -228,7 +228,7 @@ def test_validate_no_errors():
     try:
         OakDModel.validate(full_correct_config)
     except Exception as e:
-        s = (f'Expected a correct config to not raise {type(e)} during validation, yet it did :,)')
+        s = (f"Expected a correct config to not raise {type(e)} during validation, yet it did :,)")
         pytest.fail(reason=s)
 
 # TODO RSDK-5597: write more tests (get_image, get_images, get_pcd)
