@@ -34,7 +34,7 @@ debug_not_bool = (
 
 sensors_not_present = (
     make_component_config(dict()),
-    "a "sensors" attribute of a list of sensor(s)"
+    'a "sensors" attribute of a list of sensor(s)'
 )
 
 sensors_is_not_list = (
