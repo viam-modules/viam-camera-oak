@@ -9,7 +9,7 @@ This is a [Viam module](https://docs.viam.com/manage/configuration/#modules) for
 First and foremost, open a terminal on your robot, and run the following command to check its Python version:
 
 ```console
-python3 --version
+$ python3 --version
 ```
 
 Verify that your robot has Python 3.8 or a later version installed and running to avoid compatibility issues.
@@ -30,8 +30,8 @@ This will automatically install the module to your robot.
 If you do not want to use the Viam registry, you can use the module from source [here.](https://github.com/viamrobotics/viam-camera-oak-d)
 
 ```console
-cd <your-directory>
-git clone https://github.com/viamrobotics/viam-camera-oak-d.git
+$ cd <your-directory>
+$ git clone https://github.com/viamrobotics/viam-camera-oak-d.git
 ```
 
 Then modify your robot's JSON file as follows

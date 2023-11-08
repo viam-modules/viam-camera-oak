@@ -44,15 +44,15 @@ Ready to contribute? Here's how to set up the module for local development.
 
 1. Git clone the repository locally:
     ```console
-    cd <path-you-want-the-repo-folder-to-be-in>
-    git clone https://github.com/viamrobotics/viam-camera-oak-d.git
+    $ cd <path-you-want-the-repo-folder-to-be-in>
+    $ git clone https://github.com/viamrobotics/viam-camera-oak-d.git
     ```
 
 1. Follow [these instructions](https://docs.viam.com/program/python-venv/) in our docs to set up your Python virtual environment.
 
 1. After your terminal is in the virtual env, run the following to get the required dev dependencies:
     ```console
-    pip install -r requirements-dev.txt
+    $ pip install -r requirements-dev.txt
     ```
 
 1. Use `git` (or similar) to create a branch for local development and make your changes:
@@ -62,8 +62,8 @@ Ready to contribute? Here's how to set up the module for local development.
 
 1. Make sure your changes are properly formatted and passing tests by running:
     ```console
-    make lint
-    make test
+    $ make lint
+    $ make test
     ```
 
 1. Commit your changes and open a pull request.
