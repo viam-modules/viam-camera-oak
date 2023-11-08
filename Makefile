@@ -9,6 +9,7 @@ lint:
 	black src
 
 lint-check:
+	black src --diff
 	black src --check
 
 test:
