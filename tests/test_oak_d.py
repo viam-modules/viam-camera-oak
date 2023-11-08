@@ -4,7 +4,7 @@ from google.protobuf.struct_pb2 import Struct
 import pytest
 
 from viam.proto.app.robot import ComponentConfig
-from viam.errors import NotSupportedError, ValidationError, ViamError
+from viam.errors import ValidationError
 
 from src.oak_d import OakDModel, MAX_FRAME_RATE, MAX_HEIGHT, MAX_WIDTH
 
@@ -15,7 +15,8 @@ def make_component_config(dictionary: Mapping[str, Any]) -> ComponentConfig:
     struct.update(dictionary=dictionary)
     return ComponentConfig(attributes=struct)
 
-### Parameterized vars
+### Tests
+
 invalid_attribute_name = (
     make_component_config({
         'sensors': ['color'],
@@ -208,10 +209,26 @@ configs_and_msgs = [
     only_received_width
 ]
 
-### Tests
+full_correct_config = make_component_config({
+    'sensors': ['color', 'depth'],
+    'height_px': 800,
+    'width_px': 1280,
+    'frame_rate': 60,
+    'debug': False
+})
+
 @pytest.mark.parametrize("config,msg", configs_and_msgs)
 def test_validate_errors_parameterized(config, msg):
     with pytest.raises(ValidationError) as exc_info:
         OakDModel.validate(config)
         assert exc_info.type == ValidationError
     assert msg in str(exc_info.value)
+
+def test_validate_no_errors():
+    try:
+        OakDModel.validate(full_correct_config)
+    except Exception as e:
+        s = (f'Expected a correct config to not raise {type(e)} during validation, yet it did :,)')
+        pytest.fail(reason=s)
+
+# TODO RSDK-5656: write more tests (get_image, get_images, get_pcd)

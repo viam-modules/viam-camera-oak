@@ -219,7 +219,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             LOGGER.debug('No active worker.')
 
         self.camera_properties = Camera.Properties(
-                supports_pcd=False,  # TODO: change to true after https://github.com/viamrobotics/viam-python-sdk/pull/481 is in
+                supports_pcd=False,  # TODO RSDK-5637: change to true after https://github.com/viamrobotics/viam-python-sdk/pull/481 is in
                 distortion_parameters=None,
                 intrinsic_parameters=None
             )
@@ -285,7 +285,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             PIL.Image.Image | RawImage: The frame
         '''
         # LOGGER.debug('Handling get_image request.')
-        mime_type =self._validate_get_image_mime_type(mime_type)
+        mime_type = self._validate_get_image_mime_type(mime_type)
         cls: OakDModel = type(self)
 
         main_sensor = self.sensors[0]
