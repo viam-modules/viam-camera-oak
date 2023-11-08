@@ -1,5 +1,3 @@
-# Makefile
-
 .DEFAULT_GOAL := install
 
 install:
