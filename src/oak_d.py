@@ -1,3 +1,5 @@
+
+
 # Standard library
 import io
 import logging
@@ -627,4 +629,9 @@ class MethodNotAllowed(ViamError):
         self.message = (
             f'Cannot invoke method "{method_name}" with current config. {details}'
         )
-        super().__init__(self.message)
+        super().__init__(self.message) 
+
+
+
+
+
