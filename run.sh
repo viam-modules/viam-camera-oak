@@ -6,7 +6,7 @@ echo "[Module setup] Setting up module."
 cd "$(dirname "$0")"
 
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    if command -v pip &> /dev/null; then
+    if command -v pip3 &> /dev/null; then
         echo "[Module setup] python3-pip installation found."
     else
         echo "[Module setup] python3-pip installation not found. Attempting to install python3-pip."
@@ -14,7 +14,7 @@ if [[ "$OSTYPE" == "linux-gnu"* ]]; then
         sudo apt install python3-pip
     fi
 
-    if pip freeze | grep -q "virtualenv"; then
+    if pip3 freeze | grep -q "virtualenv"; then
         echo "[Module setup] python3-venv installation found."
     else
         echo "[Module setup] python3-venv installation not found. Attempting to install python3-venv."
@@ -29,7 +29,7 @@ if [ -f "$(pwd)/.installed" ]; then
     pip3 install --upgrade -r requirements-prod.txt
 else
     echo "[Module setup] Installing virtual environment and dependencies."
-    python3 -m pip install --user virtualenv
+    python3 -m pip3 install --user virtualenv
     python3 -m venv viam-env
     source viam-env/bin/activate
     pip3 install --upgrade -r requirements-prod.txt
