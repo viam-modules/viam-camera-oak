@@ -77,7 +77,17 @@ addHandlers(root_logger)
 
 class OakDModel(Camera, Reconfigurable, Stoppable):
     """
-    OakDModel represents a physical OAK-D camera that can capture frames.
+    OakDModel implements all available methods for the camera class: get_image,
+    get_images, get_point_cloud, and get_properties.
+
+    It inherits from the built-in resource subtype Base and conforms to the
+    ``Reconfigurable`` protocol, which signifies that this component can be
+    reconfigured. It also confirms to the ``Stoppable`` protocol, which signifies
+    that the component can be stopped manually using stop()
+
+    Additionally, it specifies a constructor function
+    ``OakDModel.new`` which confirms to the ``resource.types.ResourceCreator``
+    type required for all models.
     """
 
     class Properties(NamedTuple):
@@ -115,7 +125,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
     @classmethod
     def validate(cls, config: ComponentConfig) -> None:
         """
-        A procedure called in reconfigure to validate the robot config.
+        A procedure called to validate the robot config.
 
         Args:
             config (ComponentConfig)

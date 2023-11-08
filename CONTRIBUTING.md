@@ -52,7 +52,7 @@ Ready to contribute? Here's how to set up the module for local development.
 
 1. After your terminal is in the virtual env, run the following to get the required dev dependencies:
     ```console
-    $ pip install -r requirements-dev.txt
+    $ make install
     ```
 
 1. Use `git` (or similar) to create a branch for local development and make your changes:
