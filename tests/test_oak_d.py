@@ -173,7 +173,7 @@ only_received_height = (
         'sensors': ['color', 'depth'],
         'height_px': 720
     }),
-    'received only one dimension attribute'
+    'poop'
 )
 
 only_received_width = (
