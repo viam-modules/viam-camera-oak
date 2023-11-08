@@ -231,4 +231,4 @@ def test_validate_no_errors():
         s = (f'Expected a correct config to not raise {type(e)} during validation, yet it did :,)')
         pytest.fail(reason=s)
 
-# TODO RSDK-5656: write more tests (get_image, get_images, get_pcd)
+# TODO RSDK-5597: write more tests (get_image, get_images, get_pcd)
