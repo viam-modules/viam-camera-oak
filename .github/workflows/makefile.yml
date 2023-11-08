@@ -18,7 +18,12 @@ jobs:
       run: make install
 
     - name: Run lint
-      run: make lint
+      run: |
+        black --check .
+        if [ $? -ne 0 ]; then
+          echo "Black formatting check failed. Please fix the issues."
+          exit 1
+        fi
 
     - name: Run tests
       run: make test
