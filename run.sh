@@ -26,13 +26,13 @@ fi
 if [ -f "$(pwd)/.installed" ]; then
     echo "[Module setup] Dependencies installed. Activating venv."
     source viam-env/bin/activate
-    pip3 install --upgrade -r requirements.txt
+    pip3 install --upgrade -r requirements-prod.txt
 else
     echo "[Module setup] Installing virtual environment and dependencies."
     python3 -m pip install --user virtualenv
     python3 -m venv viam-env
     source viam-env/bin/activate
-    pip3 install --upgrade -r requirements.txt
+    pip3 install --upgrade -r requirements-prod.txt
     if [ $? -eq 0 ]; then
         touch "$(pwd)/.installed"
     fi

@@ -27,7 +27,7 @@ This will automatically install the module to your robot.
 
 ### Locally installing the module
 
-If you do not want to use the Viam registry, you can use the module from source [here](https://app.viam.com/module/viam/oak-d)
+If you do not want to use the Viam registry, you can use the module from source [here.](https://github.com/viamrobotics/viam-camera-oak-d)
 
 ```
 cd <your-directory>

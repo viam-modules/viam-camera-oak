@@ -34,7 +34,7 @@ VALID_ATTRIBUTES = ['height_px', 'width_px', 'sensors', 'frame_rate', 'debug']
 
 MAX_HEIGHT = 1080
 MAX_WIDTH = 1920
-MAX_FPS = 60
+MAX_FRAME_RATE = 60
 
 DEFAULT_FRAME_RATE = 30
 DEFAULT_WIDTH = 640
@@ -112,12 +112,13 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             handle_error is invoked when there is an error in validation.
             It logs a helpful error log, stops the worker if active, and raises & propagates the error
             '''
-            LOGGER.error(f'Config attribute error: {err_msg}')
+            full_err_msg = f'Config attribute validation error: {err_msg}'
+            LOGGER.error(full_err_msg)
             try:
                 cls.worker.stop()  # stop worker if active
             except AttributeError:
                 pass
-            raise ValidationError("Invalid config attribute.")
+            raise ValidationError(full_err_msg)
         
         def validate_attribute_type(
                 attribute: str,
@@ -163,9 +164,8 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         sensors_value = attribute_map.get(key='sensors', default=None)
         if sensors_value is None:
             handle_error('''
-                        a "sensors" attribute of a list of sensor(s) to read data from is required
-                        e.g. ["depth", "color"], with the first sensor in the list being the main sensor
-                        that get_image uses.
+                        a "sensors" attribute of a list of sensor(s) is a required attribute e.g. ["depth", "color"],
+                        with the first sensor in the list being the main sensor that get_image uses.
                         ''')
         validate_attribute_type('sensors', 'list_value')
         sensor_list = list(sensors_value.list_value)
@@ -187,8 +187,8 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         if frame_rate:
             if frame_rate.WhichOneof('kind') != 'number_value':
                 handle_error(f'the "frame_rate" attribute must be a number value, not {frame_rate}.')
-            if frame_rate.number_value > 60 or frame_rate.number_value <= 0:
-                handle_error(f'"frame_rate" must be a number > 0 and <= 60.')
+            if frame_rate.number_value > MAX_FRAME_RATE or frame_rate.number_value <= 0:
+                handle_error(f'"frame_rate" must be a float > 0 and <= {MAX_FRAME_RATE}.')
 
         # Check height value
         validate_dimension('height_px', MAX_HEIGHT)
