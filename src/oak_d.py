@@ -363,7 +363,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         Returns:
             PIL.Image.Image | RawImage: The frame
         """
-        LOGGER.debug('Handling get_image request.')
+        LOGGER.debug("Handling get_image request.")
         mime_type = self._validate_get_image_mime_type(mime_type)
         cls: OakDModel = type(self)
 
