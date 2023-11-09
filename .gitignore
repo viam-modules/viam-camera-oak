@@ -7,4 +7,4 @@ oak-d-integration-tests
 src/__pycache__
 
 # unit tests
-unit-tests/__pycache__
+tests/__pycache__

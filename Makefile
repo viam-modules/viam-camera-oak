@@ -1,4 +1,5 @@
 # Makefile
+.PHONY: integration-tests
 
 .DEFAULT_GOAL := install
 
@@ -12,12 +13,12 @@ lint-check:
 	black src --diff
 	black src --check
 
-test: test-unit
+test: unit-tests
 
-test-unit:
-	pytest unit-tests
+unit-tests:
+	pytest tests
 
-test-integration: integration-tests/tests/*
+integration-tests: tests/integration-tests/tests/*
 	cd integration-tests && \
 	go test -c -o oak-d-integration-tests ./tests/ && \
 	mv oak-d-integration-tests ../
