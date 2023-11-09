@@ -14,3 +14,6 @@ lint-check:
 
 test:
 	pytest tests
+
+build:
+	tar -czf module.tar.gz run.sh requirements.txt src

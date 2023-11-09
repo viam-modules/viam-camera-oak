@@ -1,6 +1,6 @@
 # Top level
 viam-env
-.installed
+.pytest_cache
 
 # src
 src/__pycache__
