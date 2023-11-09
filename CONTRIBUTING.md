@@ -50,7 +50,7 @@ Ready to contribute? Here's how to set up the module for local development.
 
 1. Follow [these instructions](https://docs.viam.com/program/python-venv/) in our docs to set up your Python virtual environment.
 
-1. After your terminal is in the virtual env, run the following to get the required dev dependencies:
+1. After you activate the `viam-env` virtual env, run the following to get the required dev dependencies:
     ```console
     $ make install
     ```

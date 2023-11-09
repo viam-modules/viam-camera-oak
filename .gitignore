@@ -1,9 +1,10 @@
-# Top level
+# top level
 viam-env
 .pytest_cache
+oak-d-integration-tests
 
 # src
 src/__pycache__
 
-# tests
-tests/__pycache__
+# unit tests
+unit-tests/__pycache__

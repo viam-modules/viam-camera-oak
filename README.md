@@ -73,3 +73,10 @@ when starting the Viam server in order for debug logs to be piped properly e.g. 
   ]
 }
 ```
+
+## Integration Tests
+
+The repo comes with a suite of integration tests that allow one to test if the module works with an actual OAK-D device on the machine of interest. You will need to compile the binary on the same machine you expect to run it on.
+
+- Copy the repo to your local robot: `git clone https://github.com/viamrobotics/viam-camera-oak-d.git`
+- run `make integration-tests`
