@@ -2,6 +2,7 @@
 viam-env
 .pytest_cache
 oak-d-integration-tests
+module.tar.gz
 
 # src
 src/__pycache__
