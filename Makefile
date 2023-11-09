@@ -2,8 +2,6 @@
 
 .DEFAULT_GOAL := install
 
-.PHONY: unit-tests
-
 install:
 	pip install -r requirements-dev.txt
 
@@ -14,13 +12,12 @@ lint-check:
 	black src --diff
 	black src --check
 
-test:
-	unit-tests
+test: test-unit
 
-unit-tests:
+test-unit:
 	pytest unit-tests
 
-integration-tests: integration-tests/tests/*
+test-integration: integration-tests/tests/*
 	cd integration-tests && \
 	go test -c -o oak-d-integration-tests ./tests/ && \
 	mv oak-d-integration-tests ../
