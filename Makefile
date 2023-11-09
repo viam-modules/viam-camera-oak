@@ -18,7 +18,7 @@ test: unit-tests
 unit-tests:
 	pytest tests
 
-integration-tests: tests/integration-tests/tests/*
+integration-tests: integration-tests/tests/*
 	cd integration-tests && \
 	go test -c -o oak-d-integration-tests ./tests/ && \
 	mv oak-d-integration-tests ../
