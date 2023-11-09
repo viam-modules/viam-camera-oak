@@ -2,6 +2,8 @@
 
 .DEFAULT_GOAL := install
 
+.PHONY: unit-tests
+
 install:
 	pip install -r requirements-dev.txt
 
