@@ -1,5 +1,5 @@
 # top level
-viam-env
+viam-oak-d-venv
 .pytest_cache
 oak-d-integration-tests
 module.tar.gz

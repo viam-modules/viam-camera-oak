@@ -1,2 +1,2 @@
-viam-sdk==0.9.1
 depthai-sdk==1.13.1
+viam-sdk
