@@ -1,47 +1,45 @@
-#!/bin/bash
+#!/bin/sh
+cd `dirname $0`
 
-echo "[Module setup] Setting up module."
-OS=$(uname -s)
-cd "$(dirname "$0")"
+# Create a virtual environment to run our code
+VENV_NAME="viam-oak-d-venv"
+PYTHON="$VENV_NAME/bin/python"
+LOG_PREFIX="[Viam OAK-D setup]"
+ENV_ERROR="$LOG_PREFIX This module requires Python >=3.8, pip, and virtualenv to be installed."
 
-if command -v pip3 &> /dev/null; then
-    echo "[Module setup] python3-pip installation found."
-else
-    echo "[Module setup] python3-pip installation not found."
-    if [[ "$OS" == "Linux" ]]; then
-        echo "[Module setup] Attempting to install python3-pip on $OS machine."
-        sudo apt update
-        sudo apt install python3-pip -y
-    elif [[ "$OS" == "Darwin"* ]]; then
-        echo "[Module setup] Attempting to install python3-pip on $OS machine."
-        brew update
-        brew install python3
-    else
-        echo "[Module setup] Error: Could not identify $OS for installation."
+if ! python3 -m venv $VENV_NAME >/dev/null 2>&1; then
+    echo "$LOG_PREFIX Failed to create virtualenv."
+    if command -v apt-get >/dev/null; then
+        echo "$LOG_PREFIX Detected Debian/Ubuntu, attempting to install python3-venv automatically."
+        SUDO="sudo"
+        if ! command -v $SUDO >/dev/null; then
+            SUDO=""
+        fi
+		if ! apt info python3-venv >/dev/null 2>&1; then
+			echo "$LOG_PREFIX Package info not found, trying apt update"
+			$SUDO apt -qq update >/dev/null
+		fi
+        $SUDO apt install -qqy python3-venv >/dev/null 2>&1
+        if ! python3 -m venv $VENV_NAME >/dev/null 2>&1; then
+            echo $ENV_ERROR >&2
+            exit 1
+        fi
+    else  # some other OS we cannot get python3-venv for in script
+        echo $ENV_ERROR >&2
         exit 1
     fi
-fi
-
-if pip3 freeze | grep -q "virtualenv"; then
-    echo "[Module setup] python3-venv installation found."
 else
-    if [[ "$OS" == "Linux" ]]; then
-        echo "[Module setup] python3-venv installation not found. Attempting to install python3-venv."
-        sudo apt update
-        sudo apt install python3-venv -y
-    elif [[ "$OS" == "Darwin"* ]]; then
-        pip3 install virtualenv -y
-    else
-        echo "[Module setup] Error: Could not identify $OS for installation."
-        exit 1
-    fi
+    echo "$LOG_PREFIX Created/found virtualenv."
 fi
 
-echo "[Module setup] Making virtual environment and installing dependencies."
-python3 -m venv viam-env
-source viam-env/bin/activate
-pip3 install -r requirements.txt
+# remove -U if viam-sdk should not be upgraded whenever possible
+# -qq suppresses extraneous output from pip
+echo "$LOG_PREFIX Installing/upgrading Python packages."
+if ! $PYTHON -m pip install -r requirements.txt -Uqq; then
+    exit 1
+fi
 
-echo "[Module setup] Setup complete. Starting module process."
-# Uses `exec` so that termination signals reach the Python process; handled by Stoppable protocol
-exec -a viam-oak-d python3 -m src.main "$@"
+# Be sure to use `exec` so that termination signals reach the python process,
+# or handle forwarding termination signals manually
+echo "$LOG_PREFIX Starting module..."
+exec $PYTHON -m src.main $@
