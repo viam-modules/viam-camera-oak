@@ -587,10 +587,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         """
         # Guard for empty str (no inputted mime_type)
         if mime_type == "":
-            LOGGER.warning(
-                f"mime_type was empty str or null; defaulting to {CameraMimeType.JPEG}."
-            )
-            return CameraMimeType.JPEG
+            return CameraMimeType.JPEG  # default is JPEG
 
         # Get valid types based on main sensor
         main_sensor = self.sensors[0]

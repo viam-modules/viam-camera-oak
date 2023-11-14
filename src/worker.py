@@ -65,7 +65,6 @@ class Worker(Thread):
         self.depth_map = None
         self.pcd = None
         self.running = True
-        self.needs_reconfigure = False
         self.get_pcd_was_invoked = False
         super().__init__()
 
@@ -114,7 +113,9 @@ class Worker(Thread):
                 self.logger.error(
                     f"Reached {MAX_PIPELINE_FAILURES} max failures in pipeline loop. Error: {e}"
                 )
-                self.needs_reconfigure = True
+                self.logger.debug("Worker needs reconfiguring; reconfiguring worker.")
+                self.reconfigure()
+                self.stop()
             else:
                 self.logger.debug(
                     f"Pipeline loop failure count: {failures}. Error: {e}. "
@@ -130,12 +131,6 @@ class Worker(Thread):
         try:
             while self.running:
                 self._pipeline_loop()
-                if self.needs_reconfigure:
-                    self.logger.debug(
-                        "Worker needs reconfiguring; reconfiguring worker."
-                    )
-                    self.reconfigure()
-                    self.stop()
         finally:
             self.logger.info("Stopped and exited worker thread.")
 
