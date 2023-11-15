@@ -5,7 +5,7 @@ cd `dirname $0`
 VENV_NAME="viam-oak-d-venv"
 PYTHON="$VENV_NAME/bin/python"
 LOG_PREFIX="[Viam OAK-D setup]"
-ENV_ERROR="$LOG_PREFIX This module requires Python >=3.8, pip, and virtualenv to be installed."
+ENV_ERROR="$LOG_PREFIX This module requires Python >=3.8.1, pip, and virtualenv to be installed."
 
 if ! python3 -m venv $VENV_NAME >/dev/null 2>&1; then
     echo "$LOG_PREFIX Failed to create virtualenv."
