@@ -44,7 +44,6 @@ Ready to contribute? Here's how to set up the module for local development.
 
 1. Git clone the repository locally:
     ```console
-    cd <path-you-want-the-repo-folder-to-be-in>
     git clone https://github.com/viamrobotics/viam-camera-oak-d.git
     ```
 
