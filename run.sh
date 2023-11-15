@@ -41,5 +41,5 @@ fi
 
 # Be sure to use `exec` so that termination signals reach the python process,
 # or handle forwarding termination signals manually
-echo "$LOG_PREFIX Starting module..."
+echo "$LOG_PREFIX Starting module."
 exec $PYTHON -m src.main $@
