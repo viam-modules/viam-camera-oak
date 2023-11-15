@@ -51,11 +51,10 @@ Then modify your robot's JSON file as follows
 ## Attributes and Sample Config
 
 The attributes for the module are as follows:
-- `sensors` (required): a list that contain the strings `color` and/or `depth`. The sensor that comes first in the list is designated the "main sensor" and will be the image that gets returned by `get_image` calls and what will appear in the Control tab on app.viam. When both sensors are requested, `get_images` will return both the color and depth outputs captured at the same timestamp, and `get_point_clouds` will also be available for use. See the [camera docs](https://docs.viam.com/components/camera/#api) for more details on these functions. 
-- `width_px`, `height_px`: the int width and height of the output images. If the OAK-D cannot produce the requested resolution, the component will be configured to the closest resolution to the given height/width. Therefore, the image output size will not always match the input size. Color and depth outputs will always output with the same height and width.
-- `frame_rate`: the float that represents the frame rate the camera will capture images at.
-- `debug`: the bool that determines whether the module will log debug messages in `std.out`. Note: make sure you also use the `-debug` flag 
-when starting the Viam server in order for debug logs to be piped properly e.g. `viam-server -debug -config /etc/viam.json`.
+- `sensors` (required): an array that contains the strings `color` and/or `depth`. The sensor that comes first in the array is designated the "main sensor" and will be the image that gets returned by `get_image` calls and what will appear in the Control tab on app.viam. When both sensors are requested, `get_point_clouds` will also be available for use, and `get_images` will return both the color and depth outputs. Additionally, color and depth outputs returned together will always be aligned, have the same height and width, and have the same timestamp. See Viam's [documentation on the Camera API](https://docs.viam.com/components/camera/#api) for more details. 
+- `width_px`, `height_px`: the int width and height of the output images. If the OAK-D cannot produce the requested resolution, the component will be configured to the closest resolution to the given height/width. Therefore, the image output size will not always match the input size. `height_px` defaults to `400`, and `width_px` defaults to `640`.
+- `frame_rate`: the float that represents the frame rate the camera will capture images at. Defaults to `30.0`.
+
 ```
 {
   "components": [
@@ -66,7 +65,6 @@ when starting the Viam server in order for debug logs to be piped properly e.g. 
         "width_px": 640,
         "height_px": 480,
         "frame_rate": 30,
-        "debug": false
       },
       "namespace": "rdk",
       "type": "camera",
@@ -75,6 +73,9 @@ when starting the Viam server in order for debug logs to be piped properly e.g. 
   ]
 }
 ```
+
+Although not a config attribute, you can also configure the module to output debug logs. This is done by using the `-debug` flag 
+when starting the Viam server in order for module debug logs to be piped through to stdout e.g. `viam-server -debug -config path/to/your/config.json`.
 
 ## Integration Tests
 

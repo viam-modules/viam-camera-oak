@@ -25,12 +25,6 @@ invalid_attribute_name = (
     "is not a valid attribute"
 )
 
-debug_not_bool = (
-    make_component_config({
-        "debug": "true"
-    }),
-    "attribute must be a bool_value"
-)
 
 sensors_not_present = (
     make_component_config(dict()),
@@ -186,7 +180,6 @@ only_received_width = (
 
 configs_and_msgs = [
     invalid_attribute_name,
-    debug_not_bool,
     sensors_not_present,
     sensors_is_not_list,
     sensors_is_empty_list,
@@ -214,7 +207,6 @@ full_correct_config = make_component_config({
     "height_px": 800,
     "width_px": 1280,
     "frame_rate": 60,
-    "debug": False
 })
 
 @pytest.mark.parametrize("config,msg", configs_and_msgs)

@@ -47,18 +47,18 @@ from src.worker import Worker
 
 LOGGER = getLogger(__name__)
 
-VALID_ATTRIBUTES = ["height_px", "width_px", "sensors", "frame_rate", "debug"]
+VALID_ATTRIBUTES = ["height_px", "width_px", "sensors", "frame_rate"]
 
 MAX_HEIGHT = 1080
 MAX_WIDTH = 1920
 MAX_FRAME_RATE = 60
 MAX_GRPC_BYTE_COUNT = 4194304  # Update this if the gRPC config ever changes (RSDK-5632)
 
+# Be sure to update README.md if default attributes are changed
 DEFAULT_FRAME_RATE = 30
 DEFAULT_WIDTH = 640
 DEFAULT_HEIGHT = 400
 DEFAULT_IMAGE_MIMETYPE = CameraMimeType.JPEG
-DEFAULT_DEBUGGING = False
 
 COLOR_SENSOR = "color"
 DEPTH_SENSOR = "depth"
@@ -205,9 +205,6 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
                     f'"{attribute}" is not a valid attribute i.e. {VALID_ATTRIBUTES}'
                 )
 
-        # Check debug is bool
-        validate_attribute_type("debug", "bool_value")
-
         # Check sensors is valid
         sensors_value = attribute_map.get(key="sensors", default=None)
         if sensors_value is None:
@@ -290,10 +287,6 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             intrinsic_parameters=None,
         )
         attribute_map = config.attributes.fields
-        self.debugging = attribute_map["debug"].bool_value or DEFAULT_DEBUGGING
-        if self.debugging:
-            LOGGER.setLevel(logging.DEBUG)
-            LOGGER.debug(f"Running module in debugging mode.")
         self.sensors = list(attribute_map["sensors"].list_value)
         LOGGER.debug(f"Set sensors attr to {self.sensors}")
         self.height = int(attribute_map["height_px"].number_value) or DEFAULT_HEIGHT
