@@ -363,7 +363,6 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         Returns:
             PIL.Image.Image | RawImage: The frame
         """
-        LOGGER.debug("Handling get_image request.")
         mime_type = self._validate_get_image_mime_type(mime_type)
         cls: OakDModel = type(self)
 
@@ -492,13 +491,12 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             bytes: The serialized point cloud data.
             str: The mimetype of the point cloud (e.g. PCD).
         """
-        LOGGER.debug("Handling get point cloud call.")
         # Validation
         if DEPTH_SENSOR not in self.sensors:
             details = 'Please include "depth" in the "sensors" attribute list.'
             raise MethodNotAllowed(method_name="get_point_cloud", details=details)
-        cls = type(self)
 
+        cls = type(self)
         if not cls.worker.running:
             raise ViamError("get_point_cloud called before camera worker is ready.")
 
@@ -527,7 +525,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
 
         # Subsample if bytes payload > max
         msg_byte_count = len(float_array.tobytes()) + len(header_bytes)
-        LOGGER.info(f"msg_byte_count: {msg_byte_count}")
+        LOGGER.debug(f"msg_byte_count: {msg_byte_count}")
         if msg_byte_count > MAX_GRPC_BYTE_COUNT:
             LOGGER.warning(
                 f"PCD bytes ({msg_byte_count}) > max message bytes count ({MAX_GRPC_BYTE_COUNT}). Subsampling data 0.5x."
