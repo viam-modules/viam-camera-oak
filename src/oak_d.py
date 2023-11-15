@@ -52,6 +52,7 @@ VALID_ATTRIBUTES = ["height_px", "width_px", "sensors", "frame_rate", "debug"]
 MAX_HEIGHT = 1080
 MAX_WIDTH = 1920
 MAX_FRAME_RATE = 60
+MAX_GRPC_BYTE_COUNT = 4194304  # Update this if the gRPC config ever changes (RSDK-5632)
 
 DEFAULT_FRAME_RATE = 30
 DEFAULT_WIDTH = 640
@@ -316,7 +317,6 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             reconfigure=callback,
             logger=LOGGER,
         )
-        cls.worker.start()
 
     def stop(
         self,
@@ -367,7 +367,11 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         mime_type = self._validate_get_image_mime_type(mime_type)
         cls: OakDModel = type(self)
 
+        if not cls.worker.running:
+            raise ViamError("get_image called before camera worker was ready.")
+
         main_sensor = self.sensors[0]
+
         if main_sensor == COLOR_SENSOR:
             if mime_type == CameraMimeType.JPEG:
                 captured_data = await cls.worker.get_color_image()
@@ -407,8 +411,15 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
                   The metadata associated with this response
         """
         cls: OakDModel = type(self)
+
+        if not cls.worker.running:
+            raise ViamError("get_images called before camera worker was ready.")
+
+        # Accumulator for images
         l: List[NamedImage] = []
+        # Accumulator for timestamp calculation later
         seconds_float: float = None
+
         if COLOR_SENSOR in self.sensors:
             captured_data = await cls.worker.get_color_image()
             arr, captured_at = captured_data.np_array, captured_data.captured_at
@@ -427,6 +438,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             img = NamedImage("color", jpeg_encoded_bytes, CameraMimeType.JPEG)
             seconds_float = captured_at
             l.append(img)
+
         if DEPTH_SENSOR in self.sensors:
             captured_data = await cls.worker.get_depth_map()
             arr, captured_at = captured_data.np_array, captured_data.captured_at
@@ -436,6 +448,8 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             )
             seconds_float = captured_at
             l.append(img)
+
+        # Create timestamp for metadata
         seconds_int = int(seconds_float)
         nanoseconds_int = int((seconds_float - seconds_int) * 1e9)
         metadata = ResponseMetadata(
@@ -478,12 +492,21 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             bytes: The serialized point cloud data.
             str: The mimetype of the point cloud (e.g. PCD).
         """
+        LOGGER.debug("Handling get point cloud call.")
+        # Validation
         if DEPTH_SENSOR not in self.sensors:
             details = 'Please include "depth" in the "sensors" attribute list.'
             raise MethodNotAllowed(method_name="get_point_cloud", details=details)
         cls = type(self)
+
+        if not cls.worker.running:
+            raise ViamError("get_point_cloud called before camera worker is ready.")
+
+        # Get actual PCD data from camera worker
         pcd_obj = await cls.worker.get_pcd()
         arr = pcd_obj.np_array
+
+        # Done with pre-processing; create and send message now:
         # TODO RSDK-5676: why do we need to normalize by 1000 when depthAI says they return depth in mm?
         flat_array = arr.reshape(-1, arr.shape[-1]) / 1000.0
         # TODO RSDK-5676: why do we need to negate the 1st and 2nd dimensions for image to be the correct orientation?
@@ -499,9 +522,19 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         width = f"WIDTH {len(flat_array)}\n"
         points = f"POINTS {len(flat_array)}\n"
         header = f"{version}{fields}{size}{type_of}{count}{width}{height}{viewpoint}{points}{data}"
-        h = bytes(header, "UTF-8")
-        a = np.array(flat_array, dtype="f")
-        return (h + a.tobytes(), CameraMimeType.PCD)
+        header_bytes = bytes(header, "UTF-8")
+        float_array = np.array(flat_array, dtype="f")
+
+        # Subsample if bytes payload > max
+        msg_byte_count = len(float_array.tobytes()) + len(header_bytes)
+        LOGGER.info(f"msg_byte_count: {msg_byte_count}")
+        if msg_byte_count > MAX_GRPC_BYTE_COUNT:
+            LOGGER.warning(
+                f"PCD bytes ({msg_byte_count}) > max message bytes count ({MAX_GRPC_BYTE_COUNT}). Subsampling data 0.5x."
+            )
+            float_array = float_array[::2, ::2, :]  # subsamples every other
+
+        return (header_bytes + float_array.tobytes(), CameraMimeType.PCD)
 
     async def get_properties(
         self, *, timeout: Optional[float] = None, **kwargs
@@ -525,19 +558,13 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         Returns:
             bytes: encoded bytes
         """
-        height, width = shape  # using np array shape for actual outputted height/width
+        height, width = shape  # using np shape for actual output's height/width
         MAGIC_NUMBER = struct.pack(
             ">Q", 4919426490892632400
-        )  # UTF-8 binary encoding for 'DEPTHMAP', big-endian
-        MAGIC_BYTE_COUNT = struct.calcsize(
-            "Q"
-        )  # Number of bytes used to represent the depth magic number
-        WIDTH_BYTE_COUNT = struct.calcsize(
-            "Q"
-        )  # Number of bytes used to represent depth image width
-        HEIGHT_BYTE_COUNT = struct.calcsize(
-            "Q"
-        )  # Number of bytes used to represent depth image height
+        )  # UTF-8 encoding for 'DEPTHMAP'
+        MAGIC_BYTE_COUNT = struct.calcsize("Q")
+        WIDTH_BYTE_COUNT = struct.calcsize("Q")
+        HEIGHT_BYTE_COUNT = struct.calcsize("Q")
 
         # Depth header contains 8 bytes for the magic number, followed by 8 bytes for width and 8 bytes for height. Each pixel has 2 bytes.
         pixel_byte_count = np.dtype(np.uint16).itemsize * width * height
@@ -547,13 +574,12 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             MAGIC_BYTE_COUNT + WIDTH_BYTE_COUNT + HEIGHT_BYTE_COUNT + pixel_byte_count
         )
         LOGGER.debug(
-            f"{MAGIC_BYTE_COUNT} + {WIDTH_BYTE_COUNT} + {HEIGHT_BYTE_COUNT} + {pixel_byte_count} = total_byte_count: {total_byte_count}"
+            f"Calculated size:  {MAGIC_BYTE_COUNT} + {WIDTH_BYTE_COUNT} + {HEIGHT_BYTE_COUNT} + {pixel_byte_count} = {total_byte_count}"
         )
-        LOGGER.debug(f"size of data: {len(data)}")
+        LOGGER.debug(f"Actual data size: {len(data)}")
 
         # Create a bytearray to store the encoded data
         raw_buf = bytearray(total_byte_count)
-
         offset = 0
 
         # Copy the depth magic number into the buffer
@@ -587,10 +613,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         """
         # Guard for empty str (no inputted mime_type)
         if mime_type == "":
-            LOGGER.warning(
-                f"mime_type was empty str or null; defaulting to {CameraMimeType.JPEG}."
-            )
-            return CameraMimeType.JPEG
+            return CameraMimeType.JPEG  # default is JPEG
 
         # Get valid types based on main sensor
         main_sensor = self.sensors[0]
