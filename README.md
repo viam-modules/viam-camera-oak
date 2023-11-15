@@ -6,13 +6,16 @@ This is a [Viam module](https://docs.viam.com/manage/configuration/#modules) for
 
 ### Checking Python version
 
-First and foremost, open a terminal on your robot, and run the following command to check its Python version:
+First and foremost, open a terminal on your robot, and run the following commands to check its Python and pip versions:
 
 ```console
-$ python3 --version
+python3 --version
+python3 -m ensurepip --default-pip
+pip3 --version
 ```
 
-Verify that your robot's Python3 version is 3.8 or later, and that it is installed and linked to the `python3` command to avoid compatibility issues.
+Verify that your robot's Python3 version is 3.8.1 or later, and that it is installed and linked to the `python3` command to avoid compatibility issues.
+Similarly, make sure that `pip3` is installed properly.
 
 ### Using the registry
 
@@ -24,14 +27,13 @@ The recommended way to install the module is through the Viam registry.
 
 This will automatically install the module to your robot.
 
-
 ### Locally installing the module
 
 If you do not want to use the Viam registry, you can use the module from source [here](https://github.com/viamrobotics/viam-camera-oak-d).
 
 ```console
-$ cd <your-directory>
-$ git clone https://github.com/viamrobotics/viam-camera-oak-d.git
+cd <your-directory>
+git clone https://github.com/viamrobotics/viam-camera-oak-d.git
 ```
 
 Then modify your robot's JSON file as follows
@@ -76,7 +78,7 @@ when starting the Viam server in order for debug logs to be piped properly e.g. 
 
 ## Integration Tests
 
-The repo comes with a suite of integration tests that allow one to test if the module works with an actual OAK-D device on the machine of interest. You will need to compile the binary on the same machine you expect to run it on.
+The repo comes with a suite of integration tests that allows one to test if the module works with an actual OAK-D device on the machine of interest. You will need to compile the binary on the same machine you expect to run it on.
 
 - Copy the repo to your local robot: `git clone https://github.com/viamrobotics/viam-camera-oak-d.git`
 - Run `make integration-tests`
