@@ -17,7 +17,6 @@ import (
 
 func TestCameraServer(t *testing.T) {
 	var myRobot robot.Robot
-	// put all the tests in t.Run commands
 	t.Run("Set up the robot", func(t *testing.T) {
 		myRobot = setupViamServer(context.Background(), t)
 	})
@@ -36,34 +35,37 @@ func setupViamServer(ctx context.Context, t *testing.T) robot.Robot {
 	logger := golog.NewTestLogger(t)
 	moduleString := strings.TrimSpace(*modulePath)
 	logger.Info("testing module at %v", moduleString)
-	configString := fmt.Sprintf("{"+
-		"  \"network\": {"+
-		"    \"bind_address\": \"0.0.0.0:90831\","+
-		"    \"insecure\": true"+
-		"  },"+
-		"  \"components\": ["+
-		"    {"+
-		"      \"name\": \"my-oak-d\","+
-		"      \"model\": \"viam:camera:oak-d\","+
-		"      \"type\": \"camera\","+
-		"      \"namespace\": \"rdk\","+
-		"      \"attributes\": {"+
-		"        \"sensors\": ["+
-		"          \"color\","+
-		"          \"depth\""+
-		"        ]"+
-		"      },"+
-		"      \"depends_on\": []"+
-		"    }"+
-		"  ],"+
-		"  \"modules\": ["+
-		"    {"+
-		"      \"type\": \"local\","+
-		"      \"name\": \"viam_oak_d\","+
-		"      \"executable_path\": \"%v\""+
-		"    }"+
-		"  ]"+
-		"}", moduleString)
+	configString := fmt.Sprintf(`
+		{
+		"network": {
+			"bind_address": "0.0.0.0:90831",
+			"insecure": true
+		},
+		"components": [
+			{
+			"name": "my-oak-d",
+			"model": "viam:camera:oak-d",
+			"type": "camera",
+			"namespace": "rdk",
+			"attributes": {
+				"sensors": [
+				"color",
+				"depth"
+				]
+			},
+			"depends_on": []
+			}
+		],
+		"modules": [
+			{
+			"type": "local",
+			"name": "viam_oak_d",
+			"executable_path": "%v"
+			}
+		]
+		}
+	`, moduleString)
+  
 	cfg, err := config.FromReader(ctx, "default.json", bytes.NewReader([]byte(configString)), logger)
 	test.That(t, err, test.ShouldBeNil)
 	r, err := robotimpl.RobotFromConfig(ctx, cfg, logger)
