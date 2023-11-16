@@ -9,26 +9,8 @@ ENV_ERROR="$LOG_PREFIX Error: this module requires Python >=3.8.1, pip3, and vir
 
 if ! python3 -m venv "$VENV_NAME" >/dev/null 2>&1; then
     echo "$LOG_PREFIX Warning: failed to create virtualenv."
-    if command -v apt-get >/dev/null; then
-        echo "$LOG_PREFIX Detected Debian/Ubuntu. Attempting to install python3-venv automatically."
-        SUDO="sudo"
-        if ! command -v "$SUDO" >/dev/null; then
-            SUDO=""
-        fi
-        if ! apt info python3-venv >/dev/null 2>&1; then
-            echo "$LOG_PREFIX Package info not found, trying apt update."
-            "$SUDO" apt -qq update >/dev/null
-        fi
-        "$SUDO" apt install -qqy python3-venv >/dev/null 2>&1
-        if ! python3 -m venv "$VENV_NAME" >/dev/null 2>&1; then
-            echo "$ENV_ERROR" >&2
-            exit 1
-        fi
-    else
-        # some other OS we cannot get python3-venv for in script
-        echo "$ENV_ERROR" >&2
-        exit 1
-    fi
+    echo "$ENV_ERROR" >&2
+    exit 1
 else
     echo "$LOG_PREFIX Created/found virtualenv."
 fi
@@ -37,7 +19,7 @@ fi
 # -qq suppresses extraneous output from pip
 echo "$LOG_PREFIX Installing/upgrading Python packages."
 if ! "$PYTHON" -m pip install -r requirements.txt -Uqq; then
-    echo "$LOG_PREFIX Error: pip failed to install requirements.txt." 
+    echo "$LOG_PREFIX Error: pip failed to install requirements.txt. Please make sure pip is properly installed on your machine." >&2
     exit 1
 fi
 
