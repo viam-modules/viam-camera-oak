@@ -6,12 +6,13 @@
 setup:
 	pip install -r requirements-dev.txt
 
-lint:
-	black src
+lint: lint-check
 
 lint-check:
-	black src --diff
-	black src --check
+	black src --diff --check
+
+lint-fix:
+	black src
 
 test: unit-tests
 
