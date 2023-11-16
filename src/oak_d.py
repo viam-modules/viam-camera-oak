@@ -51,7 +51,6 @@ VALID_ATTRIBUTES = ["height_px", "width_px", "sensors", "frame_rate"]
 
 MAX_HEIGHT = 1080
 MAX_WIDTH = 1920
-MAX_FRAME_RATE = 60
 MAX_GRPC_BYTE_COUNT = 4194304  # Update this if the gRPC config ever changes (RSDK-5632)
 
 # Be sure to update README.md if default attributes are changed
@@ -73,7 +72,6 @@ for handler in root_logger.handlers[:]:
 
 # Apply Viam's logging handlers
 addHandlers(root_logger)
-### TODO
 
 
 class OakDModel(Camera, Reconfigurable, Stoppable):
@@ -234,15 +232,12 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             )
 
         # Validate frame rate
+        validate_attribute_type("frame_rate", "number_value")
         frame_rate = attribute_map.get(key="frame_rate", default=None)
         if frame_rate:
-            if frame_rate.WhichOneof("kind") != "number_value":
+            if frame_rate.number_value <= 0:
                 handle_error(
-                    f'the "frame_rate" attribute must be a number value, not {frame_rate}.'
-                )
-            if frame_rate.number_value > MAX_FRAME_RATE or frame_rate.number_value <= 0:
-                handle_error(
-                    f'"frame_rate" must be a float > 0 and <= {MAX_FRAME_RATE}.'
+                    f'"frame_rate" must be a float > 0.'
                 )
 
         # Check height value
