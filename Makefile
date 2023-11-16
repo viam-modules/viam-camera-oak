@@ -1,9 +1,9 @@
 # Makefile
 .PHONY: integration-tests
 
-.DEFAULT_GOAL := install
+.DEFAULT_GOAL := setup
 
-install:
+setup:
 	pip install -r requirements-dev.txt
 
 lint:
