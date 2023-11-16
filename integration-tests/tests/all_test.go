@@ -16,19 +16,18 @@ import (
 )
 
 func TestCameraServer(t *testing.T) {
-	fmt.Println("Starting the tests...")
 	var myRobot robot.Robot
 	// put all the tests in t.Run commands
-	t.Run("set up the robot", func(t *testing.T) {
+	t.Run("Set up the robot", func(t *testing.T) {
 		myRobot = setupViamServer(context.Background(), t)
 	})
-	t.Run("get images method", func(t *testing.T) {
+	t.Run("Get images method", func(t *testing.T) {
 		cam, err := camera.FromRobot(myRobot, "my-oak-d")
 		test.That(t, err, test.ShouldBeNil)
 		_, _, err = cam.Images(context.Background())
 		test.That(t, err, test.ShouldBeNil)
 	})
-	t.Run("shutdown the robot", func(t *testing.T) {
+	t.Run("Shutdown the robot", func(t *testing.T) {
 		test.That(t, myRobot.Close(context.Background()), test.ShouldBeNil)
 	})
 }
