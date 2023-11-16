@@ -236,9 +236,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         frame_rate = attribute_map.get(key="frame_rate", default=None)
         if frame_rate:
             if frame_rate.number_value <= 0:
-                handle_error(
-                    f'"frame_rate" must be a float > 0.'
-                )
+                handle_error(f'"frame_rate" must be a float > 0.')
 
         # Check height value
         validate_dimension("height_px", MAX_HEIGHT)
