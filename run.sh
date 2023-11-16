@@ -36,8 +36,8 @@ fi
 # Remove -U if viam-sdk should not be upgraded whenever possible
 # -qq suppresses extraneous output from pip
 echo "$LOG_PREFIX Installing/upgrading Python packages."
-if ! "$PYTHON" -m pip3 install -r requirements.txt -Uqq; then
-    echo "$LOG_PREFIX Error: pip3 failed to install requirements.txt." 
+if ! "$PYTHON" -m pip install -r requirements.txt -Uqq; then
+    echo "$LOG_PREFIX Error: pip failed to install requirements.txt." 
     exit 1
 fi
 
