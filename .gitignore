@@ -1,4 +1,5 @@
 # top level
+AppDir
 viam-oak-d-venv
 .pytest_cache
 oak-d-integration-tests
