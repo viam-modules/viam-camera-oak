@@ -6,12 +6,12 @@ This is a [Viam module](https://docs.viam.com/manage/configuration/#modules) for
 
 ### Checking Python version
 
-First and foremost, open a terminal on your robot, and run the following commands to check its Python and pip versions:
+First and foremost, open a terminal on your robot, and run the following commands to check its root Python and pip versions:
 
 ```console
-python3 --version
-python3 -m ensurepip --default-pip
-pip3 --version
+sudo python3 --version
+sudo python3 -m ensurepip --default-pip
+sudo pip3 --version
 ```
 
 Verify that your robot's Python3 version is 3.8.1 or later, and that it is installed and linked to the `python3` command to avoid compatibility issues.
