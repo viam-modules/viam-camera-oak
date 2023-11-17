@@ -1,0 +1,3 @@
+[tool.pyproject-appimage]
+script = "run.sh"
+output = "testing.AppImage"
