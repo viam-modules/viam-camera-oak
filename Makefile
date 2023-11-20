@@ -1,4 +1,8 @@
 # Makefile
+IMAGE_NAME = ubuntu:arm64
+CONTAINER_NAME = appimage-builder-container-arm64
+OUTPUT_FILE = viam-camera-oak-d-0.0.1-aarch64.AppImage
+
 .PHONY: integration-tests
 
 .DEFAULT_GOAL := install
@@ -26,3 +30,9 @@ integration-tests: integration-tests/tests/*
 
 build:
 	tar -czf module.tar.gz run.sh requirements.txt src
+
+appimage:
+	docker build -t $(IMAGE_NAME) . && \
+	docker run --name $(CONTAINER_NAME) $(IMAGE_NAME) && \
+	docker cp $(CONTAINER_NAME):/app/$(OUTPUT_FILE) ./$(OUTPUT_FILE) && \
+	chmod +x ./${OUTPUT_FILE}
