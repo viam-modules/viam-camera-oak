@@ -21,17 +21,14 @@ from numpy.typing import NDArray
 
 
 DIMENSIONS_TO_MONO_RES = {
-    (1280, 800): dai.MonoCameraProperties.SensorResolution.THE_800_P,  # OV9282
+    (1280, 800): dai.MonoCameraProperties.SensorResolution.THE_800_P,
     (1280, 720): dai.MonoCameraProperties.SensorResolution.THE_720_P,
-    (640, 480): dai.MonoCameraProperties.SensorResolution.THE_480_P,  # OV7251
+    (640, 480): dai.MonoCameraProperties.SensorResolution.THE_480_P,
     (640, 400): dai.MonoCameraProperties.SensorResolution.THE_400_P,
 }  # stereo camera component only accepts this subset of depthai_sdk.components.camera_helper.monoResolutions
 
 DIMENSIONS_TO_COLOR_RES = {
-    (
-        4056,
-        3040,
-    ): dai.ColorCameraProperties.SensorResolution.THE_12_MP,  # IMX378, IMX477, IMX577
+    (4056, 3040): dai.ColorCameraProperties.SensorResolution.THE_12_MP,
     (3840, 2160): dai.ColorCameraProperties.SensorResolution.THE_4_K,
     (1920, 1080): dai.ColorCameraProperties.SensorResolution.THE_1080_P,
 }  # color camera component only accepts this subset of depthai_sdk.components.camera_helper.colorResolutions
