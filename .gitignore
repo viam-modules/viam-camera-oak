@@ -1,11 +1,16 @@
 # top level
+AppDir
 viam-oak-d-venv
 .pytest_cache
 oak-d-integration-tests
 module.tar.gz
+*.AppImage
 
 # src
 src/__pycache__
 
 # unit tests
 tests/__pycache__
+
+# packaging
+packaging/src
