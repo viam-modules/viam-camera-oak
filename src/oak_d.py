@@ -49,8 +49,10 @@ LOGGER = getLogger(__name__)
 
 VALID_ATTRIBUTES = ["height_px", "width_px", "sensors", "frame_rate"]
 
-MAX_HEIGHT = 1080
-MAX_WIDTH = 1920
+# Max height and width based on OAK-D video output max
+# TODO: After RSDK-5807, we can raise this max since `isp` and `still` support full res 12MP
+MAX_HEIGHT = 2160
+MAX_WIDTH = 3840
 MAX_GRPC_BYTE_COUNT = 4194304  # Update this if the gRPC config ever changes (RSDK-5632)
 
 # Be sure to update README.md if default attributes are changed
