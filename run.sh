@@ -4,7 +4,7 @@ cd "$(dirname "$0")"
 # Create a virtual environment to run our code
 VENV_NAME="viam-oak-d-venv"
 PYTHON="$VENV_NAME/bin/python"
-LOG_PREFIX="[Viam OAK-D setup]"
+LOG_PREFIX="[Viam OAK-D local setup]"
 
 echo "$LOG_PREFIX Starting the Viam OAK-D camera module. Using this script requires Python >=3.8.1, pip3, and venv to be installed."
 
