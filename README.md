@@ -4,9 +4,9 @@ This is a [Viam module](https://docs.viam.com/manage/configuration/#modules) for
 
 ## Getting Started
 
-### Checking Python version
+### Checking Python version (for local installs and non-AArch64 robots)
 
-First and foremost, open a terminal on your robot, and run the following commands to check its root Python and pip versions:
+If you are running the module locally and/or your robot is using a non-AArch64 board, you must verify that your system Python3 is compatible with Viam. Open a terminal on your robot, and run the following commands to check its Python and pip versions:
 
 ```console
 sudo python3 --version
@@ -16,6 +16,8 @@ sudo pip3 --version
 
 Verify that your robot's Python3 version is 3.8.1 or later, and that it is installed and linked to the `python3` command to avoid compatibility issues.
 Similarly, make sure that `pip3` is installed properly.
+
+If you are using the registry to install the module and your robot is using an AArch64 board such as a 64-bit Raspberry Pi or a Jetson device, ignore these instructions as the module will run out of an appimage.
 
 ### Using the registry
 
