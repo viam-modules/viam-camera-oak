@@ -35,4 +35,5 @@ appimage:
 	docker build -t $(IMAGE_NAME) . && \
 	docker run --name $(CONTAINER_NAME) $(IMAGE_NAME) && \
 	docker cp $(CONTAINER_NAME):/app/$(OUTPUT_FILE) ./$(OUTPUT_FILE) && \
+	docker container rm $(CONTAINER_NAME) || true && \
 	chmod +x ./${OUTPUT_FILE}

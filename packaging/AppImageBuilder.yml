@@ -1,38 +1,32 @@
 version: 1
 script:
-  - mkdir -p AppDir/usr && cp -r src AppDir/usr
   - mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps/ && cp viam-server.png AppDir/usr/share/icons/hicolor/256x256/apps/
-  - pip3 install --ignore-installed --prefix=/usr --root=AppDir -r ./requirements.txt
-  # - python3 -m pip install --ignore-installed --prefix=/usr --no-cache-dir --root=AppDir -r ./requirements.txt
+  - python3 -m pip  install --root / -r ./requirements.txt
+  - mkdir -p AppDir/usr/lib && cp -r /usr/local/lib/python3.10 AppDir/usr/lib/
+  - cp -r src AppDir/usr/lib/python3.10/site-packages
 
 AppDir:
   path: ./AppDir
   app_info:
-    id: com.viam.cameraoakd
+    id: com.viam.camera-oak-d
     name: viam-camera-oak-d
     version: 0.0.1
     icon: viam-server
     exec: usr/bin/python3
-    exec_args: "$APPDIR/usr/src/main.py $@"
+    exec_args: "-m src.main $@"
   apt:
-    arch:
-    - arm64
-    allow_unauthenticated: true
+    arch: arm64
     sources:
-    - sourceline: deb [trusted=yes] http://deb.debian.org/debian bullseye main
-    - sourceline: deb [trusted=yes] http://deb.debian.org/debian-security bullseye-security main
-    - sourceline: deb [trusted=yes] http://deb.debian.org/debian bullseye-updates main
-    - sourceline: deb [trusted=yes] https://us-apt.pkg.dev/projects/static-file-server-310021 bullseye main
-    - sourceline: deb [trusted=yes] http://archive.raspberrypi.org/debian/ bullseye main
+      - sourceline: 'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy main restricted universe multiverse'
+        key_url: 'http://keyserver.ubuntu.com/pks/lookup?op=get&search=0x871920d1991bc93c'
     include:
-    - python3
-    - python3-pkg-resources
+      - python3.10
+      - python3-pkg-resources
 
   runtime:
     env:
-      PATH: '${APPDIR}/usr/bin:${PATH}'
-      PYTHONHOME: '${APPDIR}/usr/bin'
-      PYTHONPATH: '${APPDIR}/usr/lib/python3.9'
+      PYTHONHOME: '${APPDIR}/usr'
+      PYTHONPATH: '${APPDIR}/usr/lib/python3.10/site-packages'
 
 AppImage:
   arch: aarch64

@@ -1,4 +1,4 @@
-FROM python:3.9-bookworm
+FROM python:3.10-bookworm
 
 RUN apt-get update && \
     apt-get install -y \
@@ -6,11 +6,11 @@ RUN apt-get update && \
         python3-pip \
         libgtk-3-bin \
         squashfs-tools \
-        zsync \
         libglib2.0-bin \
         fakeroot
 
-RUN pip3 install appimage-builder
+# Credit to perrito666 for the ubuntu fix
+RUN python3 -m pip install git+https://github.com/hexbabe/appimage-builder.git
 
 WORKDIR /app
 

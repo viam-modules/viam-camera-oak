@@ -1,8 +1,12 @@
 import asyncio
 
-from viam.module.module import Module
 from viam.components.camera import Camera
-from .oak_d import OakDModel
+from viam.logging import getLogger
+from viam.module.module import Module
+from src.oak_d import OakDModel
+
+
+LOGGER = getLogger(__name__)
 
 
 async def main():
@@ -11,6 +15,7 @@ async def main():
     """
     module = Module.from_args()
     module.add_model_from_registry(Camera.SUBTYPE, OakDModel.MODEL)
+    LOGGER.debug("Starting module in main.py.")
     await module.start()
 
 
