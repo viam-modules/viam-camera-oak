@@ -6,14 +6,14 @@ LOG_PREFIX="[Viam OAK-D local setup]"
 os=$(uname -s)
 arch=$(uname -m)
 
+appimage_path="./viam-camera-oak-d--aarch64.AppImage"
 # Run appimage if Linux aarch64
-if [ "$os" = "Linux" ] && [ "$arch" = "aarch64" ]; then
-    echo "$LOG_PREFIX Detected system Linux ARM64. Attempting to start appimage."
-    appimage_path="./viam-camera-oak-d--aarch64.AppImage"
+if [ "$os" = "Linux" ] && [ "$arch" = "aarch64" ] && [ -f "$appimage_path" ]; then
+    echo "$LOG_PREFIX Detected system Linux ARM64 and appimage. Attempting to start appimage."
     chmod +x "$appimage_path"
     exec "$appimage_path" "$@"
 else
-    echo "$LOG_PREFIX Detected system not Linux ARM64."
+    echo "$LOG_PREFIX Detected system not Linux ARM64 and no appimage."
 fi
 
 # Run from source if not Linux aarch64

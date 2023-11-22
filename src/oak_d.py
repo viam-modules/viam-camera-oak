@@ -49,8 +49,6 @@ LOGGER = getLogger(__name__)
 
 VALID_ATTRIBUTES = ["height_px", "width_px", "sensors", "frame_rate"]
 
-MAX_GRPC_BYTE_COUNT = 4194304  # Update this if the gRPC config ever changes (RSDK-5632)
-
 # Be sure to update README.md if default attributes are changed
 DEFAULT_FRAME_RATE = 30
 DEFAULT_WIDTH = 640
@@ -504,16 +502,6 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         header = f"{version}{fields}{size}{type_of}{count}{width}{height}{viewpoint}{points}{data}"
         header_bytes = bytes(header, "UTF-8")
         float_array = np.array(flat_array, dtype="f")
-
-        # Subsample if bytes payload > max
-        msg_byte_count = len(float_array.tobytes()) + len(header_bytes)
-        LOGGER.debug(f"msg_byte_count: {msg_byte_count}")
-        if msg_byte_count > MAX_GRPC_BYTE_COUNT:
-            LOGGER.warning(
-                f"PCD bytes ({msg_byte_count}) > max message bytes count ({MAX_GRPC_BYTE_COUNT}). Subsampling data 0.5x."
-            )
-            float_array = float_array[::2, ::2, :]  # subsamples every other
-
         return (header_bytes + float_array.tobytes(), CameraMimeType.PCD)
 
     async def get_properties(
