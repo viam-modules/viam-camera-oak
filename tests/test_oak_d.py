@@ -6,7 +6,7 @@ import pytest
 from viam.proto.app.robot import ComponentConfig
 from viam.errors import ValidationError
 
-from src.oak_d import OakDModel, MAX_HEIGHT, MAX_WIDTH
+from src.oak_d import OakDModel
 
 ### Helpers
 
@@ -106,14 +106,6 @@ dimension_not_whole_number = (
     "must be a whole number"
 )
 
-height_exceeds_max_value = (
-    make_component_config({
-        "sensors": ["color", "depth"],
-        "height_px": MAX_HEIGHT + 1
-    }),
-    f"cannot be greater than max of {MAX_HEIGHT}"
-)
-
 height_is_zero = (
     make_component_config({
         "sensors": ["color", "depth"],
@@ -130,13 +122,6 @@ height_is_negative = (
     "cannot be less than or equal to 0"
 )
 
-width_exceeds_max_value = (
-    make_component_config({
-        "sensors": ["color", "depth"],
-        "width_px": MAX_WIDTH + 1
-    }),
-    f"cannot be greater than max of {MAX_WIDTH}"
-)
 
 width_is_zero = (
     make_component_config({
@@ -183,10 +168,8 @@ configs_and_msgs = [
     frame_rate_is_negative,
     dimension_not_number_value,
     dimension_not_whole_number,
-    height_exceeds_max_value,
     height_is_zero,
     height_is_negative,
-    width_exceeds_max_value,
     width_is_zero,
     width_is_negative,
     only_received_height,

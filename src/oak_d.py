@@ -49,10 +49,6 @@ LOGGER = getLogger(__name__)
 
 VALID_ATTRIBUTES = ["height_px", "width_px", "sensors", "frame_rate"]
 
-# Max height and width based on OAK-D video output max
-# TODO: After RSDK-5807, we can raise this max since `isp` and `still` support full res 12MP
-MAX_HEIGHT = 2160
-MAX_WIDTH = 3840
 MAX_GRPC_BYTE_COUNT = 4194304  # Update this if the gRPC config ever changes (RSDK-5632)
 
 # Be sure to update README.md if default attributes are changed
@@ -176,7 +172,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
                     f'the "{attribute}" attribute must be a {expected_type}, not {value}.'
                 )
 
-        def validate_dimension(attribute: str, max_value: int) -> None:
+        def validate_dimension(attribute: str) -> None:
             """
             validate_dimension helps validates height and width values.
             """
@@ -189,10 +185,6 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             int_value = int(number_value)
             if int_value != number_value:
                 handle_error(f'"{attribute}" must be a whole number.')
-            if int_value > max_value:
-                handle_error(
-                    f'inputted "{attribute}" of {int_value} cannot be greater than max of {max_value}.'
-                )
             if int_value <= 0:
                 handle_error(
                     f'inputted "{attribute}" of {int_value} cannot be less than or equal to 0.'
@@ -241,10 +233,10 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
                 handle_error(f'"frame_rate" must be a float > 0.')
 
         # Check height value
-        validate_dimension("height_px", MAX_HEIGHT)
+        validate_dimension("height_px")
 
         # Check width value
-        validate_dimension("width_px", MAX_WIDTH)
+        validate_dimension("width_px")
 
         # Check height and width together
         height, width = attribute_map.get(
