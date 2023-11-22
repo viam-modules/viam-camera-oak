@@ -1,7 +1,7 @@
 version: 1
 script:
   - mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps/ && cp viam-server.png AppDir/usr/share/icons/hicolor/256x256/apps/
-  - python3 -m pip  install --root / -r ./requirements.txt
+  - python3 -m pip install --root / -r ./requirements.txt
   - mkdir -p AppDir/usr/lib && cp -r /usr/local/lib/python3.10 AppDir/usr/lib/
   - cp -r src AppDir/usr/lib/python3.10/site-packages
 
@@ -10,15 +10,15 @@ AppDir:
   app_info:
     id: com.viam.camera-oak-d
     name: viam-camera-oak-d
-    version: 0.0.1
+    version: ""
     icon: viam-server
     exec: usr/bin/python3
     exec_args: "-m src.main $@"
   apt:
     arch: arm64
+    allow_unauthenticated: true
     sources:
       - sourceline: 'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy main restricted universe multiverse'
-        key_url: 'http://keyserver.ubuntu.com/pks/lookup?op=get&search=0x871920d1991bc93c'
     include:
       - python3.10
       - python3-pkg-resources
@@ -27,6 +27,9 @@ AppDir:
     env:
       PYTHONHOME: '${APPDIR}/usr'
       PYTHONPATH: '${APPDIR}/usr/lib/python3.10/site-packages'
+  
+  after_bundle:
+    - chmod +x /app/viam-camera-oak-d-REPLACE-WITH-RELEASE-NUMBER-aarch64.AppImage
 
 AppImage:
   arch: aarch64

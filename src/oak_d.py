@@ -472,8 +472,8 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             str: The mimetype of the point cloud (e.g. PCD).
         """
         # Validation
-        if DEPTH_SENSOR not in self.sensors:
-            details = 'Please include "depth" in the "sensors" attribute list.'
+        if COLOR_SENSOR not in self.sensors or DEPTH_SENSOR not in self.sensors:
+            details = 'Please include "color" and "depth" in the "sensors" attribute list.'
             raise MethodNotAllowed(method_name="get_point_cloud", details=details)
 
         cls = type(self)

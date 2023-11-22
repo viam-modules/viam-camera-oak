@@ -1,12 +1,13 @@
 # Makefile
-IMAGE_NAME = ubuntu:arm64
-CONTAINER_NAME = appimage-builder-container-arm64
-OUTPUT_FILE = viam-camera-oak-d-0.0.1-aarch64.AppImage
+IMAGE_NAME = python:3.10-bookworm
+CONTAINER_NAME = appimage-builder-container-aarch64
+APPIMAGE_NAME = viam-camera-oak-d--aarch64.AppImage
 
 .PHONY: integration-tests
 
 .DEFAULT_GOAL := setup
 
+# Developing
 setup:
 	pip install -r requirements-dev.txt
 
@@ -29,12 +30,21 @@ integration-tests: integration-tests/tests/*
 	mv oak-d-integration-tests ../
 	./oak-d-integration-tests -module ./run.sh
 
-build:
+# Packaging
+build: build-non-appimage
+
+build-non-appimage: clean
 	tar -czf module.tar.gz run.sh requirements.txt src
 
-appimage:
+build-appimage: clean
 	docker build -t $(IMAGE_NAME) . && \
 	docker run --name $(CONTAINER_NAME) $(IMAGE_NAME) && \
-	docker cp $(CONTAINER_NAME):/app/$(OUTPUT_FILE) ./$(OUTPUT_FILE) && \
-	docker container rm $(CONTAINER_NAME) || true && \
-	chmod +x ./${OUTPUT_FILE}
+	docker cp $(CONTAINER_NAME):/app/$(APPIMAGE_NAME) ./$(APPIMAGE_NAME) && \
+	chmod +x ./${APPIMAGE_NAME} && \
+	tar -czf module.tar.gz run.sh $(APPIMAGE_NAME)
+
+clean:
+	rm -f *.AppImage && \
+	rm -f module.tar.gz && \
+	docker container stop $(CONTAINER_NAME) || true && \
+	docker container rm $(CONTAINER_NAME) || true

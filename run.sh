@@ -1,10 +1,27 @@
 #!/bin/sh
 cd "$(dirname "$0")"
+LOG_PREFIX="[Viam OAK-D local setup]"
 
+# Get the OS and architecture information
+os=$(uname -s)
+arch=$(uname -m)
+
+# Run appimage if Linux aarch64
+if [ "$os" = "Linux" ] && [ "$arch" = "aarch64" ]; then
+    echo "$LOG_PREFIX Detected system Linux ARM64. Attempting to start appimage"
+    appimage_path="./viam-camera-oak-d--aarch64.AppImage"
+    chmod +x "$appimage_path"
+    "$appimage_path"
+     echo "$LOG_PREFIX Successfully started appimage."
+    exit 0
+else
+    echo "$LOG_PREFIX Detected system not Linux ARM64."
+fi
+
+# Run from source if not Linux aarch64
 # Create a virtual environment to run our code
 VENV_NAME="viam-oak-d-venv"
 PYTHON="$VENV_NAME/bin/python"
-LOG_PREFIX="[Viam OAK-D local setup]"
 
 echo "$LOG_PREFIX Starting the Viam OAK-D camera module. Using this script requires Python >=3.8.1, pip3, and venv to be installed."
 
