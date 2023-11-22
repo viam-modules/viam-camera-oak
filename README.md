@@ -18,7 +18,7 @@ sudo pip3 --version
 Verify that your robot's Python3 version is 3.8.1 or later, and that it is installed and linked to the `python3` command to avoid compatibility issues.
 Similarly, make sure that `venv` and `pip3` are installed properly by making sure the subsequent commands do not produce an error.
 
-If you are using the registry to install the module and your robot is using an AArch64 board such as a 64-bit Raspberry Pi or a Jetson device, ignore these instructions as the module will be bundled as an Appimage.
+If you are using the registry to install the module and your robot is using an AArch64 board such as a 64-bit Raspberry Pi or a Jetson device, ignore these instructions as the module will be bundled as an Appimage, which includes Python and necessary dependencies statically.
 
 ### Using the registry
 
