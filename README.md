@@ -35,7 +35,7 @@ This will automatically install the module to your robot.
 If you do not want to use the Viam registry, you can use the module from source [here](https://github.com/viamrobotics/viam-camera-oak-d).
 
 ```console
-cd <your-directory>
+cd <path-to-your-directory>
 git clone https://github.com/viamrobotics/viam-camera-oak-d.git
 ```
 
@@ -46,7 +46,7 @@ Then modify your robot's JSON file as follows
     {
       "type": "local",
       "name": "oak-d",
-      "executable_path": "<your-directory>/viam-camera-oak-d/run.sh"
+      "executable_path": "<path-to-your-directory>/viam-camera-oak-d/run.sh"
     }
   ],
 ```
@@ -55,7 +55,7 @@ Then modify your robot's JSON file as follows
 
 The attributes for the module are as follows:
 - `sensors` (required): an array that contains the strings `color` and/or `depth`. The sensor that comes first in the array is designated the "main sensor" and will be the image that gets returned by `get_image` calls and what will appear in the Control tab on app.viam. When both sensors are requested, `get_point_clouds` will be available for use, and `get_images` will return both the color and depth outputs. Additionally, color and depth outputs returned together will always be aligned, have the same height and width, and have the same timestamp. See Viam's [documentation on the Camera API](https://docs.viam.com/components/camera/#api) for more details. 
-- `width_px`, `height_px`: the int width and height of the output images. If the OAK-D cannot produce the requested resolution, the component will be configured to the closest resolution to the given height/width. Therefore, the image output size will not always match the input size. `width_px` defaults to `640` and `height_px` defaults to `400`. Note: higher resolutions may cause out of memory errors. See Luxonis documentation (here)[https://docs.luxonis.com/projects/api/en/latest/tutorials/ram_usage/].
+- `width_px`, `height_px`: the int width and height of the output images. If the OAK-D cannot produce the requested resolution, the component will be configured to the closest resolution to the given height/width. Therefore, the image output size will not always match the input size. `width_px` defaults to `640` and `height_px` defaults to `400`. Note: higher resolutions may cause out of memory errors. See Luxonis documentation [here](https://docs.luxonis.com/projects/api/en/latest/tutorials/ram_usage/).
 - `frame_rate`: the float that represents the frame rate the camera will capture images at. Defaults to `30.0`.
 
 ```
