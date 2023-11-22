@@ -1,6 +1,7 @@
 import asyncio
+import math
 import time
-from typing import Callable, Union
+from typing import Any, Callable, Mapping, Tuple, Union
 
 from logging import Logger
 from threading import Thread
@@ -19,7 +20,18 @@ from depthai_sdk.components.stereo_component import StereoComponent
 from numpy.typing import NDArray
 
 
-COLOR_CAM_RESOLUTION = dai.ColorCameraProperties.SensorResolution.THE_1080_P
+DIMENSIONS_TO_MONO_RES = {
+    (1280, 800): dai.MonoCameraProperties.SensorResolution.THE_800_P,
+    (1280, 720): dai.MonoCameraProperties.SensorResolution.THE_720_P,
+    (640, 480): dai.MonoCameraProperties.SensorResolution.THE_480_P,
+    (640, 400): dai.MonoCameraProperties.SensorResolution.THE_400_P,
+}  # stereo camera component only accepts this subset of depthai_sdk.components.camera_helper.monoResolutions
+
+DIMENSIONS_TO_COLOR_RES = {
+    (4056, 3040): dai.ColorCameraProperties.SensorResolution.THE_12_MP,
+    (3840, 2160): dai.ColorCameraProperties.SensorResolution.THE_4_K,
+    (1920, 1080): dai.ColorCameraProperties.SensorResolution.THE_1080_P,
+}  # color camera component only accepts this subset of depthai_sdk.components.camera_helper.colorResolutions
 
 
 class WorkerManager(Thread):
@@ -145,8 +157,44 @@ class Worker:
             try:
                 self.oak = OakCamera()
             except Exception as e:
-                self.logger.error(f"Error starting OakCamera: {e}")
+                self.logger.error(f"Error initializing OakCamera: {e}")
                 time.sleep(1)
+
+    def _get_closest_resolution(
+        self,
+        dimensions_to_resolution: Mapping[
+            Tuple[int, int],
+            Union[
+                dai.ColorCameraProperties.SensorResolution,
+                dai.MonoCameraProperties.SensorResolution,
+            ],
+        ],
+    ) -> Union[
+        dai.ColorCameraProperties.SensorResolution,
+        dai.MonoCameraProperties.SensorResolution,
+    ]:
+        """
+        Intakes a dict mapping width/height to a resolution and calculates the closest
+        supported resolution to the width and height from init.
+
+        Args:
+            width (int)
+            height (int)
+            resolutions (dict)
+        Returns:
+            Union[dai.ColorCameraProperties.SensorResolution, dai.MonoCameraProperties.SensorResolution]
+        """
+
+        # Helper to calculate Euclidean distance between two width/height ordered pairs
+        def distance(pair1: Tuple[int, int], pair2: Tuple[int, int]) -> float:
+            return math.sqrt((pair1[0] - pair2[0]) ** 2 + (pair1[1] - pair2[1]) ** 2)
+
+        # Find resolution with min distance to the given width and height
+        closest_resolution = min(
+            dimensions_to_resolution.keys(),
+            key=lambda res: distance(res, (self.width, self.height)),
+        )
+        return dimensions_to_resolution[closest_resolution]
 
     def _configure_color(self) -> Union[CameraComponent, None]:
         """
@@ -157,12 +205,12 @@ class Worker:
             Union[CameraComponent, None]
         """
         if self.user_wants_color:
-            self.logger.debug("Creating pipeline node: color camera.")
-            color = self.oak.camera(
-                "color", fps=self.frame_rate, resolution=COLOR_CAM_RESOLUTION
+            self.logger.debug("Creating color camera component.")
+            resolution = self._get_closest_resolution(DIMENSIONS_TO_COLOR_RES)
+            self.logger.debug(
+                f"Closest color resolution to inputted height width is: {resolution}"
             )
-            # Size setting in DepthAI sets the closest supported resolution
-            # Inputted height width may not be respected
+            color = self.oak.camera("color", fps=self.frame_rate, resolution=resolution)
             color.node.setPreviewSize(self.width, self.height)
             color.node.setVideoSize(self.width, self.height)
             self.oak.callback(color, callback=self._set_color_image)
@@ -180,7 +228,7 @@ class Worker:
             Union[StereoComponent, None]
         """
         if self.user_wants_depth:
-            self.logger.debug("Creating pipeline node: stereo depth.")
+            self.logger.debug("Creating stereo depth component.")
             # TODO RSDK-5633: Figure out how to use DepthAI to adjust depth output size.
             # Right now it's being handled as a manual crop resize in _set_depth_map.
             # The below commented out code should fix this
@@ -189,8 +237,12 @@ class Worker:
             # mono_left.config_camera((self.width, self.height))
             # mono_right = oak.camera(dai.CameraBoardSocket.RIGHT, fps=self.frame_rate)
             # mono_right.config_camera((self.width, self.height))
-            # stereo = oak.stereo(fps=self.frame_rate, left=mono_left, right=mono_right)
-            stereo = self.oak.stereo(fps=self.frame_rate, resolution="max")
+            # # then pass mono_left and mono_right to the oak.stereo initialization
+            resolution = self._get_closest_resolution(DIMENSIONS_TO_MONO_RES)
+            self.logger.debug(
+                f"Closest mono resolution to inputted height width is: {resolution}"
+            )
+            stereo = self.oak.stereo(fps=self.frame_rate, resolution=resolution)
             if color:
                 # Ensures camera alignment and output resolution are same for color and depth
                 stereo.config_stereo(align=color)
@@ -209,8 +261,8 @@ class Worker:
         Returns:
             Union[PointcloudComponent, None]
         """
-        if self.user_wants_depth:
-            self.logger.debug("Creating pipeline node: point cloud.")
+        if self.user_wants_color and self.user_wants_depth:
+            self.logger.debug("Creating point cloud component.")
             pcc = self.oak.create_pointcloud(stereo, color)
             self.oak.callback(pcc, callback=self._set_pcd)
             return pcc
@@ -240,9 +292,9 @@ class Worker:
             packet (DisparityDepthPacket): outputted depth data inputted by caller
         """
         arr = packet.frame
-        if arr.shape != (self.height, self.width):
+        if arr.shape[0] > self.height and arr.shape[1] > self.width:
             self.logger.debug(
-                f"Pipeline output shape mismatch: {arr.shape}; Manually resizing to {(self.height, self.width)}."
+                f"Outputted depth map's shape is greater than specified in config: {arr.shape}; Manually resizing to {(self.height, self.width)}."
             )
             top_left_x = (arr.shape[1] - self.width) // 2
             top_left_y = (arr.shape[0] - self.height) // 2

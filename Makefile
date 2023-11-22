@@ -5,17 +5,18 @@ OUTPUT_FILE = viam-camera-oak-d-0.0.1-aarch64.AppImage
 
 .PHONY: integration-tests
 
-.DEFAULT_GOAL := install
+.DEFAULT_GOAL := setup
 
-install:
+setup:
 	pip install -r requirements-dev.txt
 
-lint:
+lint: lint-fix
+
+lint-fix:
 	black src
 
 lint-check:
-	black src --diff
-	black src --check
+	black src --diff --check
 
 test: unit-tests
 

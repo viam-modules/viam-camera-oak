@@ -49,9 +49,6 @@ LOGGER = getLogger(__name__)
 
 VALID_ATTRIBUTES = ["height_px", "width_px", "sensors", "frame_rate"]
 
-MAX_HEIGHT = 1080
-MAX_WIDTH = 1920
-MAX_FRAME_RATE = 60
 MAX_GRPC_BYTE_COUNT = 4194304  # Update this if the gRPC config ever changes (RSDK-5632)
 
 # Be sure to update README.md if default attributes are changed
@@ -73,7 +70,6 @@ for handler in root_logger.handlers[:]:
 
 # Apply Viam's logging handlers
 addHandlers(root_logger)
-### TODO
 
 
 class OakDModel(Camera, Reconfigurable, Stoppable):
@@ -176,7 +172,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
                     f'the "{attribute}" attribute must be a {expected_type}, not {value}.'
                 )
 
-        def validate_dimension(attribute: str, max_value: int) -> None:
+        def validate_dimension(attribute: str) -> None:
             """
             validate_dimension helps validates height and width values.
             """
@@ -189,10 +185,6 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             int_value = int(number_value)
             if int_value != number_value:
                 handle_error(f'"{attribute}" must be a whole number.')
-            if int_value > max_value:
-                handle_error(
-                    f'inputted "{attribute}" of {int_value} cannot be greater than max of {max_value}.'
-                )
             if int_value <= 0:
                 handle_error(
                     f'inputted "{attribute}" of {int_value} cannot be less than or equal to 0.'
@@ -234,22 +226,17 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             )
 
         # Validate frame rate
+        validate_attribute_type("frame_rate", "number_value")
         frame_rate = attribute_map.get(key="frame_rate", default=None)
         if frame_rate:
-            if frame_rate.WhichOneof("kind") != "number_value":
-                handle_error(
-                    f'the "frame_rate" attribute must be a number value, not {frame_rate}.'
-                )
-            if frame_rate.number_value > MAX_FRAME_RATE or frame_rate.number_value <= 0:
-                handle_error(
-                    f'"frame_rate" must be a float > 0 and <= {MAX_FRAME_RATE}.'
-                )
+            if frame_rate.number_value <= 0:
+                handle_error(f'"frame_rate" must be a float > 0.')
 
         # Check height value
-        validate_dimension("height_px", MAX_HEIGHT)
+        validate_dimension("height_px")
 
         # Check width value
-        validate_dimension("width_px", MAX_WIDTH)
+        validate_dimension("width_px")
 
         # Check height and width together
         height, width = attribute_map.get(

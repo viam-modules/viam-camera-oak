@@ -12,11 +12,10 @@ var modulePath = flag.String("module", "", "the path to the OAK-D module to test
 
 func TestMain(m *testing.M) {
 	fmt.Println("OAK-D MODULE INTEGRATION TESTS")
-	fmt.Println("Tests defined at ___")
 	flag.Parse()
 	moduleString := strings.TrimSpace(*modulePath)
 	if moduleString == "" {
-		fmt.Println("the path to the module is a required argument e.g. $ ./oak-d-integration-tests -module /path/to/module")
+		fmt.Println("The path to the module is a required argument e.g. $ ./oak-d-integration-tests -module /path/to/module")
 		os.Exit(1)
 	}
 	// check if module even exists
@@ -26,9 +25,10 @@ func TestMain(m *testing.M) {
 		fmt.Printf("  error: %v\n", err.Error())
 		os.Exit(1)
 	}
+	fmt.Print("File exists.")
 	exitVal := m.Run()
 	if exitVal == 0 {
-		fmt.Println("all tests succeeded!")
+		fmt.Println("All tests succeeded!")
 	}
 	os.Exit(exitVal)
 }

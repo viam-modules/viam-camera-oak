@@ -6,7 +6,7 @@ import pytest
 from viam.proto.app.robot import ComponentConfig
 from viam.errors import ValidationError
 
-from src.oak_d import OakDModel, MAX_FRAME_RATE, MAX_HEIGHT, MAX_WIDTH
+from src.oak_d import OakDModel
 
 ### Helpers
 
@@ -71,15 +71,7 @@ frame_rate_not_number_value = (
         "sensors": ["color", "depth"],
         "frame_rate": "30"
     }),
-    "attribute must be a number value"
-)
-
-frame_rate_exceeds_max = (
-    make_component_config({
-        "sensors": ["color", "depth"],
-        "frame_rate": MAX_FRAME_RATE + 1
-    }),
-    f"must be a float > 0 and <= {MAX_FRAME_RATE}"
+    "attribute must be a number_value"
 )
 
 frame_rate_is_zero = (
@@ -87,7 +79,7 @@ frame_rate_is_zero = (
         "sensors": ["color", "depth"],
         "frame_rate": 0
     }),
-    f"must be a float > 0 and <= {MAX_FRAME_RATE}"
+    f"must be a float > 0"
 )
 
 frame_rate_is_negative = (
@@ -95,7 +87,7 @@ frame_rate_is_negative = (
         "sensors": ["color", "depth"],
         "frame_rate": -1
     }),
-    f"must be a float > 0 and <= {MAX_FRAME_RATE}"
+    f"must be a float > 0"
 )
 
 dimension_not_number_value = (
@@ -114,14 +106,6 @@ dimension_not_whole_number = (
     "must be a whole number"
 )
 
-height_exceeds_max_value = (
-    make_component_config({
-        "sensors": ["color", "depth"],
-        "height_px": MAX_HEIGHT + 1
-    }),
-    f"cannot be greater than max of {MAX_HEIGHT}"
-)
-
 height_is_zero = (
     make_component_config({
         "sensors": ["color", "depth"],
@@ -138,13 +122,6 @@ height_is_negative = (
     "cannot be less than or equal to 0"
 )
 
-width_exceeds_max_value = (
-    make_component_config({
-        "sensors": ["color", "depth"],
-        "width_px": MAX_WIDTH + 1
-    }),
-    f"cannot be greater than max of {MAX_WIDTH}"
-)
 
 width_is_zero = (
     make_component_config({
@@ -187,15 +164,12 @@ configs_and_msgs = [
     sensors_has_unknown_type,
     sensors_has_duplicates,
     frame_rate_not_number_value,
-    frame_rate_exceeds_max,
     frame_rate_is_zero,
     frame_rate_is_negative,
     dimension_not_number_value,
     dimension_not_whole_number,
-    height_exceeds_max_value,
     height_is_zero,
     height_is_negative,
-    width_exceeds_max_value,
     width_is_zero,
     width_is_negative,
     only_received_height,

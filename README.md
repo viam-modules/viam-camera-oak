@@ -4,18 +4,21 @@ This is a [Viam module](https://docs.viam.com/manage/configuration/#modules) for
 
 ## Getting Started
 
-### Checking Python version
+### Checking Python version (for local installs and non-AArch64 robots)
 
-First and foremost, open a terminal on your robot, and run the following commands to check its Python and pip versions:
+If you installed the module locally or if your robot is using a non-AArch64 board, you must verify that your system Python3 is compatible with Viam. Open a terminal on your robot, and run the following commands to check its Python and pip versions:
 
 ```console
-python3 --version
-python3 -m ensurepip --default-pip
-pip3 --version
+sudo python3 --version
+sudo python3 -c "import venv"
+sudo python3 -m ensurepip --default-pip
+sudo pip3 --version
 ```
 
 Verify that your robot's Python3 version is 3.8.1 or later, and that it is installed and linked to the `python3` command to avoid compatibility issues.
-Similarly, make sure that `pip3` is installed properly.
+Similarly, make sure that `venv` and `pip3` are installed properly by making sure the subsequent commands do not produce an error.
+
+If you are using the registry to install the module and your robot is using an AArch64 board such as a 64-bit Raspberry Pi or a Jetson device, ignore these instructions as the module will be bundled as an Appimage, which includes Python and necessary dependencies statically.
 
 ### Using the registry
 
@@ -52,7 +55,7 @@ Then modify your robot's JSON file as follows
 
 The attributes for the module are as follows:
 - `sensors` (required): an array that contains the strings `color` and/or `depth`. The sensor that comes first in the array is designated the "main sensor" and will be the image that gets returned by `get_image` calls and what will appear in the Control tab on app.viam. When both sensors are requested, `get_point_clouds` will be available for use, and `get_images` will return both the color and depth outputs. Additionally, color and depth outputs returned together will always be aligned, have the same height and width, and have the same timestamp. See Viam's [documentation on the Camera API](https://docs.viam.com/components/camera/#api) for more details. 
-- `width_px`, `height_px`: the int width and height of the output images. If the OAK-D cannot produce the requested resolution, the component will be configured to the closest resolution to the given height/width. Therefore, the image output size will not always match the input size. `width_px` defaults to `640` and `height_px` defaults to `400`.
+- `width_px`, `height_px`: the int width and height of the output images. If the OAK-D cannot produce the requested resolution, the component will be configured to the closest resolution to the given height/width. Therefore, the image output size will not always match the input size. `width_px` defaults to `640` and `height_px` defaults to `400`. Note: higher resolutions may cause out of memory errors. See Luxonis documentation (here)[https://docs.luxonis.com/projects/api/en/latest/tutorials/ram_usage/].
 - `frame_rate`: the float that represents the frame rate the camera will capture images at. Defaults to `30.0`.
 
 ```
