@@ -12,8 +12,6 @@ if [ "$os" = "Linux" ] && [ "$arch" = "aarch64" ]; then
     appimage_path="./viam-camera-oak-d--aarch64.AppImage"
     chmod +x "$appimage_path"
     exec "$appimage_path" "$@"
-     echo "$LOG_PREFIX Successfully started appimage."
-    exit 0
 else
     echo "$LOG_PREFIX Detected system not Linux ARM64."
 fi

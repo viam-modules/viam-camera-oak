@@ -27,9 +27,6 @@ AppDir:
     env:
       PYTHONHOME: '${APPDIR}/usr'
       PYTHONPATH: '${APPDIR}/usr/lib/python3.10/site-packages'
-  
-  after_bundle:
-    - chmod +x /app/viam-camera-oak-d-REPLACE-WITH-RELEASE-NUMBER-aarch64.AppImage
 
 AppImage:
   arch: aarch64
