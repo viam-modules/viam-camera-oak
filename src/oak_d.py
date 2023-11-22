@@ -473,7 +473,9 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         """
         # Validation
         if COLOR_SENSOR not in self.sensors or DEPTH_SENSOR not in self.sensors:
-            details = 'Please include "color" and "depth" in the "sensors" attribute list.'
+            details = (
+                'Please include "color" and "depth" in the "sensors" attribute list.'
+            )
             raise MethodNotAllowed(method_name="get_point_cloud", details=details)
 
         cls = type(self)
