@@ -8,10 +8,10 @@ arch=$(uname -m)
 
 # Run appimage if Linux aarch64
 if [ "$os" = "Linux" ] && [ "$arch" = "aarch64" ]; then
-    echo "$LOG_PREFIX Detected system Linux ARM64. Attempting to start appimage"
+    echo "$LOG_PREFIX Detected system Linux ARM64. Attempting to start appimage."
     appimage_path="./viam-camera-oak-d--aarch64.AppImage"
     chmod +x "$appimage_path"
-    "$appimage_path"
+    exec "$appimage_path" "$@"
      echo "$LOG_PREFIX Successfully started appimage."
     exit 0
 else
