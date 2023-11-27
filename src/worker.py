@@ -153,7 +153,7 @@ class Worker:
         Blocks until the OakCamera is successfully initialized.
         """
         self.oak = None
-        while not self.oak:
+        while not self.oak and self.running:
             try:
                 self.oak = OakCamera()
             except Exception as e:
@@ -175,26 +175,24 @@ class Worker:
     ]:
         """
         Intakes a dict mapping width/height to a resolution and calculates the closest
-        supported resolution to the width and height from init.
+        supported resolution to the width and height from the config.
 
         Args:
-            width (int)
-            height (int)
             resolutions (dict)
         Returns:
             Union[dai.ColorCameraProperties.SensorResolution, dai.MonoCameraProperties.SensorResolution]
         """
 
-        # Helper to calculate Euclidean distance between two width/height ordered pairs
-        def distance(pair1: Tuple[int, int], pair2: Tuple[int, int]) -> float:
-            return math.sqrt((pair1[0] - pair2[0]) ** 2 + (pair1[1] - pair2[1]) ** 2)
+        def euclidian_distance(width_and_height: Tuple[int, int]) -> float:
+            w1, h1 = width_and_height
+            w2, h2 = self.width, self.height
+            return math.sqrt((w1 - w2) ** 2 + (h1 - h2) ** 2)
 
-        # Find resolution with min distance to the given width and height
-        closest_resolution = min(
+        closest = min(
             dimensions_to_resolution.keys(),
-            key=lambda res: distance(res, (self.width, self.height)),
+            key=euclidian_distance,
         )
-        return dimensions_to_resolution[closest_resolution]
+        return dimensions_to_resolution[closest]
 
     def _configure_color(self) -> Union[CameraComponent, None]:
         """
