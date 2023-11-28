@@ -46,7 +46,7 @@ Then modify your robot's JSON file as follows
     {
       "type": "local",
       "name": "oak-d",
-      "executable_path": "<path-to-your-directory>/viam-camera-oak-d/run.sh"
+      "executable_path": "<path-to-your-directory>/viam-camera-oak-d/packaging/run.sh"
     }
   ],
 ```

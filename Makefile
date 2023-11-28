@@ -1,7 +1,7 @@
 # Makefile
-IMAGE_NAME = python:3.10-bookworm
-CONTAINER_NAME = appimage-builder-container-aarch64
-APPIMAGE_NAME = viam-camera-oak-d--aarch64.AppImage
+APPIMAGE_BUILDER_IMAGE = appimage-builder-image
+APPIMAGE_BUILDER_CONTAINER = appimage-builder-container
+AARCH64_APPIMAGE_NAME = viam-camera-oak-d--aarch64.AppImage
 
 .PHONY: integration-tests
 
@@ -28,23 +28,29 @@ integration-tests: integration-tests/tests/*
 	cd integration-tests && \
 	go test -c -o oak-d-integration-tests ./tests/ && \
 	mv oak-d-integration-tests ../
-	./oak-d-integration-tests -module ./run.sh
+	./oak-d-integration-tests -module ./packaging/run.sh
 
 # Packaging
-build: build-non-appimage
+build: build-source
 
-build-non-appimage: clean
-	tar -czf module.tar.gz run.sh requirements.txt src
+build-source: clean
+	tar -czf module.tar.gz ./packaging/run.sh requirements.txt src
+
+# make sure you're in a dev venv on a Macbook before running to ensure build success
+build-pyinstaller: clean
+	./packaging/pyinstaller.sh
 
 build-appimage: clean
-	docker build -t $(IMAGE_NAME) . && \
-	docker run --name $(CONTAINER_NAME) $(IMAGE_NAME) && \
-	docker cp $(CONTAINER_NAME):/app/$(APPIMAGE_NAME) ./$(APPIMAGE_NAME) && \
-	chmod +x ./${APPIMAGE_NAME} && \
-	tar -czf module.tar.gz run.sh $(APPIMAGE_NAME)
+	docker build -f ./packaging/Dockerfile.appimage-builder -t $(APPIMAGE_BUILDER_IMAGE) . && \
+	docker run --name $(APPIMAGE_BUILDER_CONTAINER) $(APPIMAGE_BUILDER_IMAGE) && \
+	docker cp $(APPIMAGE_BUILDER_CONTAINER):/app/$(AARCH64_APPIMAGE_NAME) ./$(AARCH64_APPIMAGE_NAME) && \
+	chmod +x ./${AARCH64_APPIMAGE_NAME} && \
+	tar -czf module.tar.gz ./packaging/run.sh $(AARCH64_APPIMAGE_NAME)
 
 clean:
 	rm -f *.AppImage && \
 	rm -f module.tar.gz && \
-	docker container stop $(CONTAINER_NAME) || true && \
-	docker container rm $(CONTAINER_NAME) || true
+	rm -r build && \
+	rm -r dist && \
+	docker container stop $(APPIMAGE_BUILDER_CONTAINER) || true && \
+	docker container rm $(APPIMAGE_BUILDER_CONTAINER) || true

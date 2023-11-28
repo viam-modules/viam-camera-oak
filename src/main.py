@@ -3,8 +3,17 @@ import asyncio
 from viam.components.camera import Camera
 from viam.logging import getLogger
 from viam.module.module import Module
+from viam.resource.registry import Registry, ResourceCreatorRegistration
 from src.oak_d import OakDModel
 
+import viam
+
+
+Registry.register_resource_creator(
+    Camera.SUBTYPE,
+    OakDModel.MODEL,
+    ResourceCreatorRegistration(OakDModel.new, OakDModel.validate),
+)
 
 LOGGER = getLogger(__name__)
 

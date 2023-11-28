@@ -1,10 +1,13 @@
 # top level
+.DS_Store
+.pytest_cache
 AppDir
 viam-oak-d-venv
-.pytest_cache
 oak-d-integration-tests
 module.tar.gz
 *.AppImage
+build
+dist
 
 # src
 src/__pycache__

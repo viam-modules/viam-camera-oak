@@ -1,0 +1,16 @@
+FROM python:3.10-bookworm
+
+RUN apt-get update && \
+    apt-get install -y \
+        python3-pip \
+        python3-pkg-resources
+
+WORKDIR /data
+
+COPY ./src /data
+
+COPY ./requirements.txt /data
+
+COPY ./packaging/pyinstaller.sh /data
+
+CMD [ "./pyinstaller.sh" ]
