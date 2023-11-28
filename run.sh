@@ -12,8 +12,6 @@ if [ "$os" = "Linux" ] && [ "$arch" = "aarch64" ] && [ -f "$appimage_path" ]; th
     echo "$LOG_PREFIX Detected system Linux ARM64 and appimage. Attempting to start appimage."
     chmod +x "$appimage_path"
     exec "$appimage_path" "$@"
-else
-    echo "$LOG_PREFIX Detected system not Linux ARM64 and no appimage."
 fi
 
 # Run from source if not Linux aarch64
