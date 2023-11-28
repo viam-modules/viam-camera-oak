@@ -1,9 +1,9 @@
 version: 1
 script:
-  - mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps/ && cp viam-server.png AppDir/usr/share/icons/hicolor/256x256/apps/
-  - python3 -m pip install --root / -r ./requirements.txt
-  - mkdir -p AppDir/usr/lib && cp -r /usr/local/lib/python3.10 AppDir/usr/lib/
-  - cp -r src AppDir/usr/lib/python3.10/site-packages
+  - python3 -m pip install -r requirements.txt  # install dependency packages as modules in root (modules in this context means Python modules)
+  - mkdir -p AppDir/usr/lib/python3.10 && cp -r /usr/local/lib/python3.10/site-packages AppDir/usr/lib/python3.10  # cp from root into appdir; site-packages contains all our modules including dependencies
+  - cp -r src AppDir/usr/lib/python3.10/site-packages  # add source code dir to site-packages so the OAK-D module can be discovered in PYTHONPATH and be run as a Python module
+  - mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps/ && cp viam-server.png AppDir/usr/share/icons/hicolor/256x256/apps/  # icon is required
 
 AppDir:
   path: ./AppDir
@@ -21,11 +21,11 @@ AppDir:
       - sourceline: 'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy main restricted universe multiverse'
     include:
       - python3.10
-      - python3-pkg-resources
+      - python3-pkg-resources  # necessary for package metadata and paths
 
   runtime:
     env:
-      PYTHONHOME: '${APPDIR}/usr'
+      PYTHONHOME: '${APPDIR}/usr'  # https://docs.python.org/3/using/cmdline.html#environment-variables
       PYTHONPATH: '${APPDIR}/usr/lib/python3.10/site-packages'
 
 AppImage:

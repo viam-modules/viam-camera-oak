@@ -18,4 +18,4 @@ COPY . /app
 
 COPY packaging/. /app
 
-CMD ["appimage-builder"]
+CMD ["appimage-builder", "--recipe", "packaging/AppImageBuilder.yml"]
