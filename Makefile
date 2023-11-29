@@ -1,6 +1,6 @@
 # Makefile
-IMAGE_NAME = appimage-builder-image
-CONTAINER_NAME = appimage-builder-container
+IMAGE_NAME = appimage-builder-oak-d
+CONTAINER_NAME = appimage-builder-oak-d
 AARCH64_APPIMAGE_NAME = viam-camera-oak-d--aarch64.AppImage
 
 .PHONY: integration-tests
@@ -8,9 +8,6 @@ AARCH64_APPIMAGE_NAME = viam-camera-oak-d--aarch64.AppImage
 .DEFAULT_GOAL := setup
 
 # Developing
-setup:
-	pip install -r requirements-dev.txt
-
 lint: lint-fix
 
 lint-fix:
@@ -37,14 +34,14 @@ build-non-appimage: clean
 	tar -czf module.tar.gz run.sh requirements.txt src
 
 build-appimage-aarch64: clean
-	docker build -t $(IMAGE_NAME) . && \
-	docker run --name $(CONTAINER_NAME) $(IMAGE_NAME) && \
-	docker cp $(CONTAINER_NAME):/app/$(AARCH64_APPIMAGE_NAME) ./$(AARCH64_APPIMAGE_NAME) && \
-	chmod +x ./${AARCH64_APPIMAGE_NAME} && \
+	docker build -t $(IMAGE_NAME) .
+	docker run --name $(CONTAINER_NAME) $(IMAGE_NAME)
+	docker cp $(CONTAINER_NAME):/app/$(AARCH64_APPIMAGE_NAME) ./$(AARCH64_APPIMAGE_NAME)
+	chmod +x ./${AARCH64_APPIMAGE_NAME}
 	tar -czf module.tar.gz run.sh $(AARCH64_APPIMAGE_NAME)
 
 clean:
-	rm -f *.AppImage && \
-	rm -f module.tar.gz && \
-	docker container stop $(CONTAINER_NAME) || true && \
+	rm -f $(AARCH64_APPIMAGE_NAME)
+	rm -f module.tar.gz
+	docker container stop $(CONTAINER_NAME) || true
 	docker container rm $(CONTAINER_NAME) || true
