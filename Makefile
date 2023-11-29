@@ -1,7 +1,7 @@
 # Makefile
-IMAGE_NAME = python:3.10-bookworm
-CONTAINER_NAME = appimage-builder-container-aarch64
-APPIMAGE_NAME = viam-camera-oak-d--aarch64.AppImage
+IMAGE_NAME = appimage-builder-image
+CONTAINER_NAME = appimage-builder-container
+AARCH64_APPIMAGE_NAME = viam-camera-oak-d--aarch64.AppImage
 
 .PHONY: integration-tests
 
