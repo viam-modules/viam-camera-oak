@@ -5,9 +5,10 @@ AARCH64_APPIMAGE_NAME = viam-camera-oak-d--aarch64.AppImage
 
 .PHONY: integration-tests
 
-.DEFAULT_GOAL := setup
-
 # Developing
+default:
+	@echo No make target specified.
+
 lint: lint-fix
 
 lint-fix:
