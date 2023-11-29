@@ -39,9 +39,9 @@ build-non-appimage: clean
 build-appimage: clean
 	docker build -t $(IMAGE_NAME) . && \
 	docker run --name $(CONTAINER_NAME) $(IMAGE_NAME) && \
-	docker cp $(CONTAINER_NAME):/app/$(APPIMAGE_NAME) ./$(APPIMAGE_NAME) && \
-	chmod +x ./${APPIMAGE_NAME} && \
-	tar -czf module.tar.gz run.sh $(APPIMAGE_NAME)
+	docker cp $(CONTAINER_NAME):/app/$(AARCH64_APPIMAGE_NAME) ./$(AARCH64_APPIMAGE_NAME) && \
+	chmod +x ./${AARCH64_APPIMAGE_NAME} && \
+	tar -czf module.tar.gz run.sh $(AARCH64_APPIMAGE_NAME)
 
 clean:
 	rm -f *.AppImage && \
