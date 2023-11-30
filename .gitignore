@@ -1,9 +1,10 @@
 # top level
-AppDir
-viam-oak-d-venv
+.DS_Store
 .pytest_cache
-oak-d-integration-tests
+.venv
 module.tar.gz
+oak-d-integration-tests
+viam-oak-d-venv
 *.AppImage
 
 # src
@@ -11,6 +12,3 @@ src/__pycache__
 
 # unit tests
 tests/__pycache__
-
-# packaging
-packaging/src
