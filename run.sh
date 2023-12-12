@@ -29,10 +29,9 @@ else
     echo "$LOG_PREFIX Created/found venv."
 fi
 
-# Remove -U if viam-sdk should not be upgraded whenever possible
 # -qq suppresses extraneous output from pip
 echo "$LOG_PREFIX Installing/upgrading Python packages."
-if ! "$PYTHON" -m pip install -r requirements.txt -Uqq; then
+if ! "$PYTHON" -m pip install -r requirements.txt -qq; then
     echo "$LOG_PREFIX Error: pip failed to install requirements.txt. Please use your system package manager to install python3-pip." >&2
     exit 1
 fi
