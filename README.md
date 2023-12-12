@@ -14,7 +14,7 @@ Click on the **Components** subtab and click **Create component**.
 Select the `camera` type, then select the `oak-d` model.
 Enter a name for your camera and click **Create**.
 
-On the new component panel, copy and paste the following attribute template into your camera’s **Attributes** box.:
+On the new component panel, copy and paste the following attribute template into your camera’s **Attributes** box:
 
 ```json
 {
