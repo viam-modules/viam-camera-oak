@@ -67,8 +67,8 @@ The following attributes are available for `oak-d` cameras:
 
 ### Debugging
 
-Although not a config attribute, you can also configure the module to output debug logs. This is done by using the `-debug` flag 
-when starting the Viam server in order for module debug logs to be piped through to stdout e.g. `viam-server -debug -config path/to/your/config.json`.
+Although not a config attribute, you can also configure the module to output debug logs.
+This is done by using the `-debug` flag when starting the Viam server in order for module debug logs to be piped through to stdout e.g. `viam-server -debug -config path/to/your/config.json`.
 
 ### Check your Python version (for local installs and non-AArch64 robots)
 
