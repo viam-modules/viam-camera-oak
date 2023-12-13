@@ -38,8 +38,8 @@ The following attributes are available for `oak-d` cameras:
 | ---- | ---- | --------- | ----------- |
 | `sensors` | array | **Required** | An array that contains the strings `color` and/or `depth`. The sensor that comes first in the array is designated the "main sensor" and will be the image that gets returned by `get_image` calls and what will appear in the Control tab on the [Viam app](https://app.viam.com) When both sensors are requested, `get_point_clouds` will be available for use, and `get_images` will return both the color and depth outputs. Additionally, color and depth outputs returned together will always be aligned, have the same height and width, and have the same timestamp. See Viam's [documentation on the Camera API](https://docs.viam.com/components/camera/#api) for more details.  |
 | `width_px` | int | Optional | Width in pixels of the images output by this camera. If the OAK-D cannot produce the requested resolution, the component will be configured to the closest resolution to the given height/width. Therefore, the image output size will not always match the input size. Default: `640` |
-| `height_px` | int | Optional | Height in pixels of the images output by this camera. If the OAK-D cannot produce the requested resolution, the component will be configured to the closest resolution to the given height/width. Therefore, the image output size will not always match the input size. Default: `400` |
-| `frame_rate` | int | Optional | The frame rate the camera will capture images at. Default: `30.0` |
+| `height_px` | int | Optional | Height in pixels of the images output by this camera. If the OAK-D cannot produce the requested resolution, the component will be configured to the closest resolution to the given height/width. Therefore, the image output size will not always match the input size. Default: `480` |
+| `frame_rate` | int | Optional | The frame rate the camera will capture images at. Default: `30` |
 
 > [!NOTE]  
 > Higher resolutions may cause out of memory errors. See Luxonis documentation [here](https://docs.luxonis.com/projects/api/en/latest/tutorials/ram_usage/.).
