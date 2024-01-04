@@ -70,7 +70,6 @@ The following attributes are available for `oak-d` cameras:
 Although not a config attribute, you can also configure the module to output debug logs.
 This is done by using the `-debug` flag when starting the Viam server in order for module debug logs to be piped through to stdout e.g. `viam-server -debug -config path/to/your/config.json`.
 
-
 ### Set udev rules on Linux
 
 - Failed to boot the device: 1.3-ma2480, err code 3
