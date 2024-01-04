@@ -78,7 +78,9 @@ This is done by using the `-debug` flag when starting the Viam server in order f
 - [warning] skipping X_LINK_UNBOOTED device having name "<error>"
 - Insufficient permissions to communicate with X_LINK_UNBOOTED device with name "1.1". Make sure udev rules are set
 
-If you see any of the above errors, you may need to set udev rules on your Linux machine. See [here](https://docs.luxonis.com/projects/api/en/latest/pages/udev_rules/) for more information.
+If you see any of the above errors, you may need to set udev rules on your Linux machine. See [here](https://docs.luxonis.com/en/latest/pages/troubleshooting/?highlight=udev#udev-rules-on-linux) for more information.
+
+
 
 ```console
 echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="03e7", MODE="0666"' | sudo tee /etc/udev/rules.d/80-movidius.rules
