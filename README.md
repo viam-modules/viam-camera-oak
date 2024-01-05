@@ -70,6 +70,20 @@ The following attributes are available for `oak-d` cameras:
 Although not a config attribute, you can also configure the module to output debug logs.
 This is done by using the `-debug` flag when starting the Viam server in order for module debug logs to be piped through to stdout e.g. `viam-server -debug -config path/to/your/config.json`.
 
+### Set udev rules on Linux
+
+- Failed to boot the device: 1.3-ma2480, err code 3
+- Failed to find device (ma2480), error message: X_LINK_DEVICE_NOT_FOUND
+- [warning] skipping X_LINK_UNBOOTED device having name "<error>"
+- Insufficient permissions to communicate with X_LINK_UNBOOTED device with name "1.1". Make sure udev rules are set
+
+If you see any of the above errors, you may need to set udev rules on your Linux machine. See [here](https://docs.luxonis.com/en/latest/pages/troubleshooting/?highlight=udev#udev-rules-on-linux) for more information.
+
+```console
+echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="03e7", MODE="0666"' | sudo tee /etc/udev/rules.d/80-movidius.rules
+sudo udevadm control --reload-rules && sudo udevadm trigger
+```
+
 ### Check your Python version (for local installs and non-AArch64 robots)
 
 If you installed the module locally or if your robot is using a non-AArch64 board, you must verify that your system Python3 is compatible with Viam. Open a terminal on your robot, and run the following commands to check its Python and pip versions:
