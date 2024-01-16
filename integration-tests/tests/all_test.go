@@ -41,9 +41,9 @@ func TestCameraServer(t *testing.T) {
 		test.That(t, err, test.ShouldBeNil)
 		test.That(t, images, test.ShouldNotBeNil)
 		test.That(t, metadata, test.ShouldNotBeNil)
-		for _, image := range images {
-			test.That(t, image.SourceName, test.ShouldEqual, componentName)
-			bounds := image.Image.Bounds()
+		for _, img := range images {
+			test.That(t, img.SourceName, test.ShouldEqual, componentName)
+			bounds := img.Image.Bounds()
 			test.That(t, bounds.Dx(), test.ShouldEqual, defaultWidth)
 			test.That(t, bounds.Dy(), test.ShouldEqual, defaultHeight)
 		}
