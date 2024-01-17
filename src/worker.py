@@ -156,11 +156,11 @@ class Worker:
             except Exception as e:
                 self.logger.error(f"Error initializing OakCamera: {e}")
                 time.sleep(1)
-    
+
     def _config_oak_camera(self):
         """
         Safely configure the OakCamera.
-        """        
+        """
         try:
             color = self._configure_color()
             stereo = self._configure_stereo(color)
@@ -168,7 +168,8 @@ class Worker:
             self.oak.start()
         except Exception as e:
             err_str = f"Error configuring OakCamera: {e}"
-            if type(e) == RuntimeError and "bigger than maximum at current sensor resolution" in str(e):
+            resolution_err_substr = "bigger than maximum at current sensor resolution"
+            if type(e) == RuntimeError and resolution_err_substr in str(e):
                 err_str += ". Please adjust 'height_px' and 'width_px' in your config to an accepted resolution."
             self.logger.error(err_str)
 
