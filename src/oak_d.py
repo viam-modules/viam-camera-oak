@@ -77,8 +77,8 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
 
     It inherits from the built-in resource subtype Base and conforms to the
     ``Reconfigurable`` protocol, which signifies that this component can be
-    reconfigured. It also confirms to the ``Stoppable`` protocol, which signifies
-    that the component can be stopped manually using stop()
+    reconfigured. It also confirms to the `Stoppable` protocol, which signifies
+    that the component can be stopped manually using `stop`
 
     Additionally, it specifies a constructor function
     ``OakDModel.new`` which confirms to the ``resource.types.ResourceCreator``
