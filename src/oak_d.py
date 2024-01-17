@@ -267,7 +267,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             LOGGER.debug("No active worker.")
 
         self.camera_properties = Camera.Properties(
-            supports_pcd=False,  # TODO RSDK-5637: change to true after https://github.com/viamrobotics/viam-python-sdk/pull/481 is in
+            supports_pcd=True,
             distortion_parameters=None,
             intrinsic_parameters=None,
         )
