@@ -171,7 +171,6 @@ class Worker:
             if type(e) == RuntimeError and "bigger than maximum at current sensor resolution" in str(e):
                 err_str += ". Please adjust 'height_px' and 'width_px' in your config to an accepted resolution."
             self.logger.error(err_str)
-            return
 
     def _get_closest_resolution(
         self,
