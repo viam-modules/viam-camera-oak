@@ -114,10 +114,7 @@ class Worker:
         self.running = True
 
         self._init_oak_camera()
-        color = self._configure_color()
-        stereo = self._configure_stereo(color)
-        self._configure_pc(stereo, color)
-        self.oak.start()
+        self._config_oak_camera()
 
         self.manager = WorkerManager(self.oak, logger, reconfigure)
         self.manager.start()
@@ -159,6 +156,19 @@ class Worker:
             except Exception as e:
                 self.logger.error(f"Error initializing OakCamera: {e}")
                 time.sleep(1)
+    
+    def _config_oak_camera(self):
+        """
+        Safely configure the OakCamera.
+        """        
+        try:
+            color = self._configure_color()
+            stereo = self._configure_stereo(color)
+            self._configure_pc(stereo, color)
+            self.oak.start()
+        except Exception as e:
+            self.logger.error(f"Error configuring OakCamera: {e}")
+            return
 
     def _get_closest_resolution(
         self,
