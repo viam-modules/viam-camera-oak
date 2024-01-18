@@ -26,18 +26,21 @@ const (
 )
 
 func TestCameraServer(t *testing.T) {
+	ctxTimeoutTests, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
 	var myRobot robot.Robot
 	var cam camera.Camera
 	t.Run("Set up the robot", func(t *testing.T) {
 		var err error
-		myRobot, err = setUpViamServer(context.Background(), t)
+		myRobot, err = setUpViamServer(ctxTimeoutTests, t)
 		test.That(t, err, test.ShouldBeNil)
 		cam, err = camera.FromRobot(myRobot, componentName)
 		test.That(t, err, test.ShouldBeNil)
 	})
 
 	t.Run("Get images method", func(t *testing.T) {
-		images, metadata, err := cam.Images(context.Background())
+		images, metadata, err := cam.Images(ctxTimeoutTests)
 		test.That(t, err, test.ShouldBeNil)
 		test.That(t, images, test.ShouldNotBeNil)
 		test.That(t, metadata, test.ShouldNotBeNil)
@@ -51,7 +54,7 @@ func TestCameraServer(t *testing.T) {
 	})
 
 	t.Run("Get point cloud method", func(t *testing.T) {
-		pc, err := cam.NextPointCloud(context.Background())
+		pc, err := cam.NextPointCloud(ctxTimeoutTests)
 		test.That(t, err, test.ShouldBeNil)
 		test.That(t, pc, test.ShouldNotBeNil)
 		test.That(t, pc.Size(), test.ShouldBeBetweenOrEqual, defaultHeight*defaultWidth-100, defaultHeight*defaultWidth)
@@ -63,16 +66,16 @@ func TestCameraServer(t *testing.T) {
 				"sensors": []string{"color"},
 			},
 		}
-		err := cam.Reconfigure(context.Background(), resource.Dependencies{}, cfg)
+		err := cam.Reconfigure(ctxTimeoutTests, resource.Dependencies{}, cfg)
 		test.That(t, err, test.ShouldBeNil)
 	})
 
 	t.Run("Shut down the camera", func(t *testing.T) {
-		test.That(t, cam.Close(context.Background()), test.ShouldBeNil)
+		test.That(t, cam.Close(ctxTimeoutTests), test.ShouldBeNil)
 	})
 
 	t.Run("Shut down the robot", func(t *testing.T) {
-		test.That(t, myRobot.Close(context.Background()), test.ShouldBeNil)
+		test.That(t, myRobot.Close(ctxTimeoutTests), test.ShouldBeNil)
 	})
 }
 
