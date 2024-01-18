@@ -159,15 +159,19 @@ class Worker:
 
     def _config_oak_camera(self):
         """
-        Safely configure the OakCamera.
+        Safely configures the OakCamera.
         """
         try:
+            stage = "color"
             color = self._configure_color()
+            stage = "stereo"
             stereo = self._configure_stereo(color)
+            stage = "point cloud"
             self._configure_pc(stereo, color)
+            stage = "start"
             self.oak.start()
         except Exception as e:
-            err_str = f"Error configuring OakCamera: {e}"
+            err_str = f"Error configuring OakCamera at stage '{stage}': {e}"
             resolution_err_substr = "bigger than maximum at current sensor resolution"
             if type(e) == RuntimeError and resolution_err_substr in str(e):
                 err_str += ". Please adjust 'height_px' and 'width_px' in your config to an accepted resolution."
@@ -253,7 +257,21 @@ class Worker:
             self.logger.debug(
                 f"Closest mono resolution to inputted height width is: {resolution}"
             )
-            stereo = self.oak.stereo(fps=self.frame_rate, resolution=resolution)
+            cam_left = CameraComponent(
+                self.oak.device,
+                self.oak.pipeline,
+                dai.CameraBoardSocket.CAM_B, # Same as CameraBoardSocket.LEFT
+                dai.MonoCameraProperties.SensorResolution.THE_400_P,
+                self.frame_rate,
+            )
+            cam_right = CameraComponent(
+                self.oak.device,
+                self.oak.pipeline,
+                dai.CameraBoardSocket.CAM_C, # Same as CameraBoardSocket.RIGHT
+                dai.MonoCameraProperties.SensorResolution.THE_400_P,
+                self.frame_rate,
+            )
+            stereo = self.oak.stereo(resolution, self.frame_rate, cam_left, cam_right)
             if color:
                 # Ensures camera alignment and output resolution are same for color and depth
                 stereo.config_stereo(align=color)
