@@ -260,14 +260,14 @@ class Worker:
             cam_left = CameraComponent(
                 self.oak.device,
                 self.oak.pipeline,
-                dai.CameraBoardSocket.CAM_B, # Same as CameraBoardSocket.LEFT
+                dai.CameraBoardSocket.CAM_B,  # Same as CameraBoardSocket.LEFT
                 dai.MonoCameraProperties.SensorResolution.THE_400_P,
                 self.frame_rate,
             )
             cam_right = CameraComponent(
                 self.oak.device,
                 self.oak.pipeline,
-                dai.CameraBoardSocket.CAM_C, # Same as CameraBoardSocket.RIGHT
+                dai.CameraBoardSocket.CAM_C,  # Same as CameraBoardSocket.RIGHT
                 dai.MonoCameraProperties.SensorResolution.THE_400_P,
                 self.frame_rate,
             )
