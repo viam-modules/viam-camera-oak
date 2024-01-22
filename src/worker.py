@@ -171,11 +171,14 @@ class Worker:
             stage = "start"
             self.oak.start()
         except Exception as e:
-            err_str = f"Error configuring OakCamera at stage '{stage}': {e}"
+            msg = f"Error configuring OakCamera at stage '{stage}': {e}"
             resolution_err_substr = "bigger than maximum at current sensor resolution"
-            if type(e) == RuntimeError and resolution_err_substr in str(e):
-                err_str += ". Please adjust 'height_px' and 'width_px' in your config to an accepted resolution."
-            self.logger.error(err_str)
+            calibration_err_substr = "no Camera data available"
+            if resolution_err_substr in str(e):
+                msg += ". Please adjust 'height_px' and 'width_px' in your config to an accepted resolution."
+            elif calibration_err_substr in str(e):
+                msg += ". If using a non-integrated model, please check that the camera is calibrated properly."
+            self.logger.error(msg)
 
     def _get_closest_resolution(
         self,
@@ -261,14 +264,14 @@ class Worker:
                 self.oak.device,
                 self.oak.pipeline,
                 dai.CameraBoardSocket.CAM_B,  # Same as CameraBoardSocket.LEFT
-                dai.MonoCameraProperties.SensorResolution.THE_400_P,
+                resolution,
                 self.frame_rate,
             )
             cam_right = CameraComponent(
                 self.oak.device,
                 self.oak.pipeline,
                 dai.CameraBoardSocket.CAM_C,  # Same as CameraBoardSocket.RIGHT
-                dai.MonoCameraProperties.SensorResolution.THE_400_P,
+                resolution,
                 self.frame_rate,
             )
             stereo = self.oak.stereo(resolution, self.frame_rate, cam_left, cam_right)
