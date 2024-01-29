@@ -1,13 +1,18 @@
 {
-  "module_id": "viam:oak-d",
-  "visibility": "public",
-  "url": "https://github.com/viamrobotics/viam-camera-oak-d",
+  "module_id": "michaellee1019:oak-d",
+  "visibility": "private",
+  "url": "https://github.com/michaellee1019/viam-camera-oak-d",
   "description": "Python camera module for the Luxonis OAK-D. Please check the README.md on the linked Github repo to get started.",
   "models": [
     {
       "api": "rdk:component:camera",
-      "model": "viam:camera:oak-d"
+      "model": "michaellee1019:camera:oak-d"
     }
   ],
-  "entrypoint": "run.sh"
+  "build": {
+    "build": "sh build.sh",
+    "path": "dist/archive.tar.gz",
+    "arch" : ["linux/arm64", "darwin/arm64", "darwin/amd64"]
+  },
+  "entrypoint": "dist/main"
 }
