@@ -12,11 +12,11 @@ async def main():
     """This function creates and starts a new module, after adding all desired resources.
     Resources must be pre-registered. For an example, see the `__init__.py` file.
     """
-Registry.register_resource_creator(
-    Camera.SUBTYPE,
-    OakDModel.MODEL,
-    ResourceCreatorRegistration(OakDModel.new, OakDModel.validate),
-)
+    Registry.register_resource_creator(
+        Camera.SUBTYPE,
+        OakDModel.MODEL,
+        ResourceCreatorRegistration(OakDModel.new, OakDModel.validate),
+    )
 
     module = Module.from_args()
     module.add_model_from_registry(Camera.SUBTYPE, OakDModel.MODEL)
