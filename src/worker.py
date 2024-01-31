@@ -35,6 +35,7 @@ DIMENSIONS_TO_COLOR_RES = {
 
 MAX_GRPC_MESSAGE_BYTE_COUNT = 4194304  # Update this if the gRPC config ever changes
 
+
 class WorkerManager(Thread):
     """
     WorkerManager checks the health of the OakCamera to make sure
@@ -351,10 +352,12 @@ class Worker:
             packet (PointcloudPacket): outputted PCD data inputted by caller
         """
         arr, byte_count = packet.points, packet.points.nbytes
-        self.logger.debug(f'Setting current pcd. num_bytes: {byte_count}')
+        self.logger.debug(f"Setting current pcd. num_bytes: {byte_count}")
         if byte_count > MAX_GRPC_MESSAGE_BYTE_COUNT:
             factor = byte_count // MAX_GRPC_MESSAGE_BYTE_COUNT + 1
-            self.logger.warn(f'PCD bytes ({byte_count}) > max gRPC bytes count ({MAX_GRPC_MESSAGE_BYTE_COUNT}). Subsampling by 1/{factor}.')
+            self.logger.warn(
+                f"PCD bytes ({byte_count}) > max gRPC bytes count ({MAX_GRPC_MESSAGE_BYTE_COUNT}). Subsampling by 1/{factor}."
+            )
             arr = arr[::factor, ::factor, :]
         self.logger.debug(f"Setting pcd. Byte count: {byte_count}")
         self.pcd = CapturedData(arr, time.time())
