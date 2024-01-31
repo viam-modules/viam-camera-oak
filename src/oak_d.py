@@ -3,6 +3,7 @@ import io
 import logging
 import struct
 import threading
+import time
 from typing import (
     Any,
     Callable,
@@ -96,6 +97,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
     MODEL: ClassVar[Model] = Model(ModelFamily("viam", "camera"), "oak-d")
     worker: ClassVar[Worker]
     """Singleton ``worker`` handles camera logic in a separate thread"""
+    get_point_cloud_was_invoked: ClassVar[bool] = False
     camera_properties: Camera.Properties
 
     @classmethod
@@ -292,6 +294,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             frame_rate=self.frame_rate,
             user_wants_color=user_wants_color,
             user_wants_depth=user_wants_depth,
+            user_wants_pc=cls.get_point_cloud_was_invoked,
             reconfigure=callback,
             logger=LOGGER,
         )
@@ -479,6 +482,15 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         cls = type(self)
         if not cls.worker.running:
             raise ViamError("get_point_cloud called before camera worker is ready.")
+        
+        # By default, we do not get point clouds even when color and depth are both requested
+        # We have to reinitialize the worker/OakCamera to start making point clouds
+        if cls.worker.pcd is None:
+            cls.get_point_cloud_was_invoked = True
+            cls.worker.oak.close()  # triggers reconfigure callback
+        
+        while not cls.worker or not cls.worker.user_wants_pc:
+            time.sleep(0.5)  # wait for new worker to initialize with pc configured
 
         # Get actual PCD data from camera worker
         pcd_obj = await cls.worker.get_pcd()

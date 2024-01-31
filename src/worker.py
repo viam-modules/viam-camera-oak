@@ -33,6 +33,7 @@ DIMENSIONS_TO_COLOR_RES = {
     (1920, 1080): dai.ColorCameraProperties.SensorResolution.THE_1080_P,
 }  # color camera component only accepts this subset of depthai_sdk.components.camera_helper.colorResolutions
 
+MAX_GRPC_MESSAGE_BYTE_COUNT = 4194304  # Update this if the gRPC config ever changes
 
 class WorkerManager(Thread):
     """
@@ -95,6 +96,7 @@ class Worker:
         frame_rate: float,
         user_wants_color: bool,
         user_wants_depth: bool,
+        user_wants_pc: bool,
         reconfigure: Callable[[None], None],
         logger: Logger,
     ) -> None:
@@ -105,6 +107,7 @@ class Worker:
         self.frame_rate = frame_rate
         self.user_wants_color = user_wants_color
         self.user_wants_depth = user_wants_depth
+        self.user_wants_pc = user_wants_pc
         self.reconfigure = reconfigure
         self.logger = logger
 
@@ -115,6 +118,7 @@ class Worker:
 
         self._init_oak_camera()
         self._config_oak_camera()
+        self.oak.start()
 
         self.manager = WorkerManager(self.oak, logger, reconfigure)
         self.manager.start()
@@ -168,8 +172,6 @@ class Worker:
             stereo = self._configure_stereo(color)
             stage = "point cloud"
             self._configure_pc(stereo, color)
-            stage = "start"
-            self.oak.start()
         except Exception as e:
             msg = f"Error configuring OakCamera at stage '{stage}': {e}"
             resolution_err_substr = "bigger than maximum at current sensor resolution"
@@ -293,7 +295,7 @@ class Worker:
         Returns:
             Union[PointcloudComponent, None]
         """
-        if self.user_wants_color and self.user_wants_depth:
+        if self.user_wants_pc:
             self.logger.debug("Creating point cloud component.")
             pcc = self.oak.create_pointcloud(stereo, color)
             self.oak.callback(pcc, callback=self._set_pcd)
@@ -349,5 +351,10 @@ class Worker:
             packet (PointcloudPacket): outputted PCD data inputted by caller
         """
         arr, byte_count = packet.points, packet.points.nbytes
+        self.logger.debug(f'Setting current pcd. num_bytes: {byte_count}')
+        if byte_count > MAX_GRPC_MESSAGE_BYTE_COUNT:
+            factor = byte_count // MAX_GRPC_MESSAGE_BYTE_COUNT + 1
+            self.logger.warn(f'PCD bytes ({byte_count}) > max gRPC bytes count ({MAX_GRPC_MESSAGE_BYTE_COUNT}). Subsampling by 1/{factor}.')
+            arr = arr[::factor, ::factor, :]
         self.logger.debug(f"Setting pcd. Byte count: {byte_count}")
         self.pcd = CapturedData(arr, time.time())
