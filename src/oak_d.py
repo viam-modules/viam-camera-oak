@@ -435,9 +435,9 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         if DEPTH_SENSOR in self.sensors:
             captured_at: CapturedData
             if depth_data:
-                captured_data = await cls.worker.get_depth_map()
-            else:
                 captured_data = depth_data
+            else:
+                captured_data = await cls.worker.get_depth_map()
 
             arr, captured_at = captured_data.np_array, captured_data.captured_at
             depth_encoded_bytes = self._encode_depth_raw(arr.tobytes(), arr.shape)
