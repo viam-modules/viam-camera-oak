@@ -23,7 +23,6 @@ from numpy.typing import NDArray
 DIMENSIONS_TO_MONO_RES = {
     (1280, 800): dai.MonoCameraProperties.SensorResolution.THE_800_P,
     (1280, 720): dai.MonoCameraProperties.SensorResolution.THE_720_P,
-    (640, 480): dai.MonoCameraProperties.SensorResolution.THE_480_P,
     (640, 400): dai.MonoCameraProperties.SensorResolution.THE_400_P,
 }  # stereo camera component only accepts this subset of depthai_sdk.components.camera_helper.monoResolutions
 
@@ -260,23 +259,19 @@ class Worker:
             self.logger.debug(
                 f"Closest mono resolution to inputted height width is: {resolution}"
             )
-            cam_left = CameraComponent(
-                self.oak.device,
-                self.oak.pipeline,
+            cam_left = self.oak.camera(
                 dai.CameraBoardSocket.CAM_B,  # Same as CameraBoardSocket.LEFT
                 resolution,
                 self.frame_rate,
             )
-            cam_right = CameraComponent(
-                self.oak.device,
-                self.oak.pipeline,
+            cam_right = self.oak.camera(
                 dai.CameraBoardSocket.CAM_C,  # Same as CameraBoardSocket.RIGHT
                 resolution,
                 self.frame_rate,
             )
             stereo = self.oak.stereo(resolution, self.frame_rate, cam_left, cam_right)
             if color:
-                # Ensures camera alignment and output resolution are same for color and depth
+                # Ensures camera alignment between color and depth
                 stereo.config_stereo(align=color)
             self.oak.callback(stereo, callback=self._set_depth_map)
             return stereo
@@ -310,7 +305,7 @@ class Worker:
         # DepthAI outputs BGR; convert to RGB
         arr: NDArray = cv2.cvtColor(packet.frame, cv2.COLOR_BGR2RGB)
         self.logger.debug(
-            f"Setting color image. Array shape: {arr.shape}. Dtype: {arr.dtype}"
+            f"Setting color image. Array shape: {arr.shape}. Dtype: {arr.dtype}. Seq#: {packet.get_sequence_num()}"
         )
         self.color_image = CapturedData(arr, time.time())
 
@@ -323,7 +318,6 @@ class Worker:
             packet (DisparityDepthPacket): outputted depth data inputted by caller
         """
         arr = packet.frame
-        # RSDK-5633: this is a major bottleneck for depth map retrieval
         if arr.shape[0] > self.height and arr.shape[1] > self.width:
             self.logger.debug(
                 f"Outputted depth map's shape is greater than specified in config: {arr.shape}; Manually resizing to {(self.height, self.width)}."
@@ -336,7 +330,7 @@ class Worker:
             ]
 
         self.logger.debug(
-            f"Setting depth map. Array shape: {arr.shape}. Dtype: {arr.dtype}"
+            f"Setting depth map. Array shape: {arr.shape}. Dtype: {arr.dtype}. Seq#: {packet.get_sequence_num()}"
         )
         self.depth_map = CapturedData(arr, time.time())
 
