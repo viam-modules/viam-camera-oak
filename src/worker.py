@@ -302,7 +302,7 @@ class Worker:
     def _set_color_image(self, packet: FramePacket) -> None:
         """
         Passed as a callback func to DepthAI to use when new color data is outputted.
-        Callback logic chronologically syncs all the outputted data.
+        Callback logic chronologically syncs invocation of these _set functions.
 
         Args:
             packet (FramePacket): outputted color data inputted by caller
@@ -317,7 +317,7 @@ class Worker:
     def _set_depth_map(self, packet: DisparityDepthPacket) -> None:
         """
         Passed as a callback func to DepthAI to use when new depth data is outputted.
-        Callback logic chronologically syncs all the outputted data.
+        Callback logic chronologically syncs invocation of these _set functions.
 
         Args:
             packet (DisparityDepthPacket): outputted depth data inputted by caller
@@ -343,7 +343,7 @@ class Worker:
     def _set_pcd(self, packet: PointcloudPacket) -> None:
         """
         Passed as a callback func to DepthAI to use when new PCD data is outputted.
-        Callback logic chronologically syncs all the outputted data.
+        Callback logic chronologically syncs invocation of these _set functions.
 
         Args:
             packet (PointcloudPacket): outputted PCD data inputted by caller
