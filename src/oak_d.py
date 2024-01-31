@@ -1,4 +1,5 @@
 # Standard library
+import asyncio
 import io
 import logging
 import struct
@@ -42,7 +43,7 @@ from viam.components.camera import (
 from viam.media.video import CameraMimeType, NamedImage
 
 # OAK-D module
-from src.worker import Worker
+from src.worker import Worker, CapturedData
 
 
 LOGGER = getLogger(__name__)
@@ -387,6 +388,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
                 - ResponseMetadata:
                   The metadata associated with this response
         """
+        LOGGER.debug("get_images called")
         cls: OakDModel = type(self)
 
         if not cls.worker.running:
@@ -397,10 +399,22 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         # Accumulator for timestamp calculation later
         seconds_float: float = None
 
-        if COLOR_SENSOR in self.sensors:
-            captured_data = await cls.worker.get_color_image()
-            arr, captured_at = captured_data.np_array, captured_data.captured_at
+        # We really want to do this as in-sync as possible to reduce latency between color & depth
+        color_data: Optional(CapturedData) = None
+        depth_data: Optional(CapturedData) = None
+        if COLOR_SENSOR in self.sensors and DEPTH_SENSOR in self.sensors:
+            color_data, depth_data = await asyncio.gather(cls.worker.get_color_image(), cls.worker.get_depth_map())
+            LOGGER.debug("color was captured at: " + str(color_data.captured_at))
+            LOGGER.debug("depth was captured at: " + str(depth_data.captured_at))
 
+        if COLOR_SENSOR in self.sensors:
+            captured_at: CapturedData
+            if color_data:
+                captured_data = color_data
+            else:
+                captured_data = await cls.worker.get_color_image()
+
+            arr, captured_at = captured_data.np_array, captured_data.captured_at
             # Create a Pillow image from the raw data
             pil_image = Image.fromarray(arr)
 
@@ -417,7 +431,12 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             l.append(img)
 
         if DEPTH_SENSOR in self.sensors:
-            captured_data = await cls.worker.get_depth_map()
+            captured_at: CapturedData
+            if depth_data:
+                captured_data = await cls.worker.get_depth_map()
+            else:
+                captured_data = depth_data
+
             arr, captured_at = captured_data.np_array, captured_data.captured_at
             depth_encoded_bytes = self._encode_depth_raw(arr.tobytes(), arr.shape)
             img = NamedImage(

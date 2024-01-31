@@ -278,7 +278,6 @@ class Worker:
             if color:
                 # Ensures camera alignment and output resolution are same for color and depth
                 stereo.config_stereo(align=color)
-                stereo.node.setOutputSize(*color.node.getPreviewSize())
             self.oak.callback(stereo, callback=self._set_depth_map)
             return stereo
         return None
@@ -324,6 +323,7 @@ class Worker:
             packet (DisparityDepthPacket): outputted depth data inputted by caller
         """
         arr = packet.frame
+        # RSDK-5633: this is a major bottleneck for depth map retrieval
         if arr.shape[0] > self.height and arr.shape[1] > self.width:
             self.logger.debug(
                 f"Outputted depth map's shape is greater than specified in config: {arr.shape}; Manually resizing to {(self.height, self.width)}."
