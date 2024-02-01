@@ -1,7 +1,8 @@
 import asyncio
+from collections import OrderedDict
 import math
 import time
-from typing import Any, Callable, Dict, Mapping, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Mapping, Optional, OrderedDict, Tuple, Union
 
 from logging import Logger
 from threading import Thread
@@ -70,6 +71,39 @@ class WorkerManager(Thread):
         self.running = False
 
 
+class MessageSynchronizer:
+    """
+    Manages synchronization of frame messages for color and depth data from OakCamera packet queues.
+    Maintains an ordered dictionary of messages keyed by chronological sequence numbers.
+    """
+
+    MAX_MSGS_SIZE = 50
+
+    def __init__(self):
+        # msgs maps frame sequence number to a dictionary that maps frame_type (i.e. "color" or "depth") to a data packet
+        self.msgs: OrderedDict[int, Dict[str, BasePacket]] = OrderedDict()
+
+    def add_msg(self, msg: BasePacket, frame_type: str, seq=None) -> None:
+        if seq is None:
+            seq = msg.get_sequence_num()
+
+        if seq in self.msgs:
+            self.msgs.move_to_end(seq)
+
+        self.msgs.setdefault(seq, {})[frame_type] = msg
+        self._cleanup_msgs()
+
+    def get_synced_msgs(self) -> Optional[Dict[str, BasePacket]]:
+        for sync_msgs in self.msgs.values():
+            if len(sync_msgs) == 2:  # has both color and depth
+                return sync_msgs
+        return None
+
+    def _cleanup_msgs(self):
+        while len(self.msgs) > self.MAX_MSGS_SIZE:
+            self.msgs.popitem(last=False)  # Remove oldest item
+
+
 class CapturedData:
     """
     CapturedData is image data with the data as an np array,
@@ -89,31 +123,6 @@ class Worker:
     color_image: Union[CapturedData, None]
     depth_map: Union[CapturedData, None]
     pcd: Union[CapturedData, None]
-
-    # Implementation derived from https://github.com/luxonis/depthai-experiments/tree/master/gen2-syncing#message-syncing
-    # msgs maps frame sequence number to a dictionary that maps frame_type (i.e. color or depth) to a data packet
-    msgs: Dict[int, Dict[str, BasePacket]] = dict()
-
-    def add_msg(self, msg: BasePacket, frame_type: str, seq=None):
-        if seq is None:
-            seq = msg.get_sequence_num()
-        seq = str(seq)
-        if seq not in self.msgs:
-            self.msgs[seq] = dict()
-        self.msgs[seq][frame_type] = msg
-
-    def get_msgs(self):
-        seqs_to_remove = []  # Arr of sequence numbers to get deleted
-        for seq, sync_msgs in self.msgs.items():
-            seqs_to_remove.append(
-                seq
-            )  # Will get removed from dict if we find synced msgs pair
-            # Check if we have both detections and color frame with this sequence number
-            if len(sync_msgs) == 2:  # has both color and depth
-                for seq_to_remove in seqs_to_remove:
-                    del self.msgs[seq_to_remove]
-                return sync_msgs  # Returned synced msgs
-        return None
 
     def __init__(
         self,
@@ -149,7 +158,11 @@ class Worker:
         self.manager = WorkerManager(self.oak, logger, reconfigure)
         self.manager.start()
 
-    def try_get_synced_color_depth(self) -> Optional[Tuple[CapturedData, CapturedData]]:
+        self.message_synchronizer = MessageSynchronizer()
+
+    def try_get_synced_color_depth_outputs(
+        self,
+    ) -> Optional[Tuple[CapturedData, CapturedData]]:
         for q_handler in [self.color_q_handler, self.depth_q_handler]:
             if q_handler is self.color_q_handler:
                 frame_type = "color"
@@ -161,20 +174,20 @@ class Worker:
                 current_queue_msgs = list(queue_obj.queue)
 
             for msg in current_queue_msgs:
-                self.add_msg(msg, frame_type)
+                self.message_synchronizer.add_msg(msg, frame_type)
 
-        synced = self.get_msgs()
-        if synced:
-            color_frame = synced["color"].frame
-            depth_frame = synced["depth"].frame
+        synced_color_msgs = self.message_synchronizer.get_synced_msgs()
+        if synced_color_msgs:
+            color_frame = synced_color_msgs["color"].frame
+            depth_frame = synced_color_msgs["depth"].frame
 
-            color_output = self._process_color_data(color_frame)
-            depth_output = self._process_depth_data(depth_frame)
+            color_output = self._process_color_frame(color_frame)
+            depth_output = self._process_depth_frame(depth_frame)
             return color_output, depth_output
 
-    async def get_synced_color_depth(self) -> Tuple[CapturedData, CapturedData]:
+    async def get_synced_color_depth_outputs(self) -> Tuple[CapturedData, CapturedData]:
         while self.running:
-            color_and_depth_output = self.try_get_synced_color_depth()
+            color_and_depth_output = self.try_get_synced_color_depth_outputs()
             if color_and_depth_output:
                 break
             self.logger.debug("Waiting for synced color and depth frames...")
@@ -377,7 +390,7 @@ class Worker:
         Args:
             packet (FramePacket): outputted color data inputted by caller
         """
-        arr = self._process_color_data(packet.frame)
+        arr = self._process_color_frame(packet.frame)
         self.logger.debug(
             f"Setting color image. Array shape: {arr.shape}. Dtype: {arr.dtype}. Seq#: {packet.get_sequence_num()}"
         )
@@ -391,7 +404,7 @@ class Worker:
         Args:
             packet (DisparityDepthPacket): outputted depth data inputted by caller
         """
-        arr = self._process_depth_data(packet.frame)
+        arr = self._process_depth_frame(packet.frame)
         self.logger.debug(
             f"Setting depth map. Array shape: {arr.shape}. Dtype: {arr.dtype}. Seq#: {packet.get_sequence_num()}"
         )
@@ -416,11 +429,11 @@ class Worker:
         self.logger.debug(f"Setting pcd. Byte count: {byte_count}")
         self.pcd = CapturedData(arr, time.time())
 
-    def _process_color_data(self, arr: NDArray) -> NDArray:
+    def _process_color_frame(self, arr: NDArray) -> NDArray:
         # DepthAI outputs BGR; convert to RGB
         return cv2.cvtColor(arr, cv2.COLOR_BGR2RGB)
 
-    def _process_depth_data(self, arr: NDArray) -> NDArray:
+    def _process_depth_frame(self, arr: NDArray) -> NDArray:
         if arr.shape[0] > self.height and arr.shape[1] > self.width:
             self.logger.debug(
                 f"Outputted depth map's shape is greater than specified in config: {arr.shape}; Manually resizing to {(self.height, self.width)}."

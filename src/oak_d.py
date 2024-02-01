@@ -406,7 +406,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         color_data: Optional(CapturedData) = None
         depth_data: Optional(CapturedData) = None
         if COLOR_SENSOR in self.sensors and DEPTH_SENSOR in self.sensors:
-            color_data, depth_data = await cls.worker.get_synced_color_depth()
+            color_data, depth_data = await cls.worker.get_synced_color_depth_outputs()
 
         if COLOR_SENSOR in self.sensors:
             if color_data is None:
