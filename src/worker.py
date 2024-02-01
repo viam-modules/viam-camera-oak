@@ -91,7 +91,8 @@ class Worker:
     # Implementation derived from https://github.com/luxonis/depthai-experiments/tree/master/gen2-syncing#message-syncing
     # msgs maps frame sequence number to a dictionary that maps frame_type (i.e. color or depth) to a data packet
     msgs: Dict[int, Dict[str, BasePacket]] = dict()
-    def add_msg(self, msg: BasePacket, frame_type: str, seq = None):
+
+    def add_msg(self, msg: BasePacket, frame_type: str, seq=None):
         if seq is None:
             seq = msg.get_sequence_num()
         seq = str(seq)
@@ -100,14 +101,16 @@ class Worker:
         self.msgs[seq][frame_type] = msg
 
     def get_msgs(self):
-        seqs_to_remove = [] # Arr of sequence numbers to get deleted
+        seqs_to_remove = []  # Arr of sequence numbers to get deleted
         for seq, sync_msgs in self.msgs.items():
-            seqs_to_remove.append(seq) # Will get removed from dict if we find synced msgs pair
+            seqs_to_remove.append(
+                seq
+            )  # Will get removed from dict if we find synced msgs pair
             # Check if we have both detections and color frame with this sequence number
-            if len(sync_msgs) == 2: # has both color and depth
+            if len(sync_msgs) == 2:  # has both color and depth
                 for seq_to_remove in seqs_to_remove:
                     del self.msgs[seq_to_remove]
-                return sync_msgs # Returned synced msgs
+                return sync_msgs  # Returned synced msgs
         return None
 
     def __init__(
@@ -174,7 +177,9 @@ class Worker:
 
         color_output, depth_output = color_and_depth_output
         timestamp = time.time()
-        return CapturedData(color_output, timestamp), CapturedData(depth_output, timestamp)
+        return CapturedData(color_output, timestamp), CapturedData(
+            depth_output, timestamp
+        )
 
     async def get_color_image(self) -> CapturedData:
         while not self.color_image and self.running:
@@ -301,7 +306,9 @@ class Worker:
             return color
         return None
 
-    def _configure_stereo(self, color: Optional[CameraComponent]) -> Optional[StereoComponent]:
+    def _configure_stereo(
+        self, color: Optional[CameraComponent]
+    ) -> Optional[StereoComponent]:
         """
         Creates and configures stereo depth component— or doesn't
         (based on the config).
