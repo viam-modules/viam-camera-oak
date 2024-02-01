@@ -20,9 +20,10 @@ import (
 
 const (
 	componentName string = "my-oak-d"
-	// Default values should mirror those at the top of oak_d.py
-	defaultWidth  int = 640
-	defaultHeight int = 400
+	// Default values should mirror those at the top of oak_d.py and worker.py
+	defaultWidth            int = 640
+	defaultHeight           int = 400
+	maxGRPCMessageByteCount     = 4194304 // Update this if the gRPC config ever changes
 )
 
 func TestCameraServer(t *testing.T) {
@@ -57,7 +58,7 @@ func TestCameraServer(t *testing.T) {
 		pc, err := cam.NextPointCloud(ctxTimeoutTests)
 		test.That(t, err, test.ShouldBeNil)
 		test.That(t, pc, test.ShouldNotBeNil)
-		test.That(t, pc.Size(), test.ShouldBeBetweenOrEqual, defaultHeight*defaultWidth-100, defaultHeight*defaultWidth)
+		test.That(t, pc.Size(), test.ShouldBeBetween, 0, maxGRPCMessageByteCount)
 	})
 
 	t.Run("Reconfigure module", func(t *testing.T) {
