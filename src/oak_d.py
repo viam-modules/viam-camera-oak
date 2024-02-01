@@ -403,11 +403,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         color_data: Optional(CapturedData) = None
         depth_data: Optional(CapturedData) = None
         if COLOR_SENSOR in self.sensors and DEPTH_SENSOR in self.sensors:
-            color_data, depth_data = await asyncio.gather(
-                cls.worker.get_color_image(), cls.worker.get_depth_map()
-            )
-            LOGGER.debug("color was captured at: " + str(color_data.captured_at))
-            LOGGER.debug("depth was captured at: " + str(depth_data.captured_at))
+            color_data, depth_data = await cls.worker.get_synced_color_depth()
 
         if COLOR_SENSOR in self.sensors:
             if color_data is None:

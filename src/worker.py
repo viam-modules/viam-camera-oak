@@ -1,7 +1,7 @@
 import asyncio
 import math
 import time
-from typing import Any, Callable, Mapping, Tuple, Union
+from typing import Any, Callable, Dict, Mapping, Optional, Tuple, Union
 
 from logging import Logger
 from threading import Thread
@@ -10,6 +10,7 @@ import cv2
 import depthai as dai
 from depthai_sdk import OakCamera
 from depthai_sdk.classes.packets import (
+    BasePacket,
     DisparityDepthPacket,
     FramePacket,
     PointcloudPacket,
@@ -87,6 +88,28 @@ class Worker:
     depth_map: Union[CapturedData, None]
     pcd: Union[CapturedData, None]
 
+    # Implementation derived from https://github.com/luxonis/depthai-experiments/tree/master/gen2-syncing#message-syncing
+    # msgs maps frame sequence number to a dictionary that maps frame_type (i.e. color or depth) to a data packet
+    msgs: Dict[int, Dict[str, BasePacket]] = dict()
+    def add_msg(self, msg: BasePacket, frame_type: str, seq = None):
+        if seq is None:
+            seq = msg.get_sequence_num()
+        seq = str(seq)
+        if seq not in self.msgs:
+            self.msgs[seq] = dict()
+        self.msgs[seq][frame_type] = msg
+
+    def get_msgs(self):
+        seqs_to_remove = [] # Arr of sequence numbers to get deleted
+        for seq, sync_msgs in self.msgs.items():
+            seqs_to_remove.append(seq) # Will get removed from dict if we find synced msgs pair
+            # Check if we have both detections and color frame with this sequence number
+            if len(sync_msgs) == 2: # has both color and depth
+                for seq_to_remove in seqs_to_remove:
+                    del self.msgs[seq_to_remove]
+                return sync_msgs # Returned synced msgs
+        return None
+
     def __init__(
         self,
         height: int,
@@ -117,6 +140,41 @@ class Worker:
 
         self.manager = WorkerManager(self.oak, logger, reconfigure)
         self.manager.start()
+
+    def try_get_synced_color_depth(self) -> Optional[Tuple[CapturedData, CapturedData]]:
+        for q_handler in [self.color_q_handler, self.depth_q_handler]:
+            if q_handler is self.color_q_handler:
+                frame_type = "color"
+            else:
+                frame_type = "depth"
+
+            queue_obj = q_handler.get_queue()
+            with queue_obj.mutex:
+                current_queue_msgs = list(queue_obj.queue)
+
+            for msg in current_queue_msgs:
+                self.add_msg(msg, frame_type)
+
+        synced = self.get_msgs()
+        if synced:
+            color_frame = synced["color"].frame
+            depth_frame = synced["depth"].frame
+
+            color_output = self._process_color_data(color_frame)
+            depth_output = self._process_depth_data(depth_frame)
+            return color_output, depth_output
+
+    async def get_synced_color_depth(self) -> Tuple[CapturedData, CapturedData]:
+        while self.running:
+            color_and_depth_output = self.try_get_synced_color_depth()
+            if color_and_depth_output:
+                break
+            self.logger.debug("Waiting for synced color and depth frames...")
+            await asyncio.sleep(0.001)
+
+        color_output, depth_output = color_and_depth_output
+        timestamp = time.time()
+        return CapturedData(color_output, timestamp), CapturedData(depth_output, timestamp)
 
     async def get_color_image(self) -> CapturedData:
         while not self.color_image and self.running:
@@ -163,10 +221,19 @@ class Worker:
         try:
             stage = "color"
             color = self._configure_color()
+            if color:
+                self.color_q_handler = self.oak.queue(color, 30)
+
             stage = "stereo"
             stereo = self._configure_stereo(color)
+            if stereo:
+                self.depth_q_handler = self.oak.queue(stereo, 30)
+
             stage = "point cloud"
-            self._configure_pc(stereo, color)
+            pcc = self._configure_pc(stereo, color)
+            if pcc:
+                self.pc_q_handler = self.oak.queue(pcc, 5)
+
             stage = "start"
             self.oak.start()
         except Exception as e:
@@ -213,7 +280,7 @@ class Worker:
         )
         return dimensions_to_resolution[closest]
 
-    def _configure_color(self) -> Union[CameraComponent, None]:
+    def _configure_color(self) -> Optional[CameraComponent]:
         """
         Creates and configures color component— or doesn't
         (based on the config).
@@ -234,9 +301,7 @@ class Worker:
             return color
         return None
 
-    def _configure_stereo(
-        self, color: Union[CameraComponent, None]
-    ) -> Union[StereoComponent, None]:
+    def _configure_stereo(self, color: Optional[CameraComponent]) -> Optional[StereoComponent]:
         """
         Creates and configures stereo depth component— or doesn't
         (based on the config).
@@ -278,8 +343,8 @@ class Worker:
         return None
 
     def _configure_pc(
-        self, stereo: Union[StereoComponent, None], color: Union[CameraComponent, None]
-    ) -> Union[PointcloudComponent, None]:
+        self, stereo: Optional[StereoComponent], color: Optional[CameraComponent]
+    ) -> Optional[PointcloudComponent]:
         """
         Creates and configures point cloud component— or doesn't
         (based on the config)
@@ -302,8 +367,7 @@ class Worker:
         Args:
             packet (FramePacket): outputted color data inputted by caller
         """
-        # DepthAI outputs BGR; convert to RGB
-        arr: NDArray = cv2.cvtColor(packet.frame, cv2.COLOR_BGR2RGB)
+        arr = self._process_color_data(packet.frame)
         self.logger.debug(
             f"Setting color image. Array shape: {arr.shape}. Dtype: {arr.dtype}. Seq#: {packet.get_sequence_num()}"
         )
@@ -317,18 +381,7 @@ class Worker:
         Args:
             packet (DisparityDepthPacket): outputted depth data inputted by caller
         """
-        arr = packet.frame
-        if arr.shape[0] > self.height and arr.shape[1] > self.width:
-            self.logger.debug(
-                f"Outputted depth map's shape is greater than specified in config: {arr.shape}; Manually resizing to {(self.height, self.width)}."
-            )
-            top_left_x = (arr.shape[1] - self.width) // 2
-            top_left_y = (arr.shape[0] - self.height) // 2
-            arr = arr[
-                top_left_y : top_left_y + self.height,
-                top_left_x : top_left_x + self.width,
-            ]
-
+        arr = self._process_depth_data(packet.frame)
         self.logger.debug(
             f"Setting depth map. Array shape: {arr.shape}. Dtype: {arr.dtype}. Seq#: {packet.get_sequence_num()}"
         )
@@ -345,3 +398,20 @@ class Worker:
         arr, byte_count = packet.points, packet.points.nbytes
         self.logger.debug(f"Setting pcd. Byte count: {byte_count}")
         self.pcd = CapturedData(arr, time.time())
+
+    def _process_color_data(self, arr: NDArray) -> NDArray:
+        # DepthAI outputs BGR; convert to RGB
+        return cv2.cvtColor(arr, cv2.COLOR_BGR2RGB)
+
+    def _process_depth_data(self, arr: NDArray) -> NDArray:
+        if arr.shape[0] > self.height and arr.shape[1] > self.width:
+            self.logger.debug(
+                f"Outputted depth map's shape is greater than specified in config: {arr.shape}; Manually resizing to {(self.height, self.width)}."
+            )
+            top_left_x = (arr.shape[1] - self.width) // 2
+            top_left_y = (arr.shape[0] - self.height) // 2
+            arr = arr[
+                top_left_y : top_left_y + self.height,
+                top_left_x : top_left_x + self.width,
+            ]
+        return arr
