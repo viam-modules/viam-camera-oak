@@ -243,7 +243,7 @@ class Worker:
             pcc = self._configure_pc(stereo, color)
             if pcc:
                 self.pc_q_handler = self.oak.queue(pcc, 5)
-    
+
         except Exception as e:
             msg = f"Error configuring OakCamera at stage '{stage}': {e}"
             resolution_err_substr = "bigger than maximum at current sensor resolution"

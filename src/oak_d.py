@@ -494,7 +494,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
 
         # By default, we do not get point clouds even when color and depth are both requested
         # We have to reinitialize the worker/OakCamera to start making point clouds
-        if cls.worker.pcd is None:
+        if not cls.worker.user_wants_pc:
             cls.get_point_cloud_was_invoked = True
             cls.worker.oak.close()  # triggers reconfigure callback
 
