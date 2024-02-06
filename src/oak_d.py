@@ -1,5 +1,4 @@
 # Standard library
-import asyncio
 import io
 import logging
 import struct
@@ -355,14 +354,14 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
 
         if main_sensor == COLOR_SENSOR:
             if mime_type == CameraMimeType.JPEG:
-                captured_data = await cls.worker.get_color_image()
+                captured_data = cls.worker.get_color_image()
                 return Image.fromarray(captured_data.np_array, "RGB")
             raise NotSupportedError(
                 f'mime_type "{mime_type}" is not supported for color. Please use {CameraMimeType.JPEG}'
             )
 
         if main_sensor == DEPTH_SENSOR:
-            captured_data = await cls.worker.get_depth_map()
+            captured_data = cls.worker.get_depth_map()
             arr = captured_data.np_array
             if mime_type == CameraMimeType.JPEG:
                 return Image.fromarray(arr, "I;16").convert("RGB")
@@ -410,7 +409,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
 
         if COLOR_SENSOR in self.sensors:
             if color_data is None:
-                color_data: CapturedData = await cls.worker.get_color_image()
+                color_data: CapturedData = cls.worker.get_color_image()
             arr, captured_at = color_data.np_array, color_data.captured_at
             # Create a Pillow image from the raw data
             pil_image = Image.fromarray(arr)
@@ -429,7 +428,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
 
         if DEPTH_SENSOR in self.sensors:
             if not depth_data:
-                depth_data: CapturedData = await cls.worker.get_depth_map()
+                depth_data: CapturedData = cls.worker.get_depth_map()
             arr, captured_at = depth_data.np_array, depth_data.captured_at
             depth_encoded_bytes = self._encode_depth_raw(arr.tobytes(), arr.shape)
             img = NamedImage(
@@ -502,7 +501,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             time.sleep(0.5)  # wait for new worker to initialize with pc configured
 
         # Get actual PCD data from camera worker
-        pcd_obj = await cls.worker.get_pcd()
+        pcd_obj = cls.worker.get_pcd()
         arr = pcd_obj.np_array
 
         # Done with pre-processing; create and send message now:

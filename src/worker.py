@@ -1,6 +1,7 @@
 import asyncio
 from collections import OrderedDict
 import math
+from queue import Empty
 import time
 from typing import Any, Callable, Dict, Mapping, Optional, OrderedDict, Tuple, Union
 
@@ -10,12 +11,8 @@ from threading import Thread
 import cv2
 import depthai as dai
 from depthai_sdk import OakCamera
-from depthai_sdk.classes.packets import (
-    BasePacket,
-    DisparityDepthPacket,
-    FramePacket,
-    PointcloudPacket,
-)
+from depthai_sdk.classes.packets import BasePacket
+from depthai_sdk.classes.packet_handlers import QueuePacketHandler
 from depthai_sdk.components.camera_component import CameraComponent
 from depthai_sdk.components.pointcloud_component import PointcloudComponent
 from depthai_sdk.components.stereo_component import StereoComponent
@@ -73,20 +70,19 @@ class WorkerManager(Thread):
 
 class MessageSynchronizer:
     """
-    Manages synchronization of frame messages for color and depth data from OakCamera packet queues.
-    Maintains an ordered dictionary of messages keyed by chronological sequence numbers.
+    MessageSynchronizer manages synchronization of frame messages for color and depth data from OakCamera packet queues,
+    maintaining an ordered dictionary of messages keyed chronologically by sequence number.
     """
 
     MAX_MSGS_SIZE = 50
+    msgs: OrderedDict[int, Dict[str, BasePacket]]
 
     def __init__(self):
         # msgs maps frame sequence number to a dictionary that maps frame_type (i.e. "color" or "depth") to a data packet
-        self.msgs: OrderedDict[int, Dict[str, BasePacket]] = OrderedDict()
+        self.msgs = OrderedDict()
 
-    def add_msg(self, msg: BasePacket, frame_type: str, seq=None) -> None:
-        if seq is None:
-            seq = msg.get_sequence_num()
-
+    def add_msg(self, msg: BasePacket, frame_type: str, seq: int) -> None:
+        # Update recency if previously already stored in dict
         if seq in self.msgs:
             self.msgs.move_to_end(seq)
 
@@ -101,7 +97,7 @@ class MessageSynchronizer:
 
     def _cleanup_msgs(self):
         while len(self.msgs) > self.MAX_MSGS_SIZE:
-            self.msgs.popitem(last=False)  # Remove oldest item
+            self.msgs.popitem(last=False)  # remove oldest item
 
 
 class CapturedData:
@@ -120,9 +116,9 @@ class Worker:
     OakDModel <-> Worker <-> DepthAI SDK <-> DepthAI API (C++ core) <-> actual OAK-D
     """
 
-    color_image: Union[CapturedData, None]
-    depth_map: Union[CapturedData, None]
-    pcd: Union[CapturedData, None]
+    color_q_handler: Optional[QueuePacketHandler]
+    depth_q_handler: Optional[QueuePacketHandler]
+    pc_q_handler: Optional[QueuePacketHandler]
 
     def __init__(
         self,
@@ -160,34 +156,9 @@ class Worker:
 
         self.message_synchronizer = MessageSynchronizer()
 
-    def try_get_synced_color_depth_outputs(
-        self,
-    ) -> Optional[Tuple[CapturedData, CapturedData]]:
-        for q_handler in [self.color_q_handler, self.depth_q_handler]:
-            if q_handler is self.color_q_handler:
-                frame_type = "color"
-            else:
-                frame_type = "depth"
-
-            queue_obj = q_handler.get_queue()
-            with queue_obj.mutex:
-                current_queue_msgs = list(queue_obj.queue)
-
-            for msg in current_queue_msgs:
-                self.message_synchronizer.add_msg(msg, frame_type)
-
-        synced_color_msgs = self.message_synchronizer.get_synced_msgs()
-        if synced_color_msgs:
-            color_frame = synced_color_msgs["color"].frame
-            depth_frame = synced_color_msgs["depth"].frame
-
-            color_output = self._process_color_frame(color_frame)
-            depth_output = self._process_depth_frame(depth_frame)
-            return color_output, depth_output
-
     async def get_synced_color_depth_outputs(self) -> Tuple[CapturedData, CapturedData]:
         while self.running:
-            color_and_depth_output = self.try_get_synced_color_depth_outputs()
+            color_and_depth_output = self._try_get_synced_color_depth_outputs()
             if color_and_depth_output:
                 break
             self.logger.debug("Waiting for synced color and depth frames...")
@@ -199,23 +170,38 @@ class Worker:
             depth_output, timestamp
         )
 
-    async def get_color_image(self) -> CapturedData:
-        while not self.color_image and self.running:
-            self.logger.debug("Waiting for color image...")
-            await asyncio.sleep(0.01)
-        return self.color_image
+    def get_color_image(self) -> Optional[CapturedData]:
+        color_q = self.color_q_handler.get_queue()
+        try:
+            color_msg = color_q.get(block=True, timeout=5)
+            color_output = self._process_color_frame(color_msg.frame)
+            timestamp = time.time()
+            return CapturedData(color_output, timestamp)
+        except Empty:
+            raise Exception("Timed out waiting for color image data.")
 
-    async def get_depth_map(self) -> CapturedData:
-        while not self.depth_map and self.running:
-            self.logger.debug("Waiting for depth map...")
-            await asyncio.sleep(0.01)
-        return self.depth_map
+    def get_depth_map(self) -> Optional[CapturedData]:
+        depth_q = self.depth_q_handler.get_queue()
+        try:
+            depth_msg = depth_q.get(block=True, timeout=5)
+            depth_output = self._process_depth_frame(depth_msg.frame)
+            timestamp = time.time()
+            return CapturedData(depth_output, timestamp)
+        except Empty:
+            raise Exception("Timed out waiting for depth map data.")
 
-    async def get_pcd(self) -> CapturedData:
-        while not self.pcd and self.running:
-            self.logger.debug("Waiting for pcd...")
-            await asyncio.sleep(0.01)
-        return self.pcd
+    def get_pcd(self) -> CapturedData:
+        pc_q = self.pc_q_handler.get_queue()
+        try:
+            pc_msg = pc_q.get(block=True, timeout=5)
+            if pc_msg.points.nbytes > MAX_GRPC_MESSAGE_BYTE_COUNT:
+                pc_output = self._downsample_pcd(pc_msg.points, pc_msg.points.nbytes)
+            else:
+                pc_output = pc_msg.points
+            timestamp = time.time()
+            return CapturedData(pc_output, timestamp)
+        except Empty:
+            raise Exception("Timed out waiting for PCD.")
 
     def stop(self) -> None:
         """
@@ -224,6 +210,31 @@ class Worker:
         self.logger.info("Stopping worker.")
         self.manager.stop()
         self.oak.close()
+
+    def _try_get_synced_color_depth_outputs(
+        self,
+    ) -> Optional[Tuple[CapturedData, CapturedData]]:
+        for frame_type, q_handler in [
+            ("color", self.color_q_handler),
+            ("depth", self.depth_q_handler),
+        ]:
+            queue_obj = q_handler.get_queue()
+            with queue_obj.mutex:
+                current_queue_msgs = queue_obj.queue
+
+            for msg in current_queue_msgs:
+                self.message_synchronizer.add_msg(
+                    msg, frame_type, msg.get_sequence_num()
+                )
+
+        synced_color_msgs = self.message_synchronizer.get_synced_msgs()
+        if synced_color_msgs:
+            color_frame = synced_color_msgs["color"].frame
+            depth_frame = synced_color_msgs["depth"].frame
+
+            color_output = self._process_color_frame(color_frame)
+            depth_output = self._process_depth_frame(depth_frame)
+            return color_output, depth_output
 
     def _init_oak_camera(self):
         """
@@ -318,7 +329,6 @@ class Worker:
             color = self.oak.camera("color", fps=self.frame_rate, resolution=resolution)
             color.node.setPreviewSize(self.width, self.height)
             color.node.setVideoSize(self.width, self.height)
-            self.oak.callback(color, callback=self._set_color_image)
             return color
         return None
 
@@ -361,7 +371,6 @@ class Worker:
             if color:
                 # Ensures camera alignment between color and depth
                 stereo.config_stereo(align=color)
-            self.oak.callback(stereo, callback=self._set_depth_map)
             return stereo
         return None
 
@@ -378,56 +387,8 @@ class Worker:
         if self.user_wants_pc:
             self.logger.debug("Creating point cloud component.")
             pcc = self.oak.create_pointcloud(stereo, color)
-            self.oak.callback(pcc, callback=self._set_pcd)
             return pcc
         return None
-
-    def _set_color_image(self, packet: FramePacket) -> None:
-        """
-        Passed as a callback func to DepthAI to use when new color data is outputted.
-        Callback logic chronologically syncs invocation of these _set functions.
-
-        Args:
-            packet (FramePacket): outputted color data inputted by caller
-        """
-        arr = self._process_color_frame(packet.frame)
-        self.logger.debug(
-            f"Setting color image. Array shape: {arr.shape}. Dtype: {arr.dtype}. Seq#: {packet.get_sequence_num()}"
-        )
-        self.color_image = CapturedData(arr, time.time())
-
-    def _set_depth_map(self, packet: DisparityDepthPacket) -> None:
-        """
-        Passed as a callback func to DepthAI to use when new depth data is outputted.
-        Callback logic chronologically syncs invocation of these _set functions.
-
-        Args:
-            packet (DisparityDepthPacket): outputted depth data inputted by caller
-        """
-        arr = self._process_depth_frame(packet.frame)
-        self.logger.debug(
-            f"Setting depth map. Array shape: {arr.shape}. Dtype: {arr.dtype}. Seq#: {packet.get_sequence_num()}"
-        )
-        self.depth_map = CapturedData(arr, time.time())
-
-    def _set_pcd(self, packet: PointcloudPacket) -> None:
-        """
-        Passed as a callback func to DepthAI to use when new PCD data is outputted.
-        Callback logic chronologically syncs all the outputted data.
-
-        Args:
-            packet (PointcloudPacket): outputted PCD data inputted by caller
-        """
-        arr, byte_count = packet.points, packet.points.nbytes
-        self.logger.debug(f"Setting current pcd. num_bytes: {byte_count}")
-        if byte_count > MAX_GRPC_MESSAGE_BYTE_COUNT:
-            factor = byte_count // MAX_GRPC_MESSAGE_BYTE_COUNT + 1
-            self.logger.warn(
-                f"PCD bytes ({byte_count}) > max gRPC bytes count ({MAX_GRPC_MESSAGE_BYTE_COUNT}). Subsampling by 1/{factor}."
-            )
-            arr = arr[::factor, ::factor, :]
-        self.logger.debug(f"Setting pcd. Byte count: {byte_count}")
-        self.pcd = CapturedData(arr, time.time())
 
     def _process_color_frame(self, arr: NDArray) -> NDArray:
         # DepthAI outputs BGR; convert to RGB
@@ -444,4 +405,12 @@ class Worker:
                 top_left_y : top_left_y + self.height,
                 top_left_x : top_left_x + self.width,
             ]
+        return arr
+
+    def _downsample_pcd(self, arr: NDArray, byte_count: int) -> NDArray:
+        factor = byte_count // MAX_GRPC_MESSAGE_BYTE_COUNT + 1
+        self.logger.warn(
+            f"PCD bytes ({byte_count}) > max gRPC bytes count ({MAX_GRPC_MESSAGE_BYTE_COUNT}). Subsampling by 1/{factor}."
+        )
+        arr = arr[::factor, ::factor, :]
         return arr
