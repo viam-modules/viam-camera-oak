@@ -156,26 +156,20 @@ class Worker:
 
         self.message_synchronizer = MessageSynchronizer()
 
-    async def get_synced_color_depth_outputs(self) -> Tuple[CapturedData, CapturedData]:
+    async def get_synced_color_depth_data(self) -> Tuple[CapturedData, CapturedData]:
         while self.running:
-            color_and_depth_output = self._try_get_synced_color_depth_outputs()
+            color_and_depth_output = self._try_get_synced_color_depth_data()
             if color_and_depth_output:
-                break
+                return color_and_depth_output
             self.logger.debug("Waiting for synced color and depth frames...")
             await asyncio.sleep(0.001)
-
-        color_output, depth_output = color_and_depth_output
-        timestamp = time.time()
-        return CapturedData(color_output, timestamp), CapturedData(
-            depth_output, timestamp
-        )
 
     def get_color_image(self) -> Optional[CapturedData]:
         color_q = self.color_q_handler.get_queue()
         try:
             color_msg = color_q.get(block=True, timeout=5)
             color_output = self._process_color_frame(color_msg.frame)
-            timestamp = time.time()
+            timestamp = color_msg.get_timestamp().total_seconds()
             return CapturedData(color_output, timestamp)
         except Empty:
             raise Exception("Timed out waiting for color image data.")
@@ -185,7 +179,7 @@ class Worker:
         try:
             depth_msg = depth_q.get(block=True, timeout=5)
             depth_output = self._process_depth_frame(depth_msg.frame)
-            timestamp = time.time()
+            timestamp = depth_msg.get_timestamp().total_seconds()
             return CapturedData(depth_output, timestamp)
         except Empty:
             raise Exception("Timed out waiting for depth map data.")
@@ -198,7 +192,7 @@ class Worker:
                 pc_output = self._downsample_pcd(pc_msg.points, pc_msg.points.nbytes)
             else:
                 pc_output = pc_msg.points
-            timestamp = time.time()
+            timestamp = pc_msg.get_timestamp().total_seconds()
             return CapturedData(pc_output, timestamp)
         except Empty:
             raise Exception("Timed out waiting for PCD.")
@@ -211,7 +205,7 @@ class Worker:
         self.manager.stop()
         self.oak.close()
 
-    def _try_get_synced_color_depth_outputs(
+    def _try_get_synced_color_depth_data(
         self,
     ) -> Optional[Tuple[CapturedData, CapturedData]]:
         for frame_type, q_handler in [
@@ -229,12 +223,14 @@ class Worker:
 
         synced_color_msgs = self.message_synchronizer.get_synced_msgs()
         if synced_color_msgs:
-            color_frame = synced_color_msgs["color"].frame
-            depth_frame = synced_color_msgs["depth"].frame
-
-            color_output = self._process_color_frame(color_frame)
-            depth_output = self._process_depth_frame(depth_frame)
-            return color_output, depth_output
+            color_frame, depth_frame, timestamp = (
+                synced_color_msgs["color"].frame,
+                synced_color_msgs["depth"].frame,
+                synced_color_msgs["color"].get_timestamp().total_seconds(),
+            )
+            color_data = CapturedData(self._process_color_frame(color_frame), timestamp)
+            depth_data = CapturedData(self._process_depth_frame(depth_frame), timestamp)
+            return color_data, depth_data
 
     def _init_oak_camera(self):
         """

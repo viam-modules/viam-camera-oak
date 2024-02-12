@@ -371,6 +371,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             raise NotSupportedError(
                 f"mime_type {mime_type} is not supported for depth. Please use {CameraMimeType.JPEG} or {CameraMimeType.VIAM_RAW_DEPTH}."
             )
+
         raise ViamError(
             'get_image failed due to misconfigured "sensors" attribute, but should have been validated in `validate`...'
         )
@@ -405,7 +406,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         color_data: Optional(CapturedData) = None
         depth_data: Optional(CapturedData) = None
         if COLOR_SENSOR in self.sensors and DEPTH_SENSOR in self.sensors:
-            color_data, depth_data = await cls.worker.get_synced_color_depth_outputs()
+            color_data, depth_data = await cls.worker.get_synced_color_depth_data()
 
         if COLOR_SENSOR in self.sensors:
             if color_data is None:
