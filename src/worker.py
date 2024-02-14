@@ -103,7 +103,7 @@ class MessageSynchronizer:
 class CapturedData:
     """
     CapturedData is image data with the data as an np array,
-    plus the time.time() it was captured at.
+    plus the timestamp it was captured at.
     """
 
     def __init__(self, np_array: NDArray, captured_at: float) -> None:
