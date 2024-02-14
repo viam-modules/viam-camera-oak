@@ -43,7 +43,7 @@ from viam.components.camera import (
 from viam.media.video import CameraMimeType, NamedImage
 
 # OAK-D module
-from src.worker import Worker
+from src.worker import Worker, CapturedData
 
 
 LOGGER = getLogger(__name__)
@@ -354,14 +354,14 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
 
         if main_sensor == COLOR_SENSOR:
             if mime_type == CameraMimeType.JPEG:
-                captured_data = await cls.worker.get_color_image()
+                captured_data = cls.worker.get_color_image()
                 return Image.fromarray(captured_data.np_array, "RGB")
             raise NotSupportedError(
                 f'mime_type "{mime_type}" is not supported for color. Please use {CameraMimeType.JPEG}'
             )
 
         if main_sensor == DEPTH_SENSOR:
-            captured_data = await cls.worker.get_depth_map()
+            captured_data = cls.worker.get_depth_map()
             arr = captured_data.np_array
             if mime_type == CameraMimeType.JPEG:
                 return Image.fromarray(arr, "I;16").convert("RGB")
@@ -390,6 +390,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
                 - ResponseMetadata:
                   The metadata associated with this response
         """
+        LOGGER.debug("get_images called")
         cls: OakDModel = type(self)
 
         if not cls.worker.running:
@@ -400,10 +401,16 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         # Accumulator for timestamp calculation later
         seconds_float: float = None
 
-        if COLOR_SENSOR in self.sensors:
-            captured_data = await cls.worker.get_color_image()
-            arr, captured_at = captured_data.np_array, captured_data.captured_at
+        # We really want to do this as in-sync as possible to reduce latency between color & depth
+        color_data: Optional(CapturedData) = None
+        depth_data: Optional(CapturedData) = None
+        if COLOR_SENSOR in self.sensors and DEPTH_SENSOR in self.sensors:
+            color_data, depth_data = await cls.worker.get_synced_color_depth_outputs()
 
+        if COLOR_SENSOR in self.sensors:
+            if color_data is None:
+                color_data: CapturedData = cls.worker.get_color_image()
+            arr, captured_at = color_data.np_array, color_data.captured_at
             # Create a Pillow image from the raw data
             pil_image = Image.fromarray(arr)
 
@@ -420,8 +427,9 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             l.append(img)
 
         if DEPTH_SENSOR in self.sensors:
-            captured_data = await cls.worker.get_depth_map()
-            arr, captured_at = captured_data.np_array, captured_data.captured_at
+            if not depth_data:
+                depth_data: CapturedData = cls.worker.get_depth_map()
+            arr, captured_at = depth_data.np_array, depth_data.captured_at
             depth_encoded_bytes = self._encode_depth_raw(arr.tobytes(), arr.shape)
             img = NamedImage(
                 "depth", depth_encoded_bytes, CameraMimeType.VIAM_RAW_DEPTH
@@ -485,7 +493,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
 
         # By default, we do not get point clouds even when color and depth are both requested
         # We have to reinitialize the worker/OakCamera to start making point clouds
-        if cls.worker.pcd is None:
+        if not cls.worker.user_wants_pc:
             cls.get_point_cloud_was_invoked = True
             cls.worker.oak.close()  # triggers reconfigure callback
 
@@ -493,7 +501,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             time.sleep(0.5)  # wait for new worker to initialize with pc configured
 
         # Get actual PCD data from camera worker
-        pcd_obj = await cls.worker.get_pcd()
+        pcd_obj = cls.worker.get_pcd()
         arr = pcd_obj.np_array
 
         # Done with pre-processing; create and send message now:
