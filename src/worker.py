@@ -3,7 +3,17 @@ from collections import OrderedDict
 import math
 from queue import Empty
 import time
-from typing import Any, Callable, Dict, Mapping, Optional, OrderedDict, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Literal,
+    Mapping,
+    Optional,
+    OrderedDict,
+    Tuple,
+    Union,
+)
 
 from logging import Logger
 from threading import Thread
@@ -11,7 +21,7 @@ from threading import Thread
 import cv2
 import depthai as dai
 from depthai_sdk import OakCamera
-from depthai_sdk.classes.packets import BasePacket
+from depthai_sdk.classes.packets import BasePacket, FramePacket, DisparityDepthPacket
 from depthai_sdk.classes.packet_handlers import QueuePacketHandler
 from depthai_sdk.components.camera_component import CameraComponent
 from depthai_sdk.components.pointcloud_component import PointcloudComponent
@@ -81,7 +91,9 @@ class MessageSynchronizer:
         # msgs maps frame sequence number to a dictionary that maps frame_type (i.e. "color" or "depth") to a data packet
         self.msgs = OrderedDict()
 
-    def add_msg(self, msg: BasePacket, frame_type: str, seq: int) -> None:
+    def add_msg(
+        self, msg: BasePacket, frame_type: Literal["color", "depth"], seq: int
+    ) -> None:
         # Update recency if previously already stored in dict
         if seq in self.msgs:
             self.msgs.move_to_end(seq)
@@ -93,6 +105,21 @@ class MessageSynchronizer:
         for sync_msgs in self.msgs.values():
             if len(sync_msgs) == 2:  # has both color and depth
                 return sync_msgs
+        return None
+
+    def get_most_recent_color_msg(self) -> Optional[BasePacket]:
+        return self._get_most_recent_msg("color")
+
+    def get_most_recent_depth_msg(self) -> Optional[BasePacket]:
+        return self._get_most_recent_msg("depth")
+
+    def _get_most_recent_msg(
+        self, frame_type: Literal["color", "depth"]
+    ) -> Optional[BasePacket]:
+        # Traverse in reverse to get the most recent
+        for msg_dict in reversed(self.msgs.values()):
+            if frame_type in msg_dict:
+                return msg_dict[frame_type]
         return None
 
     def _cleanup_msgs(self):
@@ -171,24 +198,34 @@ class Worker:
         )
 
     def get_color_image(self) -> Optional[CapturedData]:
-        color_q = self.color_q_handler.get_queue()
-        try:
-            color_msg = color_q.get(block=True, timeout=5)
-            color_output = self._process_color_frame(color_msg.frame)
-            timestamp = time.time()
-            return CapturedData(color_output, timestamp)
-        except Empty:
-            raise Exception("Timed out waiting for color image data.")
+        color_msg: Optional[
+            FramePacket
+        ] = self.message_synchronizer.get_most_recent_color_msg()
+        if not color_msg:
+            try:  # to get frame directly from queue
+                color_q = self.color_q_handler.get_queue()
+                color_msg = color_q.get(block=True, timeout=5)
+            except Empty:
+                raise Exception("Timed out waiting for color image data.")
+
+        color_output = self._process_color_frame(color_msg.frame)
+        timestamp = time.time()
+        return CapturedData(color_output, timestamp)
 
     def get_depth_map(self) -> Optional[CapturedData]:
-        depth_q = self.depth_q_handler.get_queue()
-        try:
-            depth_msg = depth_q.get(block=True, timeout=5)
-            depth_output = self._process_depth_frame(depth_msg.frame)
-            timestamp = time.time()
-            return CapturedData(depth_output, timestamp)
-        except Empty:
-            raise Exception("Timed out waiting for depth map data.")
+        depth_msg: Optional[
+            DisparityDepthPacket
+        ] = self.message_synchronizer.get_most_recent_depth_msg()
+        if not depth_msg:
+            try:  # to get frame directly from queue
+                depth_q = self.depth_q_handler.get_queue()
+                depth_msg = depth_q.get(block=True, timeout=5)
+            except Empty:
+                raise Exception("Timed out waiting for depth map data.")
+
+        depth_output = self._process_depth_frame(depth_msg.frame)
+        timestamp = time.time()
+        return CapturedData(depth_output, timestamp)
 
     def get_pcd(self) -> CapturedData:
         pc_q = self.pc_q_handler.get_queue()
@@ -401,7 +438,7 @@ class Worker:
             )
             top_left_x = (arr.shape[1] - self.width) // 2
             top_left_y = (arr.shape[0] - self.height) // 2
-            arr = arr[
+            return arr[
                 top_left_y : top_left_y + self.height,
                 top_left_x : top_left_x + self.width,
             ]
