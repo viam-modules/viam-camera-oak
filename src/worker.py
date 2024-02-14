@@ -198,9 +198,9 @@ class Worker:
         )
 
     def get_color_image(self) -> Optional[CapturedData]:
-        color_msg: Optional[
-            FramePacket
-        ] = self.message_synchronizer.get_most_recent_color_msg()
+        color_msg: Optional[FramePacket] = (
+            self.message_synchronizer.get_most_recent_color_msg()
+        )
         if not color_msg:
             try:  # to get frame directly from queue
                 color_q = self.color_q_handler.get_queue()
@@ -213,9 +213,9 @@ class Worker:
         return CapturedData(color_output, timestamp)
 
     def get_depth_map(self) -> Optional[CapturedData]:
-        depth_msg: Optional[
-            DisparityDepthPacket
-        ] = self.message_synchronizer.get_most_recent_depth_msg()
+        depth_msg: Optional[DisparityDepthPacket] = (
+            self.message_synchronizer.get_most_recent_depth_msg()
+        )
         if not depth_msg:
             try:  # to get frame directly from queue
                 depth_q = self.depth_q_handler.get_queue()
