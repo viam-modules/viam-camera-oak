@@ -106,6 +106,9 @@ class MessageSynchronizer:
             if len(sync_msgs) == 2:  # has both color and depth
                 return sync_msgs
         return None
+    
+    # def flush_msgs(self) -> None:
+    #     self.msgs.clear()
 
     def get_most_recent_color_msg(self) -> Optional[BasePacket]:
         return self._get_most_recent_msg("color")
