@@ -16,7 +16,7 @@ from typing import (
 )
 
 from logging import Logger
-from threading import Thread
+from threading import Thread, Lock
 
 import cv2
 import depthai as dai
@@ -86,29 +86,29 @@ class MessageSynchronizer:
 
     MAX_MSGS_SIZE = 50
     msgs: OrderedDict[int, Dict[str, BasePacket]]
+    write_lock: Lock
 
     def __init__(self):
         # msgs maps frame sequence number to a dictionary that maps frame_type (i.e. "color" or "depth") to a data packet
         self.msgs = OrderedDict()
+        self.write_lock = Lock()
 
     def add_msg(
         self, msg: BasePacket, frame_type: Literal["color", "depth"], seq: int
     ) -> None:
-        # Update recency if previously already stored in dict
-        if seq in self.msgs:
-            self.msgs.move_to_end(seq)
+        with self.write_lock:
+            # Update recency if previously already stored in dict
+            if seq in self.msgs:
+                self.msgs.move_to_end(seq)
 
-        self.msgs.setdefault(seq, {})[frame_type] = msg
-        self._cleanup_msgs()
+            self.msgs.setdefault(seq, {})[frame_type] = msg
+            self._cleanup_msgs()
 
     def get_synced_msgs(self) -> Optional[Dict[str, BasePacket]]:
         for sync_msgs in self.msgs.values():
             if len(sync_msgs) == 2:  # has both color and depth
                 return sync_msgs
         return None
-    
-    # def flush_msgs(self) -> None:
-    #     self.msgs.clear()
 
     def get_most_recent_color_msg(self) -> Optional[BasePacket]:
         return self._get_most_recent_msg("color")
@@ -123,7 +123,7 @@ class MessageSynchronizer:
         for msg_dict in reversed(self.msgs.values()):
             if frame_type in msg_dict:
                 return msg_dict[frame_type]
-        return None
+        raise Exception(f"No message of type '{frame_type}' in frame queue.")
 
     def _cleanup_msgs(self):
         while len(self.msgs) > self.MAX_MSGS_SIZE:
@@ -195,31 +195,15 @@ class Worker:
             await asyncio.sleep(0.001)
 
     def get_color_image(self) -> Optional[CapturedData]:
-        color_msg: Optional[FramePacket] = (
-            self.message_synchronizer.get_most_recent_color_msg()
-        )
-        if not color_msg:
-            try:  # to get frame directly from queue
-                color_q = self.color_q_handler.get_queue()
-                color_msg = color_q.get(block=True, timeout=5)
-            except Empty:
-                raise Exception("Timed out waiting for color image data from queue.")
-
+        self._add_msgs_from_queue("color", self.color_q_handler)
+        color_msg = self.message_synchronizer.get_most_recent_color_msg()
         color_output = self._process_color_frame(color_msg.frame)
         timestamp = color_msg.get_timestamp().total_seconds()
         return CapturedData(color_output, timestamp)
 
     def get_depth_map(self) -> Optional[CapturedData]:
-        depth_msg: Optional[DisparityDepthPacket] = (
-            self.message_synchronizer.get_most_recent_depth_msg()
-        )
-        if not depth_msg:
-            try:  # to get frame directly from queue
-                depth_q = self.depth_q_handler.get_queue()
-                depth_msg = depth_q.get(block=True, timeout=5)
-            except Empty:
-                raise Exception("Timed out waiting for depth map data from queue.")
-
+        self._add_msgs_from_queue("depth", self.depth_q_handler)
+        depth_msg = self.message_synchronizer.get_most_recent_depth_msg()
         depth_output = self._process_depth_frame(depth_msg.frame)
         timestamp = depth_msg.get_timestamp().total_seconds()
         return CapturedData(depth_output, timestamp)
@@ -245,6 +229,16 @@ class Worker:
         self.manager.stop()
         self.oak.close()
 
+    def _add_msgs_from_queue(
+        self, frame_type: Literal["color", "depth"], queue_handler: QueuePacketHandler
+    ) -> None:
+        queue_obj = queue_handler.get_queue()
+        with queue_obj.mutex:
+            q = queue_obj.queue
+
+        for msg in q:
+            self.message_synchronizer.add_msg(msg, frame_type, msg.get_sequence_num())
+
     def _try_get_synced_color_depth_data(
         self,
     ) -> Optional[Tuple[CapturedData, CapturedData]]:
@@ -252,14 +246,7 @@ class Worker:
             ("color", self.color_q_handler),
             ("depth", self.depth_q_handler),
         ]:
-            queue_obj = q_handler.get_queue()
-            with queue_obj.mutex:
-                current_queue_msgs = queue_obj.queue
-
-            for msg in current_queue_msgs:
-                self.message_synchronizer.add_msg(
-                    msg, frame_type, msg.get_sequence_num()
-                )
+            self._add_msgs_from_queue(frame_type, q_handler)
 
         synced_color_msgs = self.message_synchronizer.get_synced_msgs()
         if synced_color_msgs:
