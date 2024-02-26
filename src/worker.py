@@ -188,9 +188,13 @@ class Worker:
 
     async def get_synced_color_depth_data(self) -> Tuple[CapturedData, CapturedData]:
         while self.running:
-            color_and_depth_output = self._try_get_synced_color_depth_data()
-            if color_and_depth_output:
-                return color_and_depth_output
+            self._add_msgs_from_queue("color", self.color_q_handler)
+            self._add_msgs_from_queue("depth", self.depth_q_handler)
+
+            color_and_depth_data = self._capture_synced_color_depth_data()
+            if color_and_depth_data:
+                return color_and_depth_data
+
             self.logger.debug("Waiting for synced color and depth frames...")
             await asyncio.sleep(0.001)
 
@@ -239,15 +243,9 @@ class Worker:
         for msg in q:
             self.message_synchronizer.add_msg(msg, frame_type, msg.get_sequence_num())
 
-    def _try_get_synced_color_depth_data(
+    def _capture_synced_color_depth_data(
         self,
     ) -> Optional[Tuple[CapturedData, CapturedData]]:
-        for frame_type, q_handler in [
-            ("color", self.color_q_handler),
-            ("depth", self.depth_q_handler),
-        ]:
-            self._add_msgs_from_queue(frame_type, q_handler)
-
         synced_color_msgs = self.message_synchronizer.get_synced_msgs()
         if synced_color_msgs:
             color_frame, depth_frame, timestamp = (
