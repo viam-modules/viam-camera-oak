@@ -16,7 +16,7 @@ from typing import (
 )
 
 from logging import Logger
-from threading import Thread
+from threading import Thread, Lock
 
 import cv2
 import depthai as dai
@@ -86,20 +86,23 @@ class MessageSynchronizer:
 
     MAX_MSGS_SIZE = 50
     msgs: OrderedDict[int, Dict[str, BasePacket]]
+    write_lock: Lock
 
     def __init__(self):
         # msgs maps frame sequence number to a dictionary that maps frame_type (i.e. "color" or "depth") to a data packet
         self.msgs = OrderedDict()
+        self.write_lock = Lock()
 
     def add_msg(
         self, msg: BasePacket, frame_type: Literal["color", "depth"], seq: int
     ) -> None:
-        # Update recency if previously already stored in dict
-        if seq in self.msgs:
-            self.msgs.move_to_end(seq)
+        with self.write_lock:
+            # Update recency if previously already stored in dict
+            if seq in self.msgs:
+                self.msgs.move_to_end(seq)
 
-        self.msgs.setdefault(seq, {})[frame_type] = msg
-        self._cleanup_msgs()
+            self.msgs.setdefault(seq, {})[frame_type] = msg
+            self._cleanup_msgs()
 
     def get_synced_msgs(self) -> Optional[Dict[str, BasePacket]]:
         for sync_msgs in self.msgs.values():
@@ -120,7 +123,7 @@ class MessageSynchronizer:
         for msg_dict in reversed(self.msgs.values()):
             if frame_type in msg_dict:
                 return msg_dict[frame_type]
-        return None
+        raise Exception(f"No message of type '{frame_type}' in frame queue.")
 
     def _cleanup_msgs(self):
         while len(self.msgs) > self.MAX_MSGS_SIZE:
@@ -130,7 +133,7 @@ class MessageSynchronizer:
 class CapturedData:
     """
     CapturedData is image data with the data as an np array,
-    plus the time.time() it was captured at.
+    plus the timestamp it was captured at.
     """
 
     def __init__(self, np_array: NDArray, captured_at: float) -> None:
@@ -183,48 +186,30 @@ class Worker:
 
         self.message_synchronizer = MessageSynchronizer()
 
-    async def get_synced_color_depth_outputs(self) -> Tuple[CapturedData, CapturedData]:
+    async def get_synced_color_depth_data(self) -> Tuple[CapturedData, CapturedData]:
         while self.running:
-            color_and_depth_output = self._try_get_synced_color_depth_outputs()
-            if color_and_depth_output:
-                break
+            self._add_msgs_from_queue("color", self.color_q_handler)
+            self._add_msgs_from_queue("depth", self.depth_q_handler)
+
+            color_and_depth_data = self._capture_synced_color_depth_data()
+            if color_and_depth_data:
+                return color_and_depth_data
+
             self.logger.debug("Waiting for synced color and depth frames...")
             await asyncio.sleep(0.001)
 
-        color_output, depth_output = color_and_depth_output
-        timestamp = time.time()
-        return CapturedData(color_output, timestamp), CapturedData(
-            depth_output, timestamp
-        )
-
     def get_color_image(self) -> Optional[CapturedData]:
-        color_msg: Optional[FramePacket] = (
-            self.message_synchronizer.get_most_recent_color_msg()
-        )
-        if not color_msg:
-            try:  # to get frame directly from queue
-                color_q = self.color_q_handler.get_queue()
-                color_msg = color_q.get(block=True, timeout=5)
-            except Empty:
-                raise Exception("Timed out waiting for color image data.")
-
+        self._add_msgs_from_queue("color", self.color_q_handler)
+        color_msg = self.message_synchronizer.get_most_recent_color_msg()
         color_output = self._process_color_frame(color_msg.frame)
-        timestamp = time.time()
+        timestamp = color_msg.get_timestamp().total_seconds()
         return CapturedData(color_output, timestamp)
 
     def get_depth_map(self) -> Optional[CapturedData]:
-        depth_msg: Optional[DisparityDepthPacket] = (
-            self.message_synchronizer.get_most_recent_depth_msg()
-        )
-        if not depth_msg:
-            try:  # to get frame directly from queue
-                depth_q = self.depth_q_handler.get_queue()
-                depth_msg = depth_q.get(block=True, timeout=5)
-            except Empty:
-                raise Exception("Timed out waiting for depth map data.")
-
+        self._add_msgs_from_queue("depth", self.depth_q_handler)
+        depth_msg = self.message_synchronizer.get_most_recent_depth_msg()
         depth_output = self._process_depth_frame(depth_msg.frame)
-        timestamp = time.time()
+        timestamp = depth_msg.get_timestamp().total_seconds()
         return CapturedData(depth_output, timestamp)
 
     def get_pcd(self) -> CapturedData:
@@ -235,7 +220,7 @@ class Worker:
                 pc_output = self._downsample_pcd(pc_msg.points, pc_msg.points.nbytes)
             else:
                 pc_output = pc_msg.points
-            timestamp = time.time()
+            timestamp = pc_msg.get_timestamp().total_seconds()
             return CapturedData(pc_output, timestamp)
         except Empty:
             raise Exception("Timed out waiting for PCD.")
@@ -248,30 +233,29 @@ class Worker:
         self.manager.stop()
         self.oak.close()
 
-    def _try_get_synced_color_depth_outputs(
+    def _add_msgs_from_queue(
+        self, frame_type: Literal["color", "depth"], queue_handler: QueuePacketHandler
+    ) -> None:
+        queue_obj = queue_handler.get_queue()
+        with queue_obj.mutex:
+            q = queue_obj.queue
+
+        for msg in q:
+            self.message_synchronizer.add_msg(msg, frame_type, msg.get_sequence_num())
+
+    def _capture_synced_color_depth_data(
         self,
     ) -> Optional[Tuple[CapturedData, CapturedData]]:
-        for frame_type, q_handler in [
-            ("color", self.color_q_handler),
-            ("depth", self.depth_q_handler),
-        ]:
-            queue_obj = q_handler.get_queue()
-            with queue_obj.mutex:
-                current_queue_msgs = queue_obj.queue
-
-            for msg in current_queue_msgs:
-                self.message_synchronizer.add_msg(
-                    msg, frame_type, msg.get_sequence_num()
-                )
-
         synced_color_msgs = self.message_synchronizer.get_synced_msgs()
         if synced_color_msgs:
-            color_frame = synced_color_msgs["color"].frame
-            depth_frame = synced_color_msgs["depth"].frame
-
-            color_output = self._process_color_frame(color_frame)
-            depth_output = self._process_depth_frame(depth_frame)
-            return color_output, depth_output
+            color_frame, depth_frame, timestamp = (
+                synced_color_msgs["color"].frame,
+                synced_color_msgs["depth"].frame,
+                synced_color_msgs["color"].get_timestamp().total_seconds(),
+            )
+            color_data = CapturedData(self._process_color_frame(color_frame), timestamp)
+            depth_data = CapturedData(self._process_depth_frame(depth_frame), timestamp)
+            return color_data, depth_data
 
     def _init_oak_camera(self):
         """
