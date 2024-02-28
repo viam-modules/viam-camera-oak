@@ -238,9 +238,9 @@ class Worker:
     ) -> None:
         queue_obj = queue_handler.get_queue()
         with queue_obj.mutex:
-            q = queue_obj.queue
+            q_snapshot = list(queue_obj.queue)
 
-        for msg in q:
+        for msg in q_snapshot:
             self.message_synchronizer.add_msg(msg, frame_type, msg.get_sequence_num())
 
     def _capture_synced_color_depth_data(
