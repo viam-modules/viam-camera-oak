@@ -29,12 +29,10 @@ integration-tests: integration-tests/tests/*
 	./oak-integration-tests -module ./run.sh
 
 # Packaging
-build: build-non-appimage
-
-build-non-appimage: clean
+non-appimage: clean
 	tar -czf module.tar.gz run.sh requirements.txt src
 
-build-appimage-aarch64: clean
+appimage-aarch64: clean
 	docker build -t $(IMAGE_NAME) .
 	docker run --name $(CONTAINER_NAME) $(IMAGE_NAME)
 	docker cp $(CONTAINER_NAME):/app/$(AARCH64_APPIMAGE_NAME) ./$(AARCH64_APPIMAGE_NAME)
