@@ -44,7 +44,7 @@ Ready to contribute? Here's how to set up the module for local development.
 
 1. Git clone the repository locally:
     ```console
-    git clone https://github.com/viamrobotics/viam-camera-oak-d.git
+    git clone https://github.com/viamrobotics/viam-camera-oak.git
     ```
 
 1. Follow [these instructions](https://docs.viam.com/program/python-venv/) in our docs to set up your Python virtual environment.

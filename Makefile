@@ -1,7 +1,7 @@
 # Makefile
-IMAGE_NAME = appimage-builder-oak-d
-CONTAINER_NAME = appimage-builder-oak-d
-AARCH64_APPIMAGE_NAME = viam-camera-oak-d--aarch64.AppImage
+IMAGE_NAME = appimage-builder-oak
+CONTAINER_NAME = appimage-builder-oak
+AARCH64_APPIMAGE_NAME = viam-camera-oak--aarch64.AppImage
 
 .PHONY: integration-tests
 
@@ -24,9 +24,9 @@ unit-tests:
 
 integration-tests: integration-tests/tests/*
 	cd integration-tests && \
-	go test -c -o oak-d-integration-tests ./tests/ && \
-	mv oak-d-integration-tests ../
-	./oak-d-integration-tests -module ./run.sh
+	go test -c -o oak-integration-tests ./tests/ && \
+	mv oak-integration-tests ../
+	./oak-integration-tests -module ./run.sh
 
 # Packaging
 build: build-non-appimage

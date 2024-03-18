@@ -6,7 +6,7 @@ import pytest
 from viam.proto.app.robot import ComponentConfig
 from viam.errors import ValidationError
 
-from src.oak_d import OakDModel
+from src.oak import Oak
 
 ### Helpers
 
@@ -186,13 +186,13 @@ full_correct_config = make_component_config({
 @pytest.mark.parametrize("config,msg", configs_and_msgs)
 def test_validate_errors_parameterized(config, msg):
     with pytest.raises(ValidationError) as exc_info:
-        OakDModel.validate(config)
+        Oak.validate(config)
         assert exc_info.type == ValidationError
     assert msg in str(exc_info.value)
 
 def test_validate_no_errors():
     try:
-        OakDModel.validate(full_correct_config)
+        Oak.validate(full_correct_config)
     except Exception as e:
         s = (f"Expected a correct config to not raise {type(e)} during validation, yet it did :,)")
         pytest.fail(reason=s)

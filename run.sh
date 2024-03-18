@@ -1,12 +1,12 @@
 #!/bin/sh
 cd "$(dirname "$0")"
-LOG_PREFIX="[Viam OAK-D module setup]"
+LOG_PREFIX="[Viam OAK module setup]"
 
 echo "$LOG_PREFIX Starting the module."
 
 os=$(uname -s)
 arch=$(uname -m)
-appimage_path="./viam-camera-oak-d--aarch64.AppImage"
+appimage_path="./viam-camera-oak--aarch64.AppImage"
 # Run appimage if Linux aarch64
 if [ "$os" = "Linux" ] && [ "$arch" = "aarch64" ] && [ -f "$appimage_path" ]; then
     echo "$LOG_PREFIX Detected system Linux AArch64 and appimage. Attempting to start appimage."
@@ -17,7 +17,7 @@ else
 fi
 
 # Else, try running with a virtual environment and source
-VENV_NAME="viam-oak-d-venv"
+VENV_NAME="viam-oak-venv"
 PYTHON="$VENV_NAME/bin/python"
 
 echo "$LOG_PREFIX Running the module using virtual environment. This requires Python >=3.8.1, pip3, and venv to be installed."

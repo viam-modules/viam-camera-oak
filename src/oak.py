@@ -42,7 +42,7 @@ from viam.components.camera import (
 )
 from viam.media.video import CameraMimeType, NamedImage
 
-# OAK-D module
+# OAK module
 from src.worker import Worker, CapturedData
 
 
@@ -71,9 +71,9 @@ for handler in root_logger.handlers[:]:
 addHandlers(root_logger)
 
 
-class OakDModel(Camera, Reconfigurable, Stoppable):
+class Oak(Camera, Reconfigurable, Stoppable):
     """
-    OakDModel implements all available methods for the camera class: get_image,
+    This class implements all available methods for the camera class: get_image,
     get_images, get_point_cloud, and get_properties.
 
     It inherits from the built-in resource subtype Base and conforms to the
@@ -81,8 +81,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
     reconfigured. It also confirms to the `Stoppable` protocol, which signifies
     that the component can be stopped manually using `stop`
 
-    Additionally, it specifies a constructor function
-    ``OakDModel.new`` which confirms to the ``resource.types.ResourceCreator``
+    The constructor conforms to the ``resource.types.ResourceCreator``
     type required for all models.
     """
 
@@ -94,7 +93,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
         supports_pcd: bool = True
         """Whether the camera has a valid implementation of ``get_point_cloud``"""
 
-    MODEL: ClassVar[Model] = Model(ModelFamily("viam", "camera"), "oak-d")
+    MODEL: ClassVar[Model] = Model(ModelFamily("viam", "camera"), "oak")
     worker: ClassVar[Worker]
     """Singleton ``worker`` handles camera logic in a separate thread"""
     get_point_cloud_was_invoked: ClassVar[bool] = False
@@ -112,7 +111,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             dependencies (Mapping[ResourceName, ResourceBase])
 
         Returns:
-            Self: the OAK-D model class
+            Self: the OAK model class
         """
         camera_cls = cls(config.name)
         camera_cls.validate(config)
@@ -260,7 +259,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             config (ComponentConfig)
             dependencies (Mapping[ResourceName, ResourceBase])
         """
-        cls: OakDModel = type(self)
+        cls: Oak = type(self)
         try:
             LOGGER.debug("Trying to stop worker.")
             cls.worker.stop()
@@ -313,7 +312,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             extra (Optional[Mapping[str, Any]], optional): Unused.
             timeout (Optional[float], optional): Accepted. Defaults to None and will run with no timeout.
         """
-        cls: OakDModel = type(self)
+        cls: Oak = type(self)
         if timeout:
             self._run_with_timeout(timeout, cls.worker.stop)
         else:
@@ -345,7 +344,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
             PIL.Image.Image | RawImage: The frame
         """
         mime_type = self._validate_get_image_mime_type(mime_type)
-        cls: OakDModel = type(self)
+        cls: Oak = type(self)
 
         if not cls.worker.running:
             raise ViamError("get_image called before camera worker was ready.")
@@ -392,7 +391,7 @@ class OakDModel(Camera, Reconfigurable, Stoppable):
                   The metadata associated with this response
         """
         LOGGER.debug("get_images called")
-        cls: OakDModel = type(self)
+        cls: Oak = type(self)
 
         if not cls.worker.running:
             raise ViamError("get_images called before camera worker was ready.")

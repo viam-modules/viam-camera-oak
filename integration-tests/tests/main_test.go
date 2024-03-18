@@ -8,14 +8,14 @@ import (
 	"testing"
 )
 
-var modulePath = flag.String("module", "", "the path to the OAK-D module to test. If blank, will test the module from the registry.")
+var modulePath = flag.String("module", "", "the path to the OAK module to test. If blank, will test the module from the registry.")
 
 func TestMain(m *testing.M) {
-	fmt.Println("OAK-D MODULE INTEGRATION TESTS")
+	fmt.Println("OAK MODULE INTEGRATION TESTS")
 	flag.Parse()
 	moduleString := strings.TrimSpace(*modulePath)
 	if moduleString == "" {
-		fmt.Println("The path to the module is a required argument e.g. $ ./oak-d-integration-tests -module /path/to/module")
+		fmt.Println("The path to the module is a required argument e.g. $ ./oak-integration-tests -module /path/to/module")
 		os.Exit(1)
 	}
 	// check if module even exists

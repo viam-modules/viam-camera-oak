@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	componentName string = "my-oak-d"
+	componentName string = "my-oak"
 	// Default values should mirror those at the top of oak_d.py and worker.py
 	defaultWidth            int = 640
 	defaultHeight           int = 400
@@ -93,7 +93,7 @@ func setUpViamServer(ctx context.Context, t *testing.T) (robot.Robot, error) {
 		"components": [
 			{
 			"name": "%v",
-			"model": "viam:camera:oak-d",
+			"model": "viam:camera:oak",
 			"type": "camera",
 			"namespace": "rdk",
 			"attributes": {
