@@ -12,11 +12,10 @@ if [ "$os" = "Linux" ] && [ "$arch" = "aarch64" ] && [ -f "$appimage_path" ]; th
     echo "$LOG_PREFIX Detected system Linux AArch64 and appimage. Attempting to start appimage."
     chmod +x "$appimage_path"
     exec "$appimage_path" "$@"
-else
-    echo "$LOG_PREFIX No usable appimage was found."
 fi
 
-# Else, try running with a virtual environment and source
+# Try running with a virtual environment and source
+echo "$LOG_PREFIX No usable appimage was found."
 VENV_NAME="viam-oak-venv"
 PYTHON="$VENV_NAME/bin/python"
 
