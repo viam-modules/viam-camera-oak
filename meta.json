@@ -7,6 +7,10 @@
     {
       "api": "rdk:component:camera",
       "model": "viam:camera:oak"
+    },
+    {
+      "api": "rdk:component:camera",
+      "model": "viam:camera:oak-ffc"
     }
   ],
   "entrypoint": "run.sh"

@@ -14,7 +14,8 @@ async def main():
     Resources must be pre-registered. For an example, see the `__init__.py` file.
     """
     module = Module.from_args()
-    module.add_model_from_registry(Camera.SUBTYPE, Oak.MODEL)
+    for model in Oak.MODELS:
+        module.add_model_from_registry(Camera.SUBTYPE, model)
     LOGGER.debug("Starting module in main.py.")
     await module.start()
 

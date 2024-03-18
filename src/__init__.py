@@ -7,8 +7,10 @@ from viam.resource.registry import Registry, ResourceCreatorRegistration
 
 from src.oak import Oak
 
-Registry.register_resource_creator(
-    Camera.SUBTYPE,
-    Oak.MODEL,
-    ResourceCreatorRegistration(Oak.new, Oak.validate),
-)
+
+for model in Oak.MODELS:
+    Registry.register_resource_creator(
+        Camera.SUBTYPE,
+        model,
+        ResourceCreatorRegistration(Oak.new, Oak.validate),
+    )
