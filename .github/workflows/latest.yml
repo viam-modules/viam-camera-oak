@@ -1,0 +1,89 @@
+name: Build Latest
+
+on:
+  push:
+    branches: 
+      - 'main'
+      - 'RSDK-6991'
+    paths-ignore:
+      - '*.md'
+
+jobs:
+  appimage:
+    name: Build/Test/Upload latest
+    runs-on: buildjet-2vcpu-ubuntu-2204-arm
+
+    # Directly specify the container instead of using a matrix strategy.
+    container:
+      image: python:3.10-bookworm
+      options: --platform linux/arm64
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Build the appimage
+        run: make appimage-aarch64
+
+      - name: Authorize GCP upload
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+
+      - name: Deploy Files to GCP
+        uses: google-github-actions/upload-cloud-storage@v0.10.4
+        with:
+          headers: "cache-control: no-cache"
+          path: 'viam-camera-oak--aarch64.AppImage'
+          destination: 'packages.viam.com/apps/oak/linux'
+          glob: '*aarch64*'
+          parent: false
+          gzip: false
+
+      - name: Get latest release version
+        id: get_version
+        run: |
+          apt-get update && apt-get install -y jq
+          LATEST_RELEASE=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .tag_name)
+          echo "LATEST_RELEASE_VERSION=$LATEST_RELEASE" >> $GITHUB_ENV
+
+      - name: Testing module env variables
+        run: |
+          echo "LATEST_RELEASE_VERSION=${{ env.LATEST_RELEASE_VERSION }}"
+          echo "version: ${{ env.LATEST_RELEASE_VERSION }}-${{ github.ref_name }}.${{ github.run_number }}"
+
+      - name: Update module registry with Linux build appimage
+        uses: viamrobotics/upload-module@main
+        if: github.event_name == 'push'
+        with:
+          meta-path: meta.json
+          module-path: module.tar.gz
+          platform: linux/arm64
+          version: ${{ env.LATEST_RELEASE_VERSION }}-${{ github.ref_name }}.${{ github.run_number }}
+          key-id: ${{ secrets.viam_key_id }}
+          key-value: ${{ secrets.viam_key_value }}
+      
+      - name: Tar ball non-appimage build
+        run: make non-appimage
+
+      - name: Update module registry with darwin/arm64 non-appimage build
+        uses: viamrobotics/upload-module@main
+        if: github.event_name == 'push'
+        with:
+          meta-path: meta.json
+          module-path: module.tar.gz
+          platform: darwin/arm64
+          version: ${{ env.LATEST_RELEASE_VERSION }}-${{ github.ref_name }}.${{ github.run_number }}
+          key-id: ${{ secrets.viam_key_id }}
+          key-value: ${{ secrets.viam_key_value }}
+
+      - name: Update module registry with darwin/arm64 non-appimage build
+        uses: viamrobotics/upload-module@main
+        if: github.event_name == 'push'
+        with:
+          meta-path: meta.json
+          module-path: module.tar.gz
+          platform: darwin/amd64
+          version: ${{ env.LATEST_RELEASE_VERSION }}-${{ github.ref_name }}.${{ github.run_number }}
+          key-id: ${{ secrets.viam_key_id }}
+          key-value: ${{ secrets.viam_key_value }}
