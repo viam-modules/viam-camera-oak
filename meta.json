@@ -1,12 +1,16 @@
 {
-  "module_id": "viam:oak-d",
+  "module_id": "viam:oak",
   "visibility": "public",
-  "url": "https://github.com/viamrobotics/viam-camera-oak-d",
-  "description": "Python camera module for the Luxonis OAK-D. Please check the README.md on the linked Github repo to get started.",
+  "url": "https://github.com/viamrobotics/viam-camera-oak",
+  "description": "Python camera module for the Luxonis OAK family of cameras. Please check the README.md on the linked Github repo to get started.",
   "models": [
     {
       "api": "rdk:component:camera",
-      "model": "viam:camera:oak-d"
+      "model": "viam:camera:oak"
+    },
+    {
+      "api": "rdk:component:camera",
+      "model": "viam:camera:oak-ffc"
     }
   ],
   "entrypoint": "run.sh"

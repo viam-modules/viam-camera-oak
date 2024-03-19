@@ -3,7 +3,7 @@ import asyncio
 from viam.components.camera import Camera
 from viam.logging import getLogger
 from viam.module.module import Module
-from src.oak_d import OakDModel
+from src.oak import Oak
 
 
 LOGGER = getLogger(__name__)
@@ -14,7 +14,8 @@ async def main():
     Resources must be pre-registered. For an example, see the `__init__.py` file.
     """
     module = Module.from_args()
-    module.add_model_from_registry(Camera.SUBTYPE, OakDModel.MODEL)
+    for model in Oak.MODELS:
+        module.add_model_from_registry(Camera.SUBTYPE, model)
     LOGGER.debug("Starting module in main.py.")
     await module.start()
 

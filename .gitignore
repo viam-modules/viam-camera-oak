@@ -3,8 +3,8 @@
 .pytest_cache
 .venv
 module.tar.gz
-oak-d-integration-tests
-viam-oak-d-venv
+oak-integration-tests
+viam-oak-venv
 *.AppImage
 
 # src

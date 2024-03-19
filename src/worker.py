@@ -143,7 +143,7 @@ class CapturedData:
 
 class Worker:
     """
-    OakDModel <-> Worker <-> DepthAI SDK <-> DepthAI API (C++ core) <-> actual OAK-D
+    oak.py <-> worker.py <-> DepthAI SDK <-> DepthAI API (C++ core) <-> actual camera
     """
 
     color_q_handler: Optional[QueuePacketHandler]
