@@ -13,11 +13,6 @@ jobs:
     name: Build/Test/Upload latest
     runs-on: buildjet-2vcpu-ubuntu-2204-arm
 
-    # Directly specify the container instead of using a matrix strategy.
-    container:
-      image: python:3.10-bookworm
-      options: --platform linux/arm64
-
     steps:
       - name: Check out code
         uses: actions/checkout@v3
