@@ -31,7 +31,6 @@ jobs:
           headers: "cache-control: no-cache"
           path: 'viam-camera-oak--aarch64.AppImage'
           destination: 'packages.viam.com/apps/oak/linux'
-          glob: '*aarch64*'
           parent: false
           gzip: false
 
