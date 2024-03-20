@@ -1,4 +1,4 @@
-name: Upload to Registry on Release
+name: Deploy to registry
 
 on:
   release:
@@ -6,7 +6,7 @@ on:
 
 jobs:
   upload-registry:
-    name: Upload Builds to Registry
+    name: Build and upload tarballs to module
     runs-on: buildjet-2vcpu-ubuntu-2204-arm
 
     steps:

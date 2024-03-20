@@ -1,16 +1,15 @@
-name: Upload to GCP on Push
+name: Upload to GCP
 
 on:
   push:
     branches: 
       - 'main'
-      - 'RSDK-6991'
     paths-ignore:
       - '*.md'
 
 jobs:
   upload-gcp:
-    name: Upload AppImage to GCP bucket
+    name: Build and upload AppImage to GCP
     runs-on: buildjet-2vcpu-ubuntu-2204-arm
 
     steps:
