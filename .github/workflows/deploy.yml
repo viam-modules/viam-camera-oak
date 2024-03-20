@@ -4,7 +4,7 @@ on:
   push:
     branches: 
       - 'main'
-      - RSDK-6991
+      - 'RSDK-6991'
     paths-ignore:
       - '*.md'
   release:
