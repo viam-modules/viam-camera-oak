@@ -1,63 +1,34 @@
-name: Build and deploy latest changes & releases
+name: Upload to Registry on Release
 
 on:
-  push:
-    branches: 
-      - 'main'
-      - 'RSDK-6991'
-    paths-ignore:
-      - '*.md'
   release:
     types: [published]
 
 jobs:
-  appimage:
-    name: Build/Test/Upload latest
+  upload-registry:
+    name: Upload Builds to Registry
     runs-on: buildjet-2vcpu-ubuntu-2204-arm
 
     steps:
-      - name: Check out code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Set version env var
-        run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            echo "VERSION=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
-          else
-            apt-get update && apt-get install -y jq
-            LATEST_RELEASE=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .tag_name)
-            echo "VERSION=$LATEST_RELEASE-${{ github.ref_name }}.${{ github.run_number }}" >> $GITHUB_ENV
-          fi
+      - name: Set VERSION from tag
+        run: echo "VERSION=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
 
       - name: Build appimage release
         run: make appimage-aarch64
 
-      - name: Authorize GCP upload
-        uses: google-github-actions/auth@v1
-        with:
-          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
-
-      - name: Upload appimage to GCP
-        uses: google-github-actions/upload-cloud-storage@v0.10.4
-        with:
-          headers: "cache-control: no-cache"
-          path: 'viam-camera-oak-latest-aarch64.AppImage'
-          destination: 'packages.viam.com/apps/oak/linux'
-          parent: false
-          gzip: false
-
       - name: Upload to registry (linux/arm64 appimage)
         uses: viamrobotics/upload-module@main
-        if: github.event_name == 'push'
         with:
           meta-path: meta.json
-          module-path: 'module.tar.gz'
+          module-path: 'viam-camera-oak-latest-aarch64.AppImage'
           platform: linux/arm64
           version: ${{ env.VERSION }}
           key-id: ${{ secrets.viam_key_id }}
           key-value: ${{ secrets.viam_key_value }}
 
-      # Make sure to run this after appimage stuff is finished
+      # Make sure to run this after appimage upload handling is finished
       # `make clean` is called and will delete previous artifacts e.g. appimage & the previous tar ball
       - name: Build non-appimage release
         run: make non-appimage
