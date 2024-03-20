@@ -22,7 +22,7 @@ jobs:
         uses: viamrobotics/upload-module@main
         with:
           meta-path: meta.json
-          module-path: 'viam-camera-oak-latest-aarch64.AppImage'
+          module-path: 'module.tar.gz'
           platform: linux/arm64
           version: ${{ env.VERSION }}
           key-id: ${{ secrets.viam_key_id }}
