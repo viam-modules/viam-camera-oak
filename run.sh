@@ -6,7 +6,7 @@ echo "$LOG_PREFIX Starting the module."
 
 os=$(uname -s)
 arch=$(uname -m)
-appimage_path="./viam-camera-oak--aarch64.AppImage"
+appimage_path="./viam-camera-oak-latest-aarch64.AppImage"
 # Run appimage if Linux aarch64
 if [ "$os" = "Linux" ] && [ "$arch" = "aarch64" ] && [ -f "$appimage_path" ]; then
     echo "$LOG_PREFIX Detected system Linux AArch64 and appimage. Attempting to start appimage."

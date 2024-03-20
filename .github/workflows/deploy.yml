@@ -1,0 +1,54 @@
+name: Deploy to registry
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  upload-registry:
+    name: Build and upload tarballs to module
+    runs-on: buildjet-2vcpu-ubuntu-2204-arm
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set VERSION from tag
+        run: echo "VERSION=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
+
+      - name: Build appimage release
+        run: make appimage-aarch64
+
+      - name: Upload to registry (linux/arm64 appimage)
+        uses: viamrobotics/upload-module@main
+        with:
+          meta-path: meta.json
+          module-path: 'viam-camera-oak-latest-aarch64.AppImage'
+          platform: linux/arm64
+          version: ${{ env.VERSION }}
+          key-id: ${{ secrets.viam_key_id }}
+          key-value: ${{ secrets.viam_key_value }}
+
+      # Make sure to run this after appimage upload handling is finished
+      # `make clean` is called and will delete previous artifacts e.g. appimage & the previous tar ball
+      - name: Build non-appimage release
+        run: make non-appimage
+
+      - name: Upload to registry (darwin/arm64 non-appimage)
+        uses: viamrobotics/upload-module@main
+        with:
+          meta-path: meta.json
+          module-path: 'module.tar.gz'
+          platform: darwin/arm64
+          version: ${{ env.VERSION }}
+          key-id: ${{ secrets.viam_key_id }}
+          key-value: ${{ secrets.viam_key_value }}
+
+      - name: Upload to registry (darwin/amd64 non-appimage)
+        uses: viamrobotics/upload-module@main
+        with:
+          meta-path: meta.json
+          module-path: 'module.tar.gz'
+          platform: darwin/amd64
+          version: ${{ env.VERSION }}
+          key-id: ${{ secrets.viam_key_id }}
+          key-value: ${{ secrets.viam_key_value }}

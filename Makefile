@@ -1,7 +1,7 @@
 # Makefile
 IMAGE_NAME = appimage-builder-oak
 CONTAINER_NAME = appimage-builder-oak
-AARCH64_APPIMAGE_NAME = viam-camera-oak--aarch64.AppImage
+AARCH64_APPIMAGE_NAME = viam-camera-oak-latest-aarch64.AppImage
 
 .PHONY: integration-tests
 

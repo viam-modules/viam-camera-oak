@@ -10,7 +10,7 @@ AppDir:
   app_info:
     id: com.viam.camera-oak
     name: viam-camera-oak
-    version: ""
+    version: "latest"
     icon: viam-server
     exec: usr/bin/python3
     exec_args: "-m src.main $@"
