@@ -1,12 +1,13 @@
-name: Build Latest
+name: Build and deploy latest changes & releases
 
 on:
   push:
     branches: 
       - 'main'
-      - 'RSDK-6991'
     paths-ignore:
       - '*.md'
+  release:
+    types: [published]
 
 jobs:
   appimage:
@@ -17,7 +18,17 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v3
 
-      - name: Build the appimage
+      - name: Set version env var
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "VERSION=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
+          else
+            apt-get update && apt-get install -y jq
+            LATEST_RELEASE=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .tag_name)
+            echo "VERSION=$LATEST_RELEASE-${{ github.ref_name }}.${{ github.run_number }}" >> $GITHUB_ENV
+          fi
+
+      - name: Build appimage release
         run: make appimage-aarch64
 
       - name: Authorize GCP upload
@@ -25,7 +36,7 @@ jobs:
         with:
           credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
 
-      - name: Deploy Files to GCP
+      - name: Upload appimage to GCP
         uses: google-github-actions/upload-cloud-storage@v0.10.4
         with:
           headers: "cache-control: no-cache"
@@ -34,50 +45,38 @@ jobs:
           parent: false
           gzip: false
 
-      - name: Get latest release version
-        id: get_version
-        run: |
-          apt-get update && apt-get install -y jq
-          LATEST_RELEASE=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .tag_name)
-          echo "LATEST_RELEASE_VERSION=$LATEST_RELEASE" >> $GITHUB_ENV
-
-      - name: Testing module env variables
-        run: |
-          echo "LATEST_RELEASE_VERSION=${{ env.LATEST_RELEASE_VERSION }}"
-          echo "version: ${{ env.LATEST_RELEASE_VERSION }}-${{ github.ref_name }}.${{ github.run_number }}"
-
-      - name: Update module registry with Linux build appimage
+      - name: Upload to registry (linux/arm64 appimage)
         uses: viamrobotics/upload-module@main
         if: github.event_name == 'push'
         with:
           meta-path: meta.json
-          module-path: module.tar.gz
+          module-path: 'module.tar.gz'
           platform: linux/arm64
-          version: ${{ env.LATEST_RELEASE_VERSION }}-${{ github.ref_name }}.${{ github.run_number }}
+          version: ${{ env.VERSION }}
           key-id: ${{ secrets.viam_key_id }}
           key-value: ${{ secrets.viam_key_value }}
-      
-      - name: Tar ball non-appimage build
+
+      # Make sure to run this after appimage stuff is finished
+      # `make clean` is called and will delete previous artifacts e.g. appimage & the previous tar ball
+      - name: Build non-appimage release
         run: make non-appimage
 
-      - name: Update module registry with darwin/arm64 non-appimage build
+      - name: Upload to registry (darwin/arm64 non-appimage)
         uses: viamrobotics/upload-module@main
-        if: github.event_name == 'push'
         with:
           meta-path: meta.json
-          module-path: module.tar.gz
+          module-path: 'module.tar.gz'
           platform: darwin/arm64
-          version: ${{ env.LATEST_RELEASE_VERSION }}-${{ github.ref_name }}.${{ github.run_number }}
+          version: ${{ env.VERSION }}
           key-id: ${{ secrets.viam_key_id }}
           key-value: ${{ secrets.viam_key_value }}
 
-      - name: Update module registry with darwin/arm64 non-appimage build
+      - name: Upload to registry (darwin/amd64 non-appimage)
         uses: viamrobotics/upload-module@main
-        if: github.event_name == 'push'
         with:
           meta-path: meta.json
-          module-path: module.tar.gz
+          module-path: 'module.tar.gz'
           platform: darwin/amd64
-          version: ${{ env.LATEST_RELEASE_VERSION }}-${{ github.ref_name }}.${{ github.run_number }}
+          version: ${{ env.VERSION }}
           key-id: ${{ secrets.viam_key_id }}
           key-value: ${{ secrets.viam_key_value }}
