@@ -110,20 +110,38 @@ class MessageSynchronizer:
                 return sync_msgs
         return None
 
-    def get_most_recent_color_msg(self) -> Optional[BasePacket]:
-        return self._get_most_recent_msg("color")
+    def _add_msgs_from_queue(
+        self, frame_type: Literal["color", "depth"], queue_handler: QueuePacketHandler
+    ) -> None:
+        queue_obj = queue_handler.get_queue()
+        with queue_obj.mutex:
+            q_snapshot = list(queue_obj.queue)
 
-    def get_most_recent_depth_msg(self) -> Optional[BasePacket]:
-        return self._get_most_recent_msg("depth")
+        for msg in q_snapshot:
+            self.add_msg(msg, frame_type, msg.get_sequence_num())
 
     def _get_most_recent_msg(
-        self, frame_type: Literal["color", "depth"]
+        self, q_handler: QueuePacketHandler, frame_type: Literal["color", "depth"]
     ) -> Optional[BasePacket]:
+        self._add_msgs_from_queue(frame_type, q_handler)
+        while len(self.msgs) < 1:
+            self._add_msgs_from_queue(frame_type, q_handler)
+            time.sleep(1)
         # Traverse in reverse to get the most recent
         for msg_dict in reversed(self.msgs.values()):
             if frame_type in msg_dict:
                 return msg_dict[frame_type]
         raise Exception(f"No message of type '{frame_type}' in frame queue.")
+
+    def get_most_recent_color_msg(
+        self, color_q_handler: QueuePacketHandler
+    ) -> Optional[BasePacket]:
+        return self._get_most_recent_msg(color_q_handler, "color")
+
+    def get_most_recent_depth_msg(
+        self, depth_q_handler: QueuePacketHandler
+    ) -> Optional[BasePacket]:
+        return self._get_most_recent_msg(depth_q_handler, "depth")
 
     def _cleanup_msgs(self):
         while len(self.msgs) > self.MAX_MSGS_SIZE:
@@ -188,8 +206,12 @@ class Worker:
 
     async def get_synced_color_depth_data(self) -> Tuple[CapturedData, CapturedData]:
         while self.running:
-            self._add_msgs_from_queue("color", self.color_q_handler)
-            self._add_msgs_from_queue("depth", self.depth_q_handler)
+            self.message_synchronizer._add_msgs_from_queue(
+                "color", self.color_q_handler
+            )
+            self.message_synchronizer._add_msgs_from_queue(
+                "depth", self.depth_q_handler
+            )
 
             color_and_depth_data = self._capture_synced_color_depth_data()
             if color_and_depth_data:
@@ -199,15 +221,17 @@ class Worker:
             await asyncio.sleep(0.001)
 
     def get_color_image(self) -> Optional[CapturedData]:
-        self._add_msgs_from_queue("color", self.color_q_handler)
-        color_msg = self.message_synchronizer.get_most_recent_color_msg()
+        color_msg = self.message_synchronizer.get_most_recent_color_msg(
+            self.color_q_handler
+        )
         color_output = self._process_color_frame(color_msg.frame)
         timestamp = color_msg.get_timestamp().total_seconds()
         return CapturedData(color_output, timestamp)
 
     def get_depth_map(self) -> Optional[CapturedData]:
-        self._add_msgs_from_queue("depth", self.depth_q_handler)
-        depth_msg = self.message_synchronizer.get_most_recent_depth_msg()
+        depth_msg = self.message_synchronizer.get_most_recent_depth_msg(
+            self.depth_q_handler
+        )
         depth_output = self._process_depth_frame(depth_msg.frame)
         timestamp = depth_msg.get_timestamp().total_seconds()
         return CapturedData(depth_output, timestamp)
@@ -232,16 +256,6 @@ class Worker:
         self.logger.info("Stopping worker.")
         self.manager.stop()
         self.oak.close()
-
-    def _add_msgs_from_queue(
-        self, frame_type: Literal["color", "depth"], queue_handler: QueuePacketHandler
-    ) -> None:
-        queue_obj = queue_handler.get_queue()
-        with queue_obj.mutex:
-            q_snapshot = list(queue_obj.queue)
-
-        for msg in q_snapshot:
-            self.message_synchronizer.add_msg(msg, frame_type, msg.get_sequence_num())
 
     def _capture_synced_color_depth_data(
         self,
