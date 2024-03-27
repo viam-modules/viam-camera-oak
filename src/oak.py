@@ -97,7 +97,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
     MODELS: ClassVar[Tuple[Model]] = (
         Model(family, "oak"),
         Model(family, "oak-ffc"),
-        Model(family, "oak-d")
+        Model(family, "oak-d"),
     )
     worker: ClassVar[Worker]
     """Singleton ``worker`` handles camera logic in a separate thread"""
