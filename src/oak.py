@@ -93,9 +93,11 @@ class Oak(Camera, Reconfigurable, Stoppable):
         supports_pcd: bool = True
         """Whether the camera has a valid implementation of ``get_point_cloud``"""
 
+    family = ModelFamily("viam", "camera")
     MODELS: ClassVar[Tuple[Model]] = (
-        Model(ModelFamily("viam", "camera"), "oak"),
-        Model(ModelFamily("viam", "camera"), "oak-ffc"),
+        Model(family, "oak"),
+        Model(family, "oak-ffc"),
+        Model(family, "oak-d")
     )
     worker: ClassVar[Worker]
     """Singleton ``worker`` handles camera logic in a separate thread"""
