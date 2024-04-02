@@ -271,6 +271,7 @@ class Worker:
         while not self.oak and self.running:
             try:
                 self.oak = OakCamera()
+                self.logger.debug("Successfully initialized OakCamera.")
             except Exception as e:
                 self.logger.error(f"Error initializing OakCamera: {e}")
                 time.sleep(1)
