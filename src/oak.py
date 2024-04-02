@@ -410,11 +410,10 @@ class Oak(Camera, Reconfigurable, Stoppable):
             raise ViamError("get_images called before camera worker was ready.")
 
         # Accumulator for images
-        l: List[NamedImage] = []
-        # Accumulator for timestamp calculation later
+        images: List[NamedImage] = []
+        # For timestamp calculation later
         seconds_float: float = None
 
-        # We really want to do this as in-sync as possible to reduce latency between color & depth
         color_data: Optional[CapturedData] = None
         depth_data: Optional[CapturedData] = None
         if COLOR_SENSOR in self.sensors and DEPTH_SENSOR in self.sensors:
@@ -437,7 +436,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
             jpeg_encoded_bytes = output_buffer.getvalue()
             img = NamedImage("color", jpeg_encoded_bytes, CameraMimeType.JPEG)
             seconds_float = captured_at
-            l.append(img)
+            images.append(img)
 
         if DEPTH_SENSOR in self.sensors:
             if not depth_data:
@@ -448,7 +447,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
                 "depth", depth_encoded_bytes, CameraMimeType.VIAM_RAW_DEPTH
             )
             seconds_float = captured_at
-            l.append(img)
+            images.append(img)
 
         # Create timestamp for metadata
         seconds_int = int(seconds_float)
@@ -456,7 +455,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
         metadata = ResponseMetadata(
             captured_at=Timestamp(seconds=seconds_int, nanos=nanoseconds_int)
         )
-        return l, metadata
+        return images, metadata
 
     async def get_point_cloud(
         self,
