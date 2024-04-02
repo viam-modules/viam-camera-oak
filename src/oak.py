@@ -151,7 +151,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
             full_err_msg = f"Config attribute validation error: {err_msg}"
             LOGGER.error(full_err_msg)
             if cls.worker_manager:  # stop worker if active
-                cls.worker_manager.stop()
+                cls.worker.stop()
             raise ValidationError(full_err_msg)
 
         def validate_attribute_type(
@@ -267,8 +267,8 @@ class Oak(Camera, Reconfigurable, Stoppable):
         """
         cls: Oak = type(self)
         try:
-            LOGGER.debug("Trying to stop worker manager and worker.")
-            cls.worker_manager.stop()
+            LOGGER.debug("Trying to stop worker.")
+            cls.worker.stop()
             LOGGER.info("Reconfiguring OAK.")
         except AttributeError:
             LOGGER.debug("No active worker.")
@@ -327,7 +327,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
         if timeout:
             self._run_with_timeout(timeout, cls.worker_manager.stop)
         else:
-            cls.worker_manager.stop()
+            cls.worker.stop()
 
     async def get_image(
         self,

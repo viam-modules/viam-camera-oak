@@ -217,6 +217,16 @@ class Worker:
         except Empty:
             raise Exception("Timed out waiting for PCD.")
 
+    def stop(self) -> None:
+        """
+        Handles closing resources and exiting logic in worker.
+        """
+        self.logger.debug("Stopping worker.")
+        self.starting_up = False
+        self.running = False
+        if self.oak:
+            self.oak.close()
+
     def _capture_synced_color_depth_data(
         self,
     ) -> Optional[Tuple[CapturedData, CapturedData]]:
