@@ -102,7 +102,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
     )
     worker: ClassVar[Worker]
     """Singleton `Worker` handles camera logic in a separate thread"""
-    manager: ClassVar[WorkerManager]
+    worker_manager: ClassVar[Optional[WorkerManager]] = None
     """Singleton `WorkerManager` managing the lifecycle of `worker`"""
     get_point_cloud_was_invoked: ClassVar[bool] = False
     camera_properties: Camera.Properties
@@ -150,10 +150,8 @@ class Oak(Camera, Reconfigurable, Stoppable):
             """
             full_err_msg = f"Config attribute validation error: {err_msg}"
             LOGGER.error(full_err_msg)
-            try:
-                cls.worker.stop()  # stop worker if active
-            except AttributeError:
-                pass
+            if cls.worker_manager:  # stop worker if active
+                cls.worker_manager.stop()
             raise ValidationError(full_err_msg)
 
         def validate_attribute_type(
@@ -269,9 +267,9 @@ class Oak(Camera, Reconfigurable, Stoppable):
         """
         cls: Oak = type(self)
         try:
-            LOGGER.debug("Trying to stop worker.")
-            cls.worker.stop()
-            LOGGER.info("Stopping active worker and reconfiguring...")
+            LOGGER.debug("Trying to stop worker manager and worker.")
+            cls.worker_manager.stop()
+            LOGGER.info("Reconfiguring OAK.")
         except AttributeError:
             LOGGER.debug("No active worker.")
 
@@ -307,8 +305,8 @@ class Oak(Camera, Reconfigurable, Stoppable):
             logger=LOGGER,
         )
 
-        cls.manager = WorkerManager(cls.worker, LOGGER, callback)
-        cls.manager.start()
+        cls.worker_manager = WorkerManager(cls.worker, LOGGER, callback)
+        cls.worker_manager.start()
 
     def stop(
         self,
@@ -327,9 +325,9 @@ class Oak(Camera, Reconfigurable, Stoppable):
         LOGGER.info("Stopping OAK.")
         cls: Oak = type(self)
         if timeout:
-            self._run_with_timeout(timeout, cls.worker.stop)
+            self._run_with_timeout(timeout, cls.worker_manager.stop)
         else:
-            cls.manager.stop()
+            cls.worker_manager.stop()
 
     async def get_image(
         self,
