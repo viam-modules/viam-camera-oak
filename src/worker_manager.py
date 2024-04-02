@@ -32,9 +32,6 @@ class WorkerManager(Thread):
             self.logger.debug("Checking if worker must be reconfigured.")
             if self.worker.oak.device.isClosed():
                 self.logger.debug("Camera is closed. Reconfiguring worker.")
-                self.logger.info(
-                    "we are about to call reconfigure inside workermanager"
-                )
                 self.reconfigure()
                 self.worker.running = False
             time.sleep(3)

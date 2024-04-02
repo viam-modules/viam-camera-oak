@@ -359,8 +359,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
         mime_type = self._validate_get_image_mime_type(mime_type)
         cls: Oak = type(self)
 
-        if not cls.worker.running:
-            raise ViamError("get_image called before camera worker was ready.")
+        self._wait_until_worker_running()
 
         main_sensor = self.sensors[0]
 
@@ -406,8 +405,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
         LOGGER.debug("get_images called")
         cls: Oak = type(self)
 
-        if not cls.worker.running:
-            raise ViamError("get_images called before camera worker was ready.")
+        self._wait_until_worker_running()
 
         # Accumulator for images
         images: List[NamedImage] = []
@@ -500,8 +498,8 @@ class Oak(Camera, Reconfigurable, Stoppable):
             raise MethodNotAllowed(method_name="get_point_cloud", details=details)
 
         cls = type(self)
-        if not cls.worker.running:
-            raise ViamError("get_point_cloud called before camera worker is ready.")
+
+        self._wait_until_worker_running()
 
         # By default, we do not get point clouds even when color and depth are both requested
         # We have to reinitialize the worker/OakCamera to start making point clouds
@@ -509,8 +507,9 @@ class Oak(Camera, Reconfigurable, Stoppable):
             cls.get_point_cloud_was_invoked = True
             cls.worker.oak.close()  # triggers reconfigure callback
 
-        while not cls.worker or not cls.worker.user_wants_pc:
-            time.sleep(0.5)  # wait for new worker to initialize with pc configured
+        while not cls.worker.user_wants_pc or not cls.worker.running:
+            LOGGER.debug("Waiting for worker to restart with pcd configured...")
+            time.sleep(0.5)
 
         # Get actual PCD data from camera worker
         pcd_obj = cls.worker.get_pcd()
@@ -546,6 +545,26 @@ class Oak(Camera, Reconfigurable, Stoppable):
             Properties: The properties of the camera
         """
         return self.camera_properties
+
+    def _wait_until_worker_running(self, max_attempts=5, sleep_time=1):
+        """
+        Blocks execution until worker is running.
+
+        Args:
+            max_attempts (int, optional): Defaults to 5.
+            sleep_time (int, optional): Defaults to 1.
+
+        Raises:
+
+        """
+        cls: Oak = type(self)
+        attempts = 0
+        while attempts < max_attempts:
+            if cls.worker.running:
+                return
+            time.sleep(sleep_time)
+            attempts += 1
+        raise ViamError("camera data requested before camera worker was ready.")
 
     def _encode_depth_raw(self, data: bytes, shape: Tuple[int, int]) -> bytes:
         """

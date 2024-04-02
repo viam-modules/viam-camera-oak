@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/edaniels/golog"
 	"go.viam.com/rdk/components/camera"
 	"go.viam.com/rdk/config"
+	"go.viam.com/rdk/logging"
 	"go.viam.com/rdk/resource"
 	"go.viam.com/rdk/robot"
 	robotimpl "go.viam.com/rdk/robot/impl"
@@ -19,29 +19,29 @@ import (
 )
 
 const (
-	componentName string = "my-oak"
-	// Default values should mirror those at the top of oak_d.py and worker.py
+	componentName string = "oak-cam"
+	// Default values should mirror those at the top of oak.py and worker.py
 	defaultWidth            int = 640
 	defaultHeight           int = 400
 	maxGRPCMessageByteCount     = 4194304 // Update this if the gRPC config ever changes
 )
 
 func TestCameraServer(t *testing.T) {
-	ctxTimeoutTests, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
 	var myRobot robot.Robot
 	var cam camera.Camera
 	t.Run("Set up the robot", func(t *testing.T) {
 		var err error
-		myRobot, err = setUpViamServer(ctxTimeoutTests, t)
+		myRobot, err = setUpViamServer(timeoutCtx, t)
 		test.That(t, err, test.ShouldBeNil)
 		cam, err = camera.FromRobot(myRobot, componentName)
 		test.That(t, err, test.ShouldBeNil)
 	})
 
 	t.Run("Get images method", func(t *testing.T) {
-		images, metadata, err := cam.Images(ctxTimeoutTests)
+		images, metadata, err := cam.Images(timeoutCtx)
 		test.That(t, err, test.ShouldBeNil)
 		test.That(t, images, test.ShouldNotBeNil)
 		test.That(t, metadata, test.ShouldNotBeNil)
@@ -55,7 +55,7 @@ func TestCameraServer(t *testing.T) {
 	})
 
 	t.Run("Get point cloud method", func(t *testing.T) {
-		pc, err := cam.NextPointCloud(ctxTimeoutTests)
+		pc, err := cam.NextPointCloud(timeoutCtx)
 		test.That(t, err, test.ShouldBeNil)
 		test.That(t, pc, test.ShouldNotBeNil)
 		test.That(t, pc.Size(), test.ShouldBeBetween, 0, maxGRPCMessageByteCount)
@@ -67,21 +67,22 @@ func TestCameraServer(t *testing.T) {
 				"sensors": []string{"color"},
 			},
 		}
-		err := cam.Reconfigure(ctxTimeoutTests, resource.Dependencies{}, cfg)
+		err := cam.Reconfigure(timeoutCtx, resource.Dependencies{}, cfg)
 		test.That(t, err, test.ShouldBeNil)
 	})
 
 	t.Run("Shut down the camera", func(t *testing.T) {
-		test.That(t, cam.Close(ctxTimeoutTests), test.ShouldBeNil)
+		test.That(t, cam.Close(timeoutCtx), test.ShouldBeNil)
 	})
 
 	t.Run("Shut down the robot", func(t *testing.T) {
-		test.That(t, myRobot.Close(ctxTimeoutTests), test.ShouldBeNil)
+		test.That(t, myRobot.Close(timeoutCtx), test.ShouldBeNil)
 	})
 }
 
 func setUpViamServer(ctx context.Context, t *testing.T) (robot.Robot, error) {
-	logger := golog.NewTestLogger(t)
+	logger := logging.NewLogger("oak-integration-tests-logger")
+
 	moduleString := strings.TrimSpace(*modulePath)
 	logger.Info("testing module at %v", moduleString)
 	configString := fmt.Sprintf(`
@@ -108,7 +109,7 @@ func setUpViamServer(ctx context.Context, t *testing.T) (robot.Robot, error) {
 		"modules": [
 			{
 			"type": "local",
-			"name": "viam_oak_d",
+			"name": "viam_oak",
 			"executable_path": "%v"
 			}
 		]
