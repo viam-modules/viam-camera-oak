@@ -44,6 +44,7 @@ from viam.media.video import CameraMimeType, NamedImage
 
 # OAK module
 from src.worker import Worker, CapturedData
+from src.worker_manager import WorkerManager
 
 
 LOGGER = getLogger(__name__)
@@ -100,7 +101,9 @@ class Oak(Camera, Reconfigurable, Stoppable):
         Model(family, "oak-d"),
     )
     worker: ClassVar[Worker]
-    """Singleton ``worker`` handles camera logic in a separate thread"""
+    """Singleton `Worker` handles camera logic in a separate thread"""
+    manager: ClassVar[WorkerManager]
+    """Singleton `WorkerManager` managing the lifecycle of `worker`"""
     get_point_cloud_was_invoked: ClassVar[bool] = False
     camera_properties: Camera.Properties
 
@@ -292,6 +295,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
             DEPTH_SENSOR in self.sensors,
         )
         callback = lambda: self.reconfigure(config, dependencies)
+
         cls.worker = Worker(
             height=self.height,
             width=self.width,
@@ -302,6 +306,9 @@ class Oak(Camera, Reconfigurable, Stoppable):
             reconfigure=callback,
             logger=LOGGER,
         )
+
+        cls.manager = WorkerManager(cls.worker, LOGGER, callback)
+        cls.manager.start()
 
     def stop(
         self,
@@ -321,7 +328,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
         if timeout:
             self._run_with_timeout(timeout, cls.worker.stop)
         else:
-            cls.worker.stop()
+            cls.manager.stop()
 
     async def get_image(
         self,
