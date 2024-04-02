@@ -37,5 +37,11 @@ class WorkerManager(Thread):
             time.sleep(3)
 
     def stop(self) -> None:
-        self.logger.debug("Stopping worker manager.")
-        self.worker.stop()
+        """
+        Handles closing resources and exiting logic in worker.
+        """
+        self.logger.debug("Stopping worker and worker manager.")
+        self.worker.starting_up = False
+        self.worker.running = False
+        if self.worker.oak:
+            self.worker.oak.close()

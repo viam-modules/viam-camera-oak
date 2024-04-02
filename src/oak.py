@@ -316,7 +316,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
         **kwargs,
     ) -> None:
         """
-        Implements ``stop`` under the Stoppable protocol to free resources.
+        Implements `stop` under the Stoppable protocol to free resources.
 
         Args:
             extra (Optional[Mapping[str, Any]], optional): Unused.
