@@ -221,10 +221,8 @@ class Worker:
         """
         Handles stopping and closing of the camera worker.
         """
-        self.logger.info("Stopping worker.")
         self.starting_up = False
         self.running = False
-        self.logger.info("self.running in stop: " + str(self.running))
         if self.oak:
             self.oak.close()
 
@@ -248,7 +246,6 @@ class Worker:
         """
         self.oak = None
         while not self.oak and self.starting_up:
-            self.logger.info("self.running in _init_oak_camera: " + str(self.running))
             try:
                 self.oak = OakCamera()
                 self.logger.debug("Successfully initialized OakCamera.")

@@ -324,6 +324,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
             extra (Optional[Mapping[str, Any]], optional): Unused.
             timeout (Optional[float], optional): Accepted. Defaults to None and will run with no timeout.
         """
+        LOGGER.info("Stopping OAK.")
         cls: Oak = type(self)
         if timeout:
             self._run_with_timeout(timeout, cls.worker.stop)
@@ -414,8 +415,8 @@ class Oak(Camera, Reconfigurable, Stoppable):
         seconds_float: float = None
 
         # We really want to do this as in-sync as possible to reduce latency between color & depth
-        color_data: Optional(CapturedData) = None
-        depth_data: Optional(CapturedData) = None
+        color_data: Optional[CapturedData] = None
+        depth_data: Optional[CapturedData] = None
         if COLOR_SENSOR in self.sensors and DEPTH_SENSOR in self.sensors:
             color_data, depth_data = await cls.worker.get_synced_color_depth_data()
 
