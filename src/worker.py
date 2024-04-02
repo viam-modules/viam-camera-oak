@@ -212,8 +212,7 @@ class Worker:
 
     def get_color_image(self) -> Optional[CapturedData]:
         color_msg = self.message_synchronizer.get_most_recent_msg(
-            self.color_q_handler,
-            "color"
+            self.color_q_handler, "color"
         )
         color_output = self._process_color_frame(color_msg.frame)
         timestamp = color_msg.get_timestamp().total_seconds()
@@ -221,8 +220,7 @@ class Worker:
 
     def get_depth_map(self) -> Optional[CapturedData]:
         depth_msg = self.message_synchronizer.get_most_recent_msg(
-            self.depth_q_handler,
-            "depth"
+            self.depth_q_handler, "depth"
         )
         depth_output = self._process_depth_frame(depth_msg.frame)
         timestamp = depth_msg.get_timestamp().total_seconds()
