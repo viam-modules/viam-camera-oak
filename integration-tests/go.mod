@@ -1,11 +1,8 @@
 module github.com/viamrobotics/viam-camera-realsense/integration
 
-go 1.21
-
-toolchain go1.22.1
+go 1.22.1
 
 require (
-	github.com/edaniels/golog v0.0.0-20230215213219-28954395e8d0
 	go.viam.com/rdk v0.24.0
 	go.viam.com/test v1.1.1-0.20220913152726-5da9916c08a2
 )
@@ -36,6 +33,7 @@ require (
 	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
 	github.com/disintegration/imaging v1.6.2 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
+	github.com/edaniels/golog v0.0.0-20230215213219-28954395e8d0 // indirect
 	github.com/edaniels/lidario v0.0.0-20220607182921-5879aa7b96dd // indirect
 	github.com/edaniels/zeroconf v1.0.10 // indirect
 	github.com/erikstmartin/go-testdb v0.0.0-20160219214506-8d10e4a1bae5 // indirect
@@ -123,7 +121,6 @@ require (
 	github.com/srikrsna/protoc-gen-gotag v0.6.2 // indirect
 	github.com/stretchr/testify v1.9.0 // indirect
 	github.com/viam-labs/go-libjpeg v0.3.1 // indirect
-	github.com/viamrobotics/gostream v0.0.0-20231027183225-ea0281ada6f7 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.2 // indirect
 	github.com/xdg-go/stringprep v1.0.4 // indirect
@@ -157,7 +154,6 @@ require (
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.19.0 // indirect
-	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
 	gonum.org/v1/gonum v0.15.0 // indirect
 	gonum.org/v1/plot v0.14.0 // indirect
 	google.golang.org/api v0.172.0 // indirect
