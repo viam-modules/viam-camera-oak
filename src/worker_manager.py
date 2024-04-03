@@ -8,8 +8,8 @@ from src.worker import Worker
 
 class WorkerManager(Thread):
     """
-    WorkerManager watches and manages the lifetime of the Worker to make sure
-    the connection to the camera is healthy, as well as terminating it when necessary.
+    WorkerManager starts then watches Worker, making sure the connection
+    to the OAK camera is healthy, reconfiguring the entire module if not.
     """
 
     def __init__(

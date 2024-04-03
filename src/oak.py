@@ -100,7 +100,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
         Model(family, "oak-ffc"),
         Model(family, "oak-d"),
     )
-    worker: ClassVar[Worker]
+    worker: ClassVar[Optional[Worker]] = None
     """Singleton `Worker` handles camera logic in a separate thread"""
     worker_manager: ClassVar[Optional[WorkerManager]] = None
     """Singleton `WorkerManager` managing the lifecycle of `worker`"""
@@ -150,7 +150,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
             """
             full_err_msg = f"Config attribute validation error: {err_msg}"
             LOGGER.error(full_err_msg)
-            if cls.worker_manager:  # stop worker if active
+            if cls.worker:  # stop worker if active
                 cls.worker.stop()
             raise ValidationError(full_err_msg)
 
@@ -544,13 +544,14 @@ class Oak(Camera, Reconfigurable, Stoppable):
         """
         return self.camera_properties
 
-    def _wait_until_worker_running(self, max_attempts=5, sleep_time=1):
+    def _wait_until_worker_running(self, max_attempts=5, timeout_seconds=1):
         """
-        Blocks execution until worker is running.
+        Blocks on camera data methods that require the worker to be running.
+        Unblocks once worker is running or max number of attempts to pass is reached.
 
         Args:
             max_attempts (int, optional): Defaults to 5.
-            sleep_time (int, optional): Defaults to 1.
+            timeout_seconds (int, optional): Defaults to 1.
 
         Raises:
 
@@ -560,9 +561,12 @@ class Oak(Camera, Reconfigurable, Stoppable):
         while attempts < max_attempts:
             if cls.worker.running:
                 return
-            time.sleep(sleep_time)
+            time.sleep(timeout_seconds)
             attempts += 1
-        raise ViamError("camera data requested before camera worker was ready.")
+        raise ViamError(
+            "Camera data requested before camera worker was ready. Please ensure the camera is properly "
+            "connected and configured, especially for non-integrated models such as the OAK-FFC."
+        )
 
     def _encode_depth_raw(self, data: bytes, shape: Tuple[int, int]) -> bytes:
         """
