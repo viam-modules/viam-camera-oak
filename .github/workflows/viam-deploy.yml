@@ -10,7 +10,7 @@ jobs:
     - uses: actions/checkout@v3
     - uses: viamrobotics/build-action@v1
       with:
-        version: "main"
+        version: ""
         ref: ${{ github.sha }}
         key-id: ${{ secrets.viam_key_id }}
         key-value: ${{ secrets.viam_key_value }}
