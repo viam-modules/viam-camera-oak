@@ -1,4 +1,6 @@
 #!/bin/bash
+set -e
+
 UNAME=$(uname -s)
 
 if [ "$UNAME" = "Linux" ]
