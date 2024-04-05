@@ -5,7 +5,9 @@
 module.tar.gz
 oak-integration-tests
 viam-oak-venv
-*.AppImage
+build
+dist
+main.spec
 
 # src
 src/__pycache__
