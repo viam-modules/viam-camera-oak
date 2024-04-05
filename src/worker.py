@@ -4,11 +4,9 @@ import math
 from queue import Empty
 import time
 from typing import (
-    Any,
     Callable,
     Dict,
     Literal,
-    Mapping,
     Optional,
     OrderedDict,
     Tuple,
@@ -16,12 +14,12 @@ from typing import (
 )
 
 from logging import Logger
-from threading import Thread, Lock
+from threading import Lock
 
 import cv2
 import depthai as dai
 from depthai_sdk import OakCamera
-from depthai_sdk.classes.packets import BasePacket, FramePacket, DisparityDepthPacket
+from depthai_sdk.classes.packets import BasePacket
 from depthai_sdk.classes.packet_handlers import QueuePacketHandler
 from depthai_sdk.components.camera_component import CameraComponent
 from depthai_sdk.components.pointcloud_component import PointcloudComponent
@@ -42,40 +40,6 @@ DIMENSIONS_TO_COLOR_RES = {
 }  # color camera component only accepts this subset of depthai_sdk.components.camera_helper.colorResolutions
 
 MAX_GRPC_MESSAGE_BYTE_COUNT = 4194304  # Update this if the gRPC config ever changes
-
-
-class WorkerManager(Thread):
-    """
-    WorkerManager checks the health of the OakCamera to make sure
-    it is physically connected and functioning in a separate thread.
-    """
-
-    def __init__(
-        self,
-        oak: OakCamera,
-        logger: Logger,
-        reconfigure: Callable[[None], None],
-    ) -> None:
-        self.oak = oak
-        self.logger = logger
-        self.reconfigure = reconfigure
-
-        self.running = True
-        super().__init__()
-
-    def run(self) -> None:
-        self.logger.debug("Starting worker manager.")
-        while self.running:
-            self.logger.debug("Checking if worker must be reconfigured.")
-            if self.oak.device.isClosed():
-                self.logger.debug("Camera is closed. Reconfiguring worker.")
-                self.reconfigure()
-                self.running = False
-            time.sleep(3)
-
-    def stop(self) -> None:
-        self.logger.debug("Stopping worker manager.")
-        self.running = False
 
 
 class MessageSynchronizer:
@@ -154,6 +118,7 @@ class Worker:
     oak.py <-> worker.py <-> DepthAI SDK <-> DepthAI API (C++ core) <-> actual camera
     """
 
+    oak: Optional[OakCamera]
     color_q_handler: Optional[QueuePacketHandler]
     depth_q_handler: Optional[QueuePacketHandler]
     pc_q_handler: Optional[QueuePacketHandler]
@@ -171,6 +136,7 @@ class Worker:
     ) -> None:
         logger.info("Initializing worker.")
 
+        # Args -> states
         self.height = height
         self.width = width
         self.frame_rate = frame_rate
@@ -180,19 +146,31 @@ class Worker:
         self.reconfigure = reconfigure
         self.logger = logger
 
-        self.color_image = None
-        self.depth_map = None
-        self.pcd = None
-        self.running = True
+        # Managed objects
+        self.oak = None
+        self.color_q_handler = None
+        self.depth_q_handler = None
+        self.pc_q_handler = None
 
+        # Flags for stopping busy loops
+        self.running = False
+        self.starting_up = False
+
+    def start(self):
+        self.starting_up = True
         self._init_oak_camera()
+
+        if (
+            not self.starting_up
+        ):  # possible SIGTERM between initializing OakCamera and here
+            return
+
         self._config_oak_camera()
         self.oak.start()
 
-        self.manager = WorkerManager(self.oak, logger, reconfigure)
-        self.manager.start()
-
         self.message_synchronizer = MessageSynchronizer()
+        self.running = True
+        self.starting_up = False
 
     async def get_synced_color_depth_data(self) -> Tuple[CapturedData, CapturedData]:
         while self.running:
@@ -241,11 +219,13 @@ class Worker:
 
     def stop(self) -> None:
         """
-        Handles stopping and closing of the camera worker.
+        Handles closing resources and exiting logic in worker.
         """
-        self.logger.info("Stopping worker.")
-        self.manager.stop()
-        self.oak.close()
+        self.logger.debug("Stopping worker.")
+        self.starting_up = False
+        self.running = False
+        if self.oak:
+            self.oak.close()
 
     def _capture_synced_color_depth_data(
         self,
@@ -266,7 +246,7 @@ class Worker:
         Blocks until the OakCamera is successfully initialized.
         """
         self.oak = None
-        while not self.oak and self.running:
+        while not self.oak and self.starting_up:
             try:
                 self.oak = OakCamera()
                 self.logger.debug("Successfully initialized OakCamera.")
@@ -306,7 +286,7 @@ class Worker:
 
     def _get_closest_resolution(
         self,
-        dimensions_to_resolution: Mapping[
+        dimensions_to_resolution: Dict[
             Tuple[int, int],
             Union[
                 dai.ColorCameraProperties.SensorResolution,
