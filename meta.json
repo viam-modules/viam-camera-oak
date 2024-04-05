@@ -20,7 +20,7 @@
   "build": {
     "build": "sh build.sh",
     "path": "dist/archive.tar.gz",
-    "arch" : ["linux/arm64", "darwin/arm64"]
+    "arch" : ["darwin/amd64"]
   },
   "entrypoint": "dist/main"
 }
