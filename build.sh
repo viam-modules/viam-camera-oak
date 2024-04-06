@@ -19,8 +19,8 @@ if [ "$UNAME" = "Linux" ]; then
     echo "Installing venv on Linux"
     sudo apt-get install -y python3-venv
 elif [ "$UNAME" = "Darwin" ]; then
-    echo "Installing venv on Darwin"
-    brew install python3
+    echo "Install venv by installing brew package"
+    brew install python@3.11
 else
     echo "Unsupported operating system: $UNAME"
     exit 1
@@ -29,5 +29,5 @@ fi
 python3 -m venv .venv
 source .venv/bin/activate
 pip3 install -r requirements.txt
-python3 -m PyInstaller --add-data ".venv/lib/python3.12/site-packages/ahrs/utils:ahrs/utils" --onefile --hidden-import="googleapiclient" src/main.py
+python3 -m PyInstaller --add-data ".venv/lib/python3.11/site-packages/ahrs/utils:ahrs/utils" --onefile --hidden-import="googleapiclient" src/main.py
 tar -czvf dist/archive.tar.gz dist/main
