@@ -19,7 +19,8 @@ if [ "$UNAME" = "Linux" ]; then
     echo "Installing venv on Linux"
     sudo apt-get install -y python3-venv
 elif [ "$UNAME" = "Darwin" ]; then
-    echo "No need to install venv on Darwin"
+    echo "Installing venv on Darwin"
+    brew install python3
 else
     echo "Unsupported operating system: $UNAME"
     exit 1
