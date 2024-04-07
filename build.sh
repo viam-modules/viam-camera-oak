@@ -9,7 +9,7 @@ fi
 if [ "$UNAME" = "Darwin" ]
 then
     echo "Installing venv on Darwin"
-    brew install python3.11-venv
+    brew install python3-venv
 fi
 python3 -m venv .venv
 . .venv/bin/activate
