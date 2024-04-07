@@ -1,33 +1,41 @@
 #!/bin/bash
-set -e
 
-error_exit()
-{
-    # Check if the script exits with a non-zero status
-    EXIT_STATUS=$?
-    if [ "$EXIT_STATUS" -ne 0 ]; then
-        echo "Script exited due to an error (status code: $EXIT_STATUS). Please check the output for error messages."
-    fi
+# Desired Python version
+DESIRED_PYTHON_VERSION="3.11"
+
+# Function to find Python path
+find_python() {
+    which python$1 || which python3 || which python || return 1
 }
 
-# Trap EXIT signal to call error_exit function
-trap error_exit EXIT
-
-UNAME=$(uname -s)
-
-if [ "$UNAME" = "Linux" ]; then
-    echo "Installing venv on Linux"
-    sudo apt-get install -y python3-venv
-elif [ "$UNAME" = "Darwin" ]; then
-    echo "Install venv by installing brew package"
-    brew install python@3.11
-else
-    echo "Unsupported operating system: $UNAME"
+# Check for the desired Python version and get its path
+PYTHON_PATH=$(find_python $DESIRED_PYTHON_VERSION)
+if [ $? -ne 0 ]; then
+    echo "Python $DESIRED_PYTHON_VERSION is not installed."
     exit 1
 fi
 
-python3.11 -m venv .venv
+echo "Using Python at $PYTHON_PATH"
+
+# Check Python version explicitly
+VERSION_CHECK=$($PYTHON_PATH -c "import platform; print(platform.python_version().startswith('$DESIRED_PYTHON_VERSION'))")
+if [ $VERSION_CHECK != "True" ]; then
+    echo "The Python version is not $DESIRED_PYTHON_VERSION."
+    exit 1
+fi
+
+# Create virtual environment with the found Python
+$PYTHON_PATH -m venv .venv
 source .venv/bin/activate
-pip3 install -r requirements.txt
-python3.11 -m PyInstaller --add-data ".venv/lib/python3.11/site-packages/ahrs/utils:ahrs/utils" --onefile --hidden-import="googleapiclient" src/main.py
+
+# Ensure pip is installed in the venv
+python -m ensurepip
+
+# Install requirements
+pip install -r requirements.txt
+
+# Use the Python executable from the venv for PyInstaller
+python -m PyInstaller --add-data .venv/lib/python$DESIRED_PYTHON_VERSION/site-packages/ahrs/utils:ahrs/utils --onefile --hidden-import="googleapiclient" src/main.py
+
+# Create a distribution archive
 tar -czvf dist/archive.tar.gz dist/main
