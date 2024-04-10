@@ -26,4 +26,4 @@ integration-tests: integration-tests/tests/*
 	cd integration-tests && \
 	go test -c -o oak-integration-tests ./tests/ && \
 	mv oak-integration-tests ../
-	./oak-integration-tests -module ./run.sh
+	./oak-integration-tests -module ./local_run.sh
