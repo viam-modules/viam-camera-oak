@@ -1,7 +1,7 @@
 {
-  "module_id": "seanorg:oak",
-  "visibility": "private",
-  "url": "https://github.com/hexbabe/sean-viam-camera-oak",
+  "module_id": "viam:oak",
+  "visibility": "public",
+  "url": "https://github.com/viamrobotics/viam-camera-oak",
   "description": "Python camera module for the Luxonis OAK family of cameras. Please check the README.md on the linked Github repo to get started.",
   "models": [
     {
@@ -20,7 +20,7 @@
   "build": {
     "build": "bash build.sh",
     "path": "dist/archive.tar.gz",
-    "arch" : ["darwin/amd64", "linux/arm64", "darwin/arm64", "linux/amd64"]
+    "arch" : ["darwin/amd64", "darwin/arm64", "linux/amd64", "linux/arm64"]
   },
   "entrypoint": "dist/main"
 }
