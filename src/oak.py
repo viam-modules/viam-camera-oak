@@ -94,7 +94,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
         supports_pcd: bool = True
         """Whether the camera has a valid implementation of ``get_point_cloud``"""
 
-    family = ModelFamily("seanorg", "camera")
+    family = ModelFamily("viam", "camera")
     MODELS: ClassVar[Tuple[Model]] = (
         Model(family, "oak"),
         Model(family, "oak-ffc"),

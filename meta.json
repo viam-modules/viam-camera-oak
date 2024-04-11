@@ -6,15 +6,15 @@
   "models": [
     {
       "api": "rdk:component:camera",
-      "model": "seanorg:camera:oak"
+      "model": "viam:camera:oak"
     },
     {
       "api": "rdk:component:camera",
-      "model": "seanorg:camera:oak-ffc"
+      "model": "viam:camera:oak-ffc"
     },
     {
       "api": "rdk:component:camera",
-      "model": "seanorg:camera:oak-d"
+      "model": "viam:camera:oak-d"
     }
   ],
   "build": {
