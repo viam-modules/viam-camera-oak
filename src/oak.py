@@ -513,11 +513,9 @@ class Oak(Camera, Reconfigurable, Stoppable):
         pcd_obj = cls.worker.get_pcd()
         arr = pcd_obj.np_array
 
-        # Done with pre-processing; create and send message now:
-        # TODO RSDK-5676: why do we need to normalize by 1000 when depthAI says they return depth in mm?
+        # DepthAI examples indicate that we need to normalize data by / 1000
+        # https://github.com/luxonis/depthai/blob/f4a0d3d4364565faacf3ce9f131a42b2b951ec1b/depthai_sdk/src/depthai_sdk/visualize/visualizers/viewer_visualizer.py#L72
         flat_array = arr.reshape(-1, arr.shape[-1]) / 1000.0
-        # TODO RSDK-5676: why do we need to negate the 1st and 2nd dimensions for image to be the correct orientation?
-        flat_array[:, 0:2] = -flat_array[:, 0:2]
         version = "VERSION .7\n"
         fields = "FIELDS x y z\n"
         size = "SIZE 4 4 4\n"
