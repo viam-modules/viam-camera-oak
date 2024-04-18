@@ -84,9 +84,11 @@ echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="03e7", MODE="0666"' | sudo tee /etc/ud
 sudo udevadm control --reload-rules && sudo udevadm trigger
 ```
 
-### Check your Python version (for local installs and non-AArch64 robots)
+### Locally installing the module
 
-If you installed the module locally or if your robot is using a non-AArch64 board, you must verify that your system Python3 is compatible with Viam. Open a terminal on your robot, and run the following commands to check its Python and pip versions:
+If you do not want to use the Viam registry, you can use the module from source [here](https://github.com/viamrobotics/viam-camera-oak).
+
+You must, however, verify that your system Python3 is compatible with Viam to run the module locally. Open a terminal on your robot, and run the following commands to check its Python and pip versions:
 
 ```console
 sudo python3 --version
@@ -97,12 +99,6 @@ sudo pip3 --version
 
 Verify that your robot's Python3 version is 3.8.1 or later, and that it is installed and linked to the `python3` command to avoid compatibility issues.
 Similarly, make sure that `venv` and `pip3` are installed properly by making sure the subsequent commands do not produce an error.
-
-If you are using the registry to install the module and your robot is using an AArch64 board such as a 64-bit Raspberry Pi or a Jetson device, ignore these instructions as the module will be bundled as an Appimage, which includes Python and necessary dependencies statically.
-
-### Locally installing the module
-
-If you do not want to use the Viam registry, you can use the module from source [here](https://github.com/viamrobotics/viam-camera-oak).
 
 ```console
 cd <path-to-your-directory>
@@ -116,7 +112,7 @@ Then modify your robot's JSON file as follows
     {
       "type": "local",
       "name": "oak",
-      "executable_path": "<path-to-your-directory>/viam-camera-oak/run.sh"
+      "executable_path": "<path-to-your-directory>/viam-camera-oak/local_run.sh"
     }
   ],
 ```

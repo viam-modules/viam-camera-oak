@@ -1,25 +1,12 @@
 #!/bin/sh
 cd "$(dirname "$0")"
-LOG_PREFIX="[Viam OAK module setup]"
 
-echo "$LOG_PREFIX Starting the module."
-
-os=$(uname -s)
-arch=$(uname -m)
-appimage_path="./viam-camera-oak-latest-aarch64.AppImage"
-# Run appimage if Linux aarch64
-if [ "$os" = "Linux" ] && [ "$arch" = "aarch64" ] && [ -f "$appimage_path" ]; then
-    echo "$LOG_PREFIX Detected system Linux AArch64 and appimage. Attempting to start appimage."
-    chmod +x "$appimage_path"
-    exec "$appimage_path" "$@"
-fi
-
-# Try running with a virtual environment and source
-echo "$LOG_PREFIX No usable appimage was found."
-VENV_NAME="viam-oak-venv"
+# Create a virtual environment to run our code
+VENV_NAME=".venv"
 PYTHON="$VENV_NAME/bin/python"
+LOG_PREFIX="[Viam OAK local setup]"
 
-echo "$LOG_PREFIX Running the module using virtual environment. This requires Python >=3.8.1, pip3, and venv to be installed."
+echo "$LOG_PREFIX Starting the Viam OAK camera module. Using this script requires Python >=3.8.1, pip3, and venv to be installed."
 
 if ! python3 -m venv "$VENV_NAME" >/dev/null 2>&1; then
     echo "$LOG_PREFIX Error: failed to create venv. Please use your system package manager to install python3-venv." >&2
@@ -28,6 +15,7 @@ else
     echo "$LOG_PREFIX Created/found venv."
 fi
 
+# Remove -U if viam-sdk should not be upgraded whenever possible
 # -qq suppresses extraneous output from pip
 echo "$LOG_PREFIX Installing/upgrading Python packages."
 if ! "$PYTHON" -m pip install -r requirements.txt -qq; then
