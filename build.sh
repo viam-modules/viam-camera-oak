@@ -11,30 +11,6 @@ if [ -z "$PYENV_VERSION" ]; then
     PYENV_VERSION="3.11"
 fi
 
-# Need to tweak pyenv if darwin/amd64 due to Dockerfile pyenv not building with --enable-shared
-if [ "$UNAME_S" = "Darwin" ] && [ "$UNAME_M" = "x86_64" ]; then
-    # Check if the required Python version is already installed
-    if pyenv versions --bare | grep -Fxq $PYENV_VERSION; then
-        echo "$PYENV_VERSION is already installed, rebuilding with shared libraries."
-        if pyenv uninstall -f $PYENV_VERSION; then
-            echo "Successfully uninstalled $PYENV_VERSION."
-        else
-            echo "Failed to uninstall $PYENV_VERSION. It may not have been installed correctly."
-            exit 1
-        fi
-    fi
-
-    # Set env var to build Python with shared library support
-    export PYTHON_CONFIGURE_OPTS="--enable-shared"
-
-    # Re-check if Python version needs to be installed (in case uninstall failed without exiting)
-    if ! pyenv versions --bare | grep -Fxq $PYENV_VERSION; then
-        pyenv install $PYENV_VERSION
-    fi
-
-    pyenv local $PYENV_VERSION
-fi
-
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
