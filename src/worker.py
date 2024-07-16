@@ -314,12 +314,15 @@ class Worker:
 
         # Filter for only dimensions that are larger or equal to the required width and height
         valid_dimensions = {
-            dim: res for dim, res in dimensions_to_resolution.items()
+            dim: res
+            for dim, res in dimensions_to_resolution.items()
             if dim[0] >= self.width and dim[1] >= self.height
         }
 
         if not valid_dimensions:
-            raise ValueError("No valid resolutions found that are larger or equal to the required dimensions.")
+            raise ValueError(
+                "No valid resolutions found that are larger or equal to the required dimensions."
+            )
 
         closest = min(
             valid_dimensions.keys(),
