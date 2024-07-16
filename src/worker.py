@@ -302,21 +302,30 @@ class Worker:
         supported resolution to the width and height from the config.
 
         Args:
-            resolutions (dict)
+            dimensions_to_resolution (dict)
         Returns:
             Union[dai.ColorCameraProperties.SensorResolution, dai.MonoCameraProperties.SensorResolution]
         """
 
-        def euclidian_distance(width_and_height: Tuple[int, int]) -> float:
+        def euclidean_distance(width_and_height: Tuple[int, int]) -> float:
             w1, h1 = width_and_height
             w2, h2 = self.width, self.height
             return math.sqrt((w1 - w2) ** 2 + (h1 - h2) ** 2)
 
+        # Filter for only dimensions that are larger or equal to the required width and height
+        valid_dimensions = {
+            dim: res for dim, res in dimensions_to_resolution.items()
+            if dim[0] >= self.width and dim[1] >= self.height
+        }
+
+        if not valid_dimensions:
+            raise ValueError("No valid resolutions found that are larger or equal to the required dimensions.")
+
         closest = min(
-            dimensions_to_resolution.keys(),
-            key=euclidian_distance,
+            valid_dimensions.keys(),
+            key=euclidean_distance,
         )
-        return dimensions_to_resolution[closest]
+        return valid_dimensions[closest]
 
     def _configure_color(self) -> Optional[CameraComponent]:
         """
@@ -368,11 +377,13 @@ class Worker:
                 resolution,
                 self.frame_rate,
             )
+            cam_left.config_camera((self.width, self.height))
             cam_right = self.oak.camera(
                 dai.CameraBoardSocket.CAM_C,  # Same as CameraBoardSocket.RIGHT
                 resolution,
                 self.frame_rate,
             )
+            cam_right.config_camera((self.width, self.height))
             stereo = self.oak.stereo(resolution, self.frame_rate, cam_left, cam_right)
             if color:
                 # Ensures camera alignment between color and depth
