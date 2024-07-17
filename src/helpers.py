@@ -4,13 +4,7 @@ from logging import Logger
 from threading import Lock
 import struct
 import time
-from typing import (
-    Dict,
-    Literal,
-    Optional,
-    OrderedDict,
-    Tuple
-)
+from typing import Dict, Literal, Optional, OrderedDict, Tuple
 from depthai_sdk.classes.packets import BasePacket
 from depthai_sdk.classes.packet_handlers import QueuePacketHandler
 from numpy.typing import NDArray
@@ -88,6 +82,7 @@ class CapturedData:
         self.np_array = np_array
         self.captured_at = captured_at
 
+
 def encode_depth_raw(data: bytes, shape: Tuple[int, int], logger: Logger) -> bytes:
     """
     Encodes raw data into a bytes payload deserializable by the Viam SDK (camera mime type depth)
@@ -136,6 +131,7 @@ def encode_depth_raw(data: bytes, shape: Tuple[int, int], logger: Logger) -> byt
     # Copy data into rest of the buffer
     raw_buf[offset : offset + pixel_byte_count] = data
     return bytes(raw_buf)
+
 
 def encode_jpeg_bytes(arr: NDArray, is_depth: bool = False) -> bytes:
     """

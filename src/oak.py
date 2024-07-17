@@ -363,7 +363,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
                 arr = cls.worker.get_color_image().np_array
                 jpeg_encoded_bytes = encode_jpeg_bytes(arr)
                 return ViamImage(jpeg_encoded_bytes, CameraMimeType.JPEG)
-                
+
             raise NotSupportedError(
                 f'mime_type "{mime_type}" is not supported for color. Please use {CameraMimeType.JPEG}'
             )
