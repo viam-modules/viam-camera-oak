@@ -1,4 +1,6 @@
 depthai-sdk==1.13.1
 viam-sdk==0.25.2
+Pillow==10.4.0
+numpy>=1.23,<2.0.0  # >2.0.0 breaks depthai https://github.com/luxonis/depthai-viewer/releases/tag/v0.2.3
 google-api-python-client==2.0.0
 pyinstaller==6.3.0
