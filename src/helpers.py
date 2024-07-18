@@ -135,7 +135,7 @@ def encode_depth_raw(data: bytes, shape: Tuple[int, int], logger: Logger) -> byt
 
 def encode_jpeg_bytes(arr: NDArray, is_depth: bool = False) -> bytes:
     """
-    Encodes numpy color image data into a bytes decodable in the JPEG image format.
+    Encodes numpy color image data into bytes decodable in the JPEG image format.
 
     Args:
         arr (NDArray): frame
@@ -145,10 +145,15 @@ def encode_jpeg_bytes(arr: NDArray, is_depth: bool = False) -> bytes:
         bytes: JPEG bytes
     """
     if is_depth:
-        pil_image = Image.fromarray(arr, "I;16").convert("RGB")
+        if arr.dtype != np.uint16:
+            raise ValueError("Depth data should be of type uint16")
+        pil_image = Image.fromarray(arr, mode="I;16").convert("RGB")
     else:
+        if arr.dtype != np.uint8:
+            raise ValueError("RGB data should be of type uint8")
         pil_image = Image.fromarray(arr)
-    output_buffer = io.BytesIO()
-    pil_image.save(output_buffer, format="JPEG")
-    raw_bytes = output_buffer.getvalue()
+    
+    with io.BytesIO() as output_buffer:
+        pil_image.save(output_buffer, format="JPEG")
+        raw_bytes = output_buffer.getvalue()
     return raw_bytes
