@@ -146,7 +146,6 @@ class Oak(Camera, Reconfigurable, Stoppable):
             None
         """
         validator = Validator(cls.worker, config, LOGGER)
-        cls.model = config.model
 
         if config.model == str(cls._depr_oak_agnostic_model):
             LOGGER.warn(
