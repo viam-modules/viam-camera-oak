@@ -3,7 +3,7 @@ import time
 from typing import Callable
 from logging import Logger
 
-from src.worker import Worker
+from src.worker.worker import Worker
 
 
 class WorkerManager(Thread):
