@@ -147,12 +147,16 @@ class Oak(Camera, Reconfigurable, Stoppable):
         """
         validator = Validator(cls.worker, config, LOGGER)
         cls.model = config.model
-        
+
         if config.model == str(cls._depr_oak_agnostic_model):
-            LOGGER.warn(f"The '{cls._depr_oak_agnostic_model}' is deprecated. Please switch to '{cls._oak_d_model}' or '{cls._oak_ffc_3p_model}'")
+            LOGGER.warn(
+                f"The '{cls._depr_oak_agnostic_model}' is deprecated. Please switch to '{cls._oak_d_model}' or '{cls._oak_ffc_3p_model}'"
+            )
             cls.model = cls._oak_d_model
         elif config.model == str(cls._depr_oak_d_model):
-            LOGGER.warn(f"The '{cls._depr_oak_d_model}' is deprecated. Please switch to '{cls._oak_d_model}'")
+            LOGGER.warn(
+                f"The '{cls._depr_oak_d_model}' is deprecated. Please switch to '{cls._oak_d_model}'"
+            )
             cls.model = cls._oak_d_model
         elif config.model == str(cls._oak_d_model):
             cls.model = cls._oak_d_model
@@ -160,7 +164,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
             cls.model = cls._oak_ffc_3p_model
         else:
             raise ViamError(f"Cannot validate unrecognized model: {cls.model}")
-        
+
         if cls.model == cls._oak_d_model:
             validator.validate_oak_d()
         else:
