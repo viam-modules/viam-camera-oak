@@ -1,30 +1,27 @@
 import asyncio
-from collections import OrderedDict
 import math
 from queue import Empty
 import time
 from typing import (
     Callable,
     Dict,
-    Literal,
     Optional,
-    OrderedDict,
     Tuple,
     Union,
 )
 
 from logging import Logger
-from threading import Lock
 
 import cv2
 import depthai as dai
 from depthai_sdk import OakCamera
-from depthai_sdk.classes.packets import BasePacket
 from depthai_sdk.classes.packet_handlers import QueuePacketHandler
 from depthai_sdk.components.camera_component import CameraComponent
 from depthai_sdk.components.pointcloud_component import PointcloudComponent
 from depthai_sdk.components.stereo_component import StereoComponent
 from numpy.typing import NDArray
+
+from src.helpers import CapturedData, MessageSynchronizer
 
 
 DIMENSIONS_TO_MONO_RES = {
@@ -40,77 +37,6 @@ DIMENSIONS_TO_COLOR_RES = {
 }  # color camera component only accepts this subset of depthai_sdk.components.camera_helper.colorResolutions
 
 MAX_GRPC_MESSAGE_BYTE_COUNT = 4194304  # Update this if the gRPC config ever changes
-
-
-class MessageSynchronizer:
-    """
-    MessageSynchronizer manages synchronization of frame messages for color and depth data from OakCamera packet queues,
-    maintaining an ordered dictionary of messages keyed chronologically by sequence number.
-    """
-
-    MAX_MSGS_SIZE = 50
-    msgs: OrderedDict[int, Dict[str, BasePacket]]
-    write_lock: Lock
-
-    def __init__(self):
-        # msgs maps frame sequence number to a dictionary that maps frame_type (i.e. "color" or "depth") to a data packet
-        self.msgs = OrderedDict()
-        self.write_lock = Lock()
-
-    def add_msg(
-        self, msg: BasePacket, frame_type: Literal["color", "depth"], seq: int
-    ) -> None:
-        with self.write_lock:
-            # Update recency if previously already stored in dict
-            if seq in self.msgs:
-                self.msgs.move_to_end(seq)
-
-            self.msgs.setdefault(seq, {})[frame_type] = msg
-            self._cleanup_msgs()
-
-    def get_synced_msgs(self) -> Optional[Dict[str, BasePacket]]:
-        for sync_msgs in self.msgs.values():
-            if len(sync_msgs) == 2:  # has both color and depth
-                return sync_msgs
-        return None
-
-    def _add_msgs_from_queue(
-        self, frame_type: Literal["color", "depth"], queue_handler: QueuePacketHandler
-    ) -> None:
-        queue_obj = queue_handler.get_queue()
-        with queue_obj.mutex:
-            q_snapshot = list(queue_obj.queue)
-
-        for msg in q_snapshot:
-            self.add_msg(msg, frame_type, msg.get_sequence_num())
-
-    def get_most_recent_msg(
-        self, q_handler: QueuePacketHandler, frame_type: Literal["color", "depth"]
-    ) -> Optional[BasePacket]:
-        self._add_msgs_from_queue(frame_type, q_handler)
-        while len(self.msgs) < 1:
-            self._add_msgs_from_queue(frame_type, q_handler)
-            time.sleep(0.1)
-        # Traverse in reverse to get the most recent
-        for msg_dict in reversed(self.msgs.values()):
-            if frame_type in msg_dict:
-                return msg_dict[frame_type]
-        raise Exception(f"No message of type '{frame_type}' in frame queue.")
-
-    def _cleanup_msgs(self):
-        while len(self.msgs) > self.MAX_MSGS_SIZE:
-            self.msgs.popitem(last=False)  # remove oldest item
-
-
-class CapturedData:
-    """
-    CapturedData is image data with the data as an np array,
-    plus the timestamp it was captured at.
-    """
-
-    def __init__(self, np_array: NDArray, captured_at: float) -> None:
-        self.np_array = np_array
-        self.captured_at = captured_at
 
 
 class Worker:
