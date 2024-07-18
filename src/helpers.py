@@ -152,7 +152,7 @@ def encode_jpeg_bytes(arr: NDArray, is_depth: bool = False) -> bytes:
         if arr.dtype != np.uint8:
             raise ValueError("RGB data should be of type uint8")
         pil_image = Image.fromarray(arr)
-    
+
     with io.BytesIO() as output_buffer:
         pil_image.save(output_buffer, format="JPEG")
         raw_bytes = output_buffer.getvalue()
