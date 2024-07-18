@@ -41,7 +41,7 @@ class Validator:
             "list_value",
         ],
         attribute_map: Optional[Mapping] = None,
-        is_required_attr: Optional[bool] = False
+        is_required_attr: Optional[bool] = False,
     ) -> None:
         """
         Handles the existence of required/unrequired attributes. If it does exist, handles
@@ -53,7 +53,9 @@ class Validator:
         value = attribute_map.get(key=attribute, default=None)
         if value is None:
             if is_required_attr:
-                self.handle_err(f'"{attribute}" is a required field. Please see README for details.')
+                self.handle_err(
+                    f'"{attribute}" is a required field. Please see README for details.'
+                )
             else:
                 return
         if value.WhichOneof("kind") != expected_type:
@@ -61,7 +63,9 @@ class Validator:
                 f'the "{attribute}" attribute must be a {expected_type}, not {value}.'
             )
 
-    def validate_dimension(self, attribute: str, attribute_map: Optional[Mapping] = None) -> None:
+    def validate_dimension(
+        self, attribute: str, attribute_map: Optional[Mapping] = None
+    ) -> None:
         """
         validate_dimension helps validates height_px and width_px values.
         """
@@ -186,10 +190,10 @@ class Validator:
         # Validate "type" attr. Check that there are either 0 or 2 depth sensors overall
         depth_sensor_count = 0
         for cam_sensor in cam_sensors_list:
-            try: 
+            try:
                 cam_sensor.fields
             except AttributeError:
-                self.handle_err('each cam_sensor must be a Struct mapping')
+                self.handle_err("each cam_sensor must be a Struct mapping")
 
             self.validate_attr_type("type", "string_value", cam_sensor.fields, True)
             sensor_type = cam_sensor.fields.get(key="type", default=None).string_value
@@ -200,7 +204,9 @@ class Validator:
             if sensor_type == "depth":
                 depth_sensor_count += 1
         if depth_sensor_count == 1 or depth_sensor_count == 3:
-            self.handle_err(f"the OAK module supports 2 mono depth sensors at a time. You provided {depth_sensor_count}.")
+            self.handle_err(
+                f"the OAK module supports 2 mono depth sensors at a time. You provided {depth_sensor_count}."
+            )
 
         # Validate "socket"
         seen_sockets = []
@@ -208,16 +214,22 @@ class Validator:
             self.validate_attr_type("socket", "string_value", cam_sensor.fields, True)
             socket = cam_sensor.fields.get("socket", default=None).string_value
             if socket not in ["cam_a", "cam_b", "cam_c"]:
-                self.handle_err(f'"socket" attribute must be either "cam_a", "cam_b", or "cam_c", not "{socket}"')
+                self.handle_err(
+                    f'"socket" attribute must be either "cam_a", "cam_b", or "cam_c", not "{socket}"'
+                )
             if socket in seen_sockets:
-                self.handle_err(f'two or more camera_sensors were specified for socket {socket}. Please only specify 1.')
+                self.handle_err(
+                    f"two or more camera_sensors were specified for socket {socket}. Please only specify 1."
+                )
             seen_sockets.append(socket)
 
         # One more loop to validate rest of fields
         for cam_sensor in cam_sensors_list:
             # Validate "width_px", "height_px"
             self.validate_attr_type("width_px", "number_value", cam_sensor.fields, True)
-            self.validate_attr_type("height_px", "number_value", cam_sensor.fields, True)
+            self.validate_attr_type(
+                "height_px", "number_value", cam_sensor.fields, True
+            )
             self.validate_dimension("width_px", cam_sensor.fields)
             self.validate_dimension("height_px", cam_sensor.fields)
 
@@ -231,7 +243,9 @@ class Validator:
             self.validate_attr_type("color_order", "string_value", cam_sensor.fields)
             color_order = cam_sensor.fields.get("color_order", None)
             if color_order and color_order.string_value not in ["rgb", "bgr"]:
-                self.handle_err(f'"color_order" must be "rgb" or "bgr". You provided: "{color_order.string_value}"')
+                self.handle_err(
+                    f'"color_order" must be "rgb" or "bgr". You provided: "{color_order.string_value}"'
+                )
 
             # Validate "interleaved"
             self.validate_attr_type("interleaved", "bool_value", cam_sensor.fields)
