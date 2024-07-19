@@ -46,7 +46,7 @@ from src.worker_manager import WorkerManager
 
 LOGGER = getLogger(__name__)
 
-VALID_ATTRIBUTES = ["height_px", "width_px", "sensors", "frame_rate"]
+VALID_ATTRIBUTES = ["height_px", "width_px", "sensors", "frame_rate", "device_info"]
 
 # Be sure to update README.md if default attributes are changed
 DEFAULT_FRAME_RATE = 30
@@ -251,6 +251,9 @@ class Oak(Camera, Reconfigurable, Stoppable):
                 'received only one dimension attribute. Please supply both "height_px" and "width_px", or neither.'
             )
 
+        # Validate "device_info"
+        validate_attribute_type("device_info", "string_value")
+
     def reconfigure(
         self, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]
     ) -> None:
@@ -284,6 +287,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
         LOGGER.debug(f"Set width attr to {self.width}")
         self.frame_rate = attribute_map["frame_rate"].number_value or DEFAULT_FRAME_RATE
         LOGGER.debug(f"Set frame_rate attr to {self.frame_rate}")
+        device_info = attribute_map["device_info"].string_value or None
 
         user_wants_color, user_wants_depth = (
             COLOR_SENSOR in self.sensors,
@@ -295,6 +299,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
             height=self.height,
             width=self.width,
             frame_rate=self.frame_rate,
+            device_info=device_info,
             user_wants_color=user_wants_color,
             user_wants_depth=user_wants_depth,
             user_wants_pc=cls.get_point_cloud_was_invoked,

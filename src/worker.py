@@ -54,6 +54,7 @@ class Worker:
         height: int,
         width: int,
         frame_rate: float,
+        device_info: Optional[str],
         user_wants_color: bool,
         user_wants_depth: bool,
         user_wants_pc: bool,
@@ -66,6 +67,7 @@ class Worker:
         self.height = height
         self.width = width
         self.frame_rate = frame_rate
+        self.device_info = device_info
         self.user_wants_color = user_wants_color
         self.user_wants_depth = user_wants_depth
         self.user_wants_pc = user_wants_pc
@@ -174,7 +176,7 @@ class Worker:
         self.oak = None
         while not self.oak and self.starting_up:
             try:
-                self.oak = OakCamera()
+                self.oak = OakCamera(device=self.device_info)
                 self.logger.debug("Successfully initialized OakCamera.")
             except Exception as e:
                 self.logger.error(f"Error initializing OakCamera: {e}")
