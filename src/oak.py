@@ -342,7 +342,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
             seconds_float = captured_at
             images.append(img)
 
-        if DEPTH_SENSOR in self.sensors:
+        if "depth" in self.sensors:
             if not depth_data:
                 depth_data: CapturedData = cls.worker.get_depth_map()
             arr, captured_at = depth_data.np_array, depth_data.captured_at
