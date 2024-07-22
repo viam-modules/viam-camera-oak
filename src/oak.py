@@ -97,11 +97,11 @@ class Oak(Camera, Reconfigurable, Stoppable):
         Model(family, "oak-ffc"),
         Model(family, "oak-d"),
     )
-    worker: ClassVar[Optional[Worker]] = None
-    """Singleton `Worker` handles camera logic in a separate thread"""
-    worker_manager: ClassVar[Optional[WorkerManager]] = None
+    worker: Optional[Worker] = None
+    """`Worker` handles camera logic in a separate thread"""
+    worker_manager: Optional[WorkerManager] = None
     """Singleton `WorkerManager` managing the lifecycle of `worker`"""
-    get_point_cloud_was_invoked: ClassVar[bool] = False
+    get_point_cloud_was_invoked: bool = False
     camera_properties: Camera.Properties
 
     @classmethod
@@ -147,8 +147,6 @@ class Oak(Camera, Reconfigurable, Stoppable):
             """
             full_err_msg = f"Config attribute validation error: {err_msg}"
             LOGGER.error(full_err_msg)
-            if cls.worker:  # stop worker if active
-                cls.worker.stop()
             raise ValidationError(full_err_msg)
 
         def validate_attribute_type(
@@ -270,10 +268,9 @@ class Oak(Camera, Reconfigurable, Stoppable):
             config (ComponentConfig)
             dependencies (Mapping[ResourceName, ResourceBase])
         """
-        cls: Oak = type(self)
         try:
             LOGGER.debug("Trying to stop worker.")
-            cls.worker.stop()
+            self.worker.stop()
             LOGGER.info("Reconfiguring OAK.")
         except AttributeError:
             LOGGER.debug("No active worker.")
@@ -300,20 +297,20 @@ class Oak(Camera, Reconfigurable, Stoppable):
         )
         callback = lambda: self.reconfigure(config, dependencies)
 
-        cls.worker = Worker(
+        self.worker = Worker(
             height=self.height,
             width=self.width,
             frame_rate=self.frame_rate,
             device_info=device_info,
             user_wants_color=user_wants_color,
             user_wants_depth=user_wants_depth,
-            user_wants_pc=cls.get_point_cloud_was_invoked,
+            user_wants_pc=self.get_point_cloud_was_invoked,
             reconfigure=callback,
             logger=LOGGER,
         )
 
-        cls.worker_manager = WorkerManager(cls.worker, LOGGER, callback)
-        cls.worker_manager.start()
+        self.worker_manager = WorkerManager(self.worker, LOGGER, callback)
+        self.worker_manager.start()
 
     def stop(
         self,
@@ -330,11 +327,10 @@ class Oak(Camera, Reconfigurable, Stoppable):
             timeout (Optional[float], optional): Accepted. Defaults to None and will run with no timeout.
         """
         LOGGER.info("Stopping OAK.")
-        cls: Oak = type(self)
         if timeout:
-            self._run_with_timeout(timeout, cls.worker_manager.stop)
+            self._run_with_timeout(timeout, self.worker_manager.stop)
         else:
-            cls.worker.stop()
+            self.worker.stop()
 
     async def get_image(
         self,
@@ -362,7 +358,6 @@ class Oak(Camera, Reconfigurable, Stoppable):
             PIL.Image.Image | RawImage: The frame
         """
         mime_type = self._validate_get_image_mime_type(mime_type)
-        cls: Oak = type(self)
 
         self._wait_until_worker_running()
 
@@ -370,7 +365,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
 
         if main_sensor == COLOR_SENSOR:
             if mime_type == CameraMimeType.JPEG:
-                arr = cls.worker.get_color_image().np_array
+                arr = self.worker.get_color_image().np_array
                 jpeg_encoded_bytes = encode_jpeg_bytes(arr)
                 return ViamImage(jpeg_encoded_bytes, CameraMimeType.JPEG)
 
@@ -379,7 +374,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
             )
 
         if main_sensor == DEPTH_SENSOR:
-            captured_data = cls.worker.get_depth_map()
+            captured_data = self.worker.get_depth_map()
             arr = captured_data.np_array
             if mime_type == CameraMimeType.JPEG:
                 jpeg_encoded_bytes = encode_jpeg_bytes(arr, is_depth=True)
@@ -411,7 +406,6 @@ class Oak(Camera, Reconfigurable, Stoppable):
                   The metadata associated with this response
         """
         LOGGER.debug("get_images called")
-        cls: Oak = type(self)
 
         self._wait_until_worker_running()
 
@@ -423,11 +417,11 @@ class Oak(Camera, Reconfigurable, Stoppable):
         color_data: Optional[CapturedData] = None
         depth_data: Optional[CapturedData] = None
         if COLOR_SENSOR in self.sensors and DEPTH_SENSOR in self.sensors:
-            color_data, depth_data = await cls.worker.get_synced_color_depth_data()
+            color_data, depth_data = await self.worker.get_synced_color_depth_data()
 
         if COLOR_SENSOR in self.sensors:
             if color_data is None:
-                color_data: CapturedData = cls.worker.get_color_image()
+                color_data: CapturedData = self.worker.get_color_image()
             arr, captured_at = color_data.np_array, color_data.captured_at
             jpeg_encoded_bytes = encode_jpeg_bytes(arr)
             img = NamedImage("color", jpeg_encoded_bytes, CameraMimeType.JPEG)
@@ -436,7 +430,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
 
         if DEPTH_SENSOR in self.sensors:
             if not depth_data:
-                depth_data: CapturedData = cls.worker.get_depth_map()
+                depth_data: CapturedData = self.worker.get_depth_map()
             arr, captured_at = depth_data.np_array, depth_data.captured_at
             depth_encoded_bytes = encode_depth_raw(arr.tobytes(), arr.shape, LOGGER)
             img = NamedImage(
@@ -495,22 +489,20 @@ class Oak(Camera, Reconfigurable, Stoppable):
             )
             raise MethodNotAllowed(method_name="get_point_cloud", details=details)
 
-        cls = type(self)
-
         self._wait_until_worker_running()
 
         # By default, we do not get point clouds even when color and depth are both requested
         # We have to reinitialize the worker/OakCamera to start making point clouds
-        if not cls.worker.user_wants_pc:
-            cls.get_point_cloud_was_invoked = True
-            cls.worker.oak.close()  # triggers reconfigure callback
+        if not self.worker.user_wants_pc:
+            self.get_point_cloud_was_invoked = True
+            self.worker.oak.close()  # triggers reconfigure callback
 
-        while not cls.worker.user_wants_pc or not cls.worker.running:
+        while not self.worker.user_wants_pc or not self.worker.running:
             LOGGER.debug("Waiting for worker to restart with pcd configured...")
             time.sleep(0.5)
 
         # Get actual PCD data from camera worker
-        pcd_obj = cls.worker.get_pcd()
+        pcd_obj = self.worker.get_pcd()
         arr = pcd_obj.np_array
 
         # DepthAI examples indicate that we need to normalize data by / 1000
@@ -554,10 +546,9 @@ class Oak(Camera, Reconfigurable, Stoppable):
         Raises:
 
         """
-        cls: Oak = type(self)
         attempts = 0
         while attempts < max_attempts:
-            if cls.worker.running:
+            if self.worker.running:
                 return
             time.sleep(timeout_seconds)
             attempts += 1
