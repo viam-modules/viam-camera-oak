@@ -253,6 +253,11 @@ class Oak(Camera, Reconfigurable, Stoppable):
 
         # Validate "device_info"
         validate_attribute_type("device_info", "string_value")
+        device_info = attribute_map.get(key="device_info", default=None)
+        if device_info is None:
+            LOGGER.info(
+                '"device_info" attribute unspecified. Will default to the first OAK device detected.'
+            )
 
     def reconfigure(
         self, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]
