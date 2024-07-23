@@ -10,10 +10,6 @@
     },
     {
       "api": "rdk:component:camera",
-      "model": "viam:camera:oak-ffc"
-    },
-    {
-      "api": "rdk:component:camera",
       "model": "viam:camera:oak-d"
     }
   ],

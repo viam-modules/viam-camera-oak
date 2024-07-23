@@ -7,7 +7,6 @@ from typing import (
     Callable,
     ClassVar,
     Dict,
-    Literal,
     List,
     Mapping,
     NamedTuple,
@@ -21,7 +20,7 @@ from google.protobuf.timestamp_pb2 import Timestamp
 import numpy as np
 
 # Viam module
-from viam.errors import NotSupportedError, ValidationError, ViamError
+from viam.errors import NotSupportedError, ViamError
 from viam.logging import getLogger, addHandlers
 from viam.module.types import Reconfigurable, Stoppable
 from viam.proto.app.robot import ComponentConfig
@@ -39,14 +38,13 @@ from viam.components.camera import (
 from viam.media.video import CameraMimeType, NamedImage
 
 # OAK module
-from src.worker import Worker
-from src.helpers import CapturedData, encode_jpeg_bytes, encode_depth_raw
-from src.worker_manager import WorkerManager
+from src.worker.worker import Worker
+from src.helpers.helpers import CapturedData, encode_jpeg_bytes, encode_depth_raw
+from src.helpers.validators import Validator
+from src.worker.worker_manager import WorkerManager
 
 
 LOGGER = getLogger(__name__)
-
-VALID_ATTRIBUTES = ["height_px", "width_px", "sensors", "frame_rate"]
 
 # Be sure to update README.md if default attributes are changed
 DEFAULT_FRAME_RATE = 30
@@ -54,8 +52,6 @@ DEFAULT_WIDTH = 640
 DEFAULT_HEIGHT = 400
 DEFAULT_IMAGE_MIMETYPE = CameraMimeType.JPEG
 
-COLOR_SENSOR = "color"
-DEPTH_SENSOR = "depth"
 
 ### TODO RSDK-5592: remove the below bandaid fix
 # once https://github.com/luxonis/depthai/pull/1135 is in a new release
@@ -91,12 +87,24 @@ class Oak(Camera, Reconfigurable, Stoppable):
         supports_pcd: bool = True
         """Whether the camera has a valid implementation of ``get_point_cloud``"""
 
-    family = ModelFamily("viam", "camera")
-    MODELS: ClassVar[Tuple[Model]] = (
-        Model(family, "oak"),
-        Model(family, "oak-ffc"),
-        Model(family, "oak-d"),
+    _deprecated_family = ModelFamily("viam", "camera")
+    _depr_oak_agnostic_model = Model(_deprecated_family, "oak")
+    _depr_oak_d_model = Model(_deprecated_family, "oak-d")
+    DEPRECATED_MODELS: ClassVar[Tuple[Model]] = (
+        _depr_oak_agnostic_model,
+        _depr_oak_d_model,
     )
+    _family = ModelFamily("viam", "luxonis")
+    _oak_ffc_3p_model = Model(_family, "oak-ffc-3p")
+    _oak_d_model = Model(_family, "oak-d")
+    SUPPORTED_MODELS: ClassVar[Tuple[Model]] = (
+        _oak_ffc_3p_model,
+        _oak_d_model,
+    )
+    ALL_MODELS: ClassVar[Tuple[Model]] = DEPRECATED_MODELS + SUPPORTED_MODELS
+
+    model: Model
+    """Viam model of component"""
     worker: ClassVar[Optional[Worker]] = None
     """Singleton `Worker` handles camera logic in a separate thread"""
     worker_manager: ClassVar[Optional[WorkerManager]] = None
@@ -137,119 +145,29 @@ class Oak(Camera, Reconfigurable, Stoppable):
         Returns:
             None
         """
-        attribute_map = config.attributes.fields
+        validator = Validator(cls.worker, config, LOGGER)
 
-        def handle_error(err_msg: str) -> None:
-            """
-            handle_error is invoked when there is an error in validation.
-            It logs a helpful error log, stops the worker if active, and
-            raises & propagates the error
-            """
-            full_err_msg = f"Config attribute validation error: {err_msg}"
-            LOGGER.error(full_err_msg)
-            if cls.worker:  # stop worker if active
-                cls.worker.stop()
-            raise ValidationError(full_err_msg)
-
-        def validate_attribute_type(
-            attribute: str,
-            expected_type: Literal[
-                "null_value",
-                "number_value",
-                "string_value",
-                "bool_value",
-                "struct_value",
-                "list_value",
-            ],
-        ) -> None:
-            """
-            validate_attribute_type exits and returns if the attribute doesn't exist,
-            and handles the error for when the attribute does exist, but has an incorrect value type.
-            """
-            value = attribute_map.get(key=attribute, default=None)
-            if value is None:
-                return  # user did not supply given attribute
-            if value.WhichOneof("kind") != expected_type:
-                handle_error(
-                    f'the "{attribute}" attribute must be a {expected_type}, not {value}.'
-                )
-
-        def validate_dimension(attribute: str) -> None:
-            """
-            validate_dimension helps validates height and width values.
-            """
-            value = attribute_map.get(key=attribute, default=None)
-            if value is None:
-                return
-
-            validate_attribute_type(attribute, "number_value")
-            number_value = value.number_value
-            int_value = int(number_value)
-            if int_value != number_value:
-                handle_error(f'"{attribute}" must be a whole number.')
-            if int_value <= 0:
-                handle_error(
-                    f'inputted "{attribute}" of {int_value} cannot be less than or equal to 0.'
-                )
-
-        # Check config keys are valid
-        for attribute in attribute_map.keys():
-            if attribute not in VALID_ATTRIBUTES:
-                handle_error(
-                    f'"{attribute}" is not a valid attribute i.e. {VALID_ATTRIBUTES}'
-                )
-
-        # Check sensors is valid
-        sensors_value = attribute_map.get(key="sensors", default=None)
-        if sensors_value is None:
-            handle_error(
-                """
-                        a "sensors" attribute of a list of sensor(s) is a required attribute e.g. ["depth", "color"],
-                        with the first sensor in the list being the main sensor that get_image uses.
-                        """
+        if config.model == str(cls._depr_oak_agnostic_model):
+            LOGGER.warn(
+                f"The '{cls._depr_oak_agnostic_model}' is deprecated. Please switch to '{cls._oak_d_model}' or '{cls._oak_ffc_3p_model}'"
             )
-        validate_attribute_type("sensors", "list_value")
-        sensor_list = list(sensors_value.list_value)
-        if len(sensor_list) == 0:
-            handle_error('"sensors" attribute list cannot be empty.')
-        if len(sensor_list) > 2:
-            handle_error('"sensors" attribute list exceeds max length of two.')
-        for sensor in sensor_list:
-            if sensor != COLOR_SENSOR and sensor != DEPTH_SENSOR:
-                handle_error(
-                    f"""
-                            unknown sensor type "{sensor}" found in "sensors" attribute list.
-                            Valid sensors include: "{COLOR_SENSOR}" and "{DEPTH_SENSOR}"
-                            """
-                )
-        if len(set(sensor_list)) != len(sensor_list):
-            handle_error(
-                f'please remove duplicates in the "sensors" attribute list: {sensor_list}'
+            cls.model = cls._oak_d_model
+        elif config.model == str(cls._depr_oak_d_model):
+            LOGGER.warn(
+                f"The '{cls._depr_oak_d_model}' is deprecated. Please switch to '{cls._oak_d_model}'"
             )
+            cls.model = cls._oak_d_model
+        elif config.model == str(cls._oak_d_model):
+            cls.model = cls._oak_d_model
+        elif config.model == str(cls._oak_ffc_3p_model):
+            cls.model = cls._oak_ffc_3p_model
+        else:
+            raise ViamError(f"Cannot validate unrecognized model: {cls.model}")
 
-        # Validate frame rate
-        validate_attribute_type("frame_rate", "number_value")
-        frame_rate = attribute_map.get(key="frame_rate", default=None)
-        if frame_rate:
-            if frame_rate.number_value <= 0:
-                handle_error(f'"frame_rate" must be a float > 0.')
-
-        # Check height value
-        validate_dimension("height_px")
-
-        # Check width value
-        validate_dimension("width_px")
-
-        # Check height and width together
-        height, width = attribute_map.get(
-            key="height_px", default=None
-        ), attribute_map.get(key="width_px", default=None)
-        if (height is None and width is not None) or (
-            height is not None and width is None
-        ):
-            handle_error(
-                'received only one dimension attribute. Please supply both "height_px" and "width_px", or neither.'
-            )
+        if cls.model == cls._oak_d_model:
+            validator.validate_oak_d()
+        else:
+            validator.validate_oak_ffc_3p()
 
     def reconfigure(
         self, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]
@@ -286,8 +204,8 @@ class Oak(Camera, Reconfigurable, Stoppable):
         LOGGER.debug(f"Set frame_rate attr to {self.frame_rate}")
 
         user_wants_color, user_wants_depth = (
-            COLOR_SENSOR in self.sensors,
-            DEPTH_SENSOR in self.sensors,
+            "color" in self.sensors,
+            "depth" in self.sensors,
         )
         callback = lambda: self.reconfigure(config, dependencies)
 
@@ -358,7 +276,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
 
         main_sensor = self.sensors[0]
 
-        if main_sensor == COLOR_SENSOR:
+        if main_sensor == "color":
             if mime_type == CameraMimeType.JPEG:
                 arr = cls.worker.get_color_image().np_array
                 jpeg_encoded_bytes = encode_jpeg_bytes(arr)
@@ -368,7 +286,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
                 f'mime_type "{mime_type}" is not supported for color. Please use {CameraMimeType.JPEG}'
             )
 
-        if main_sensor == DEPTH_SENSOR:
+        if main_sensor == "depth":
             captured_data = cls.worker.get_depth_map()
             arr = captured_data.np_array
             if mime_type == CameraMimeType.JPEG:
@@ -412,10 +330,10 @@ class Oak(Camera, Reconfigurable, Stoppable):
 
         color_data: Optional[CapturedData] = None
         depth_data: Optional[CapturedData] = None
-        if COLOR_SENSOR in self.sensors and DEPTH_SENSOR in self.sensors:
+        if "color" in self.sensors and "depth" in self.sensors:
             color_data, depth_data = await cls.worker.get_synced_color_depth_data()
 
-        if COLOR_SENSOR in self.sensors:
+        if "color" in self.sensors:
             if color_data is None:
                 color_data: CapturedData = cls.worker.get_color_image()
             arr, captured_at = color_data.np_array, color_data.captured_at
@@ -424,7 +342,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
             seconds_float = captured_at
             images.append(img)
 
-        if DEPTH_SENSOR in self.sensors:
+        if "depth" in self.sensors:
             if not depth_data:
                 depth_data: CapturedData = cls.worker.get_depth_map()
             arr, captured_at = depth_data.np_array, depth_data.captured_at
@@ -479,7 +397,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
             str: The mimetype of the point cloud (e.g. PCD).
         """
         # Validation
-        if COLOR_SENSOR not in self.sensors or DEPTH_SENSOR not in self.sensors:
+        if "color" not in self.sensors or "depth" not in self.sensors:
             details = (
                 'Please include "color" and "depth" in the "sensors" attribute list.'
             )

@@ -21,7 +21,7 @@ from depthai_sdk.components.pointcloud_component import PointcloudComponent
 from depthai_sdk.components.stereo_component import StereoComponent
 from numpy.typing import NDArray
 
-from src.helpers import CapturedData, MessageSynchronizer
+from src.helpers.helpers import CapturedData, MessageSynchronizer
 
 
 DIMENSIONS_TO_MONO_RES = {

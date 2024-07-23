@@ -14,7 +14,7 @@ async def main():
     """This function creates and starts a new module, after adding all desired resources.
     Resources must be pre-registered. For an example, see the `__init__.py` file.
     """
-    for model in Oak.MODELS:
+    for model in Oak.ALL_MODELS:
         Registry.register_resource_creator(
             Camera.SUBTYPE,
             model,
@@ -22,7 +22,7 @@ async def main():
         )
 
     module = Module.from_args()
-    for model in Oak.MODELS:
+    for model in Oak.ALL_MODELS:
         module.add_model_from_registry(Camera.SUBTYPE, model)
     LOGGER.debug("Starting module in main.py.")
     await module.start()
