@@ -13,6 +13,7 @@ from viam.proto.common import ResponseMetadata
 
 from src.helpers.shared import CapturedData
 
+
 def encode_depth_raw(data: bytes, shape: Tuple[int, int], logger: Logger) -> bytes:
     """
     Encodes raw data into a bytes payload deserializable by the Viam SDK (camera mime type depth)
@@ -118,6 +119,7 @@ def encode_pcd(arr: NDArray):
     float_array = np.array(flat_array, dtype="f")
     return (header_bytes + float_array.tobytes(), CameraMimeType.PCD)
 
+
 def make_metadata_from_seconds_float(seconds_float: float) -> ResponseMetadata:
     seconds_int = int(seconds_float)
     nanoseconds_int = int((seconds_float - seconds_int) * 1e9)
@@ -126,7 +128,10 @@ def make_metadata_from_seconds_float(seconds_float: float) -> ResponseMetadata:
     )
     return metadata
 
-def handle_synced_color_and_depth(color_data: CapturedData, depth_data: CapturedData, logger: Logger):
+
+def handle_synced_color_and_depth(
+    color_data: CapturedData, depth_data: CapturedData, logger: Logger
+):
     images = []
     arr, captured_at = color_data.np_array, color_data.captured_at
     jpeg_encoded_bytes = encode_jpeg_bytes(arr)
@@ -135,9 +140,7 @@ def handle_synced_color_and_depth(color_data: CapturedData, depth_data: Captured
 
     arr, captured_at = depth_data.np_array, depth_data.captured_at
     depth_encoded_bytes = encode_depth_raw(arr.tobytes(), arr.shape, logger)
-    img = NamedImage(
-        "depth", depth_encoded_bytes, CameraMimeType.VIAM_RAW_DEPTH
-    )
+    img = NamedImage("depth", depth_encoded_bytes, CameraMimeType.VIAM_RAW_DEPTH)
     images.append(img)
 
     metadata = make_metadata_from_seconds_float(seconds_float=captured_at)
