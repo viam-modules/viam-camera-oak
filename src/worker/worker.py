@@ -105,14 +105,11 @@ class Worker:
         self,
         oak_config: OakConfig,
         user_wants_pc: bool,
-        # reconfigure: Callable[[None], None],
         logger: Logger,
     ) -> None:
         logger.info("Initializing worker.")
-
         self.cfg = oak_config
         self.user_wants_pc = user_wants_pc
-        # self.reconfigure = reconfigure
         self.logger = logger
 
         self.oak = None
@@ -452,3 +449,4 @@ class MessageSynchronizer:
     def _cleanup_msgs(self):
         while len(self.msgs) > self.MAX_MSGS_SIZE:
             self.msgs.popitem(last=False)  # remove oldest item
+
