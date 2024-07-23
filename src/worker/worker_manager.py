@@ -16,25 +16,27 @@ class WorkerManager(Thread):
         self,
         worker: Worker,
         logger: Logger,
-        reconfigure: Callable[[None], None],
     ) -> None:
         self.worker = worker
         self.logger = logger
-        self.reconfigure = reconfigure
 
         super().__init__()
 
     def run(self) -> None:
         self.logger.debug("Starting worker manager.")
-        if not self.worker.running:
+        if self.worker.should_exec:
+            self.worker.configure()
             self.worker.start()
         else:
-            self.logger.warn("worker already running!")
+            self.logger.warn("Worker already running!")
 
-        while self.worker.running:
+        while self.worker.should_exec:
             self.logger.debug("Checking if worker must be reconfigured.")
-            if self.worker.oak.device.isClosed():
-                self.logger.debug("Camera is closed. Reconfiguring worker.")
-                self.reconfigure()
-                self.worker.running = False
+            if self.worker.oak and self.worker.oak.device.isClosed():
+                self.logger.info(
+                    "Camera is closed. Stopping and reconfiguring worker."
+                )
+                self.worker.reset()
+                self.worker.configure()
+                self.worker.start()
             time.sleep(3)
