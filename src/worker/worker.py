@@ -149,9 +149,13 @@ class Worker:
 
     async def get_synced_color_depth_data(self) -> Tuple[CapturedData, CapturedData]:
         if not self.running:
-            raise Exception("Error getting camera output: Worker is not currently running.")
+            raise Exception(
+                "Error getting camera output: Worker is not currently running."
+            )
         if len(self.color_handlers) != 1 or not self.stereo_queue_handler:
-            raise Exception("Precondition error: must have exactly 1 color sensor and 2 mono sensors for synced data")
+            raise Exception(
+                "Precondition error: must have exactly 1 color sensor and 2 mono sensors for synced data"
+            )
 
         while self.should_exec:
             self.message_synchronizer._add_msgs_from_queue(
@@ -170,11 +174,12 @@ class Worker:
                 )
                 if self.cfg.sensors.primary_sensor.color_order == "rgb":
                     color_frame = cv2.cvtColor(color_frame, cv2.COLOR_BGR2RGB)
-                color_data = CapturedData(
-                    color_frame, timestamp
-                )
+                color_data = CapturedData(color_frame, timestamp)
                 depth_data = CapturedData(
-                    self._process_depth_frame(self.cfg.sensors.stereo_pair[0], depth_frame), timestamp
+                    self._process_depth_frame(
+                        self.cfg.sensors.stereo_pair[0], depth_frame
+                    ),
+                    timestamp,
                 )
                 return color_data, depth_data
 
@@ -183,9 +188,13 @@ class Worker:
 
     def get_color_output(self, requested_sensor: Sensor):
         if not self.running:
-            raise Exception("Error getting color frame: Worker is not currently running.")
+            raise Exception(
+                "Error getting color frame: Worker is not currently running."
+            )
         if requested_sensor.sensor_type != "color":
-            raise Exception("Error getting color frame: requested sensor is not a color sensor")
+            raise Exception(
+                "Error getting color frame: requested sensor is not a color sensor"
+            )
 
         for sensor_and_queue in self.color_handlers:
             sensor = sensor_and_queue.sensor
@@ -201,20 +210,28 @@ class Worker:
                 color_output = cv2.cvtColor(msg.frame, cv2.COLOR_BGR2RGB)
             timestamp = msg.get_timestamp().total_seconds()
             return CapturedData(color_output, timestamp)
-        
-        raise Exception("Error getting color frame: requested sensor not registered in worker")
+
+        raise Exception(
+            "Error getting color frame: requested sensor not registered in worker"
+        )
 
     def get_depth_output(self):
         if not self.running:
-            raise Exception("Error getting depth frame: Worker is not currently running.")
+            raise Exception(
+                "Error getting depth frame: Worker is not currently running."
+            )
         if self.stereo_queue_handler is None:
-            raise Exception("Error getting depth frame: stereo depth component is not configured")
+            raise Exception(
+                "Error getting depth frame: stereo depth component is not configured"
+            )
 
         try:
             msg = self.stereo_queue_handler.get_queue().get(block=True, timeout=5)
         except Empty:
             raise Empty("Error getting depth frame: frame queue is empty.")
-        depth_output = self._process_depth_frame(self.cfg.sensors.stereo_pair[0], msg.frame)
+        depth_output = self._process_depth_frame(
+            self.cfg.sensors.stereo_pair[0], msg.frame
+        )
         timestamp = msg.get_timestamp().total_seconds()
         return CapturedData(depth_output, timestamp)
 
@@ -323,17 +340,26 @@ class Worker:
                 color.node.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)
             elif sensor.color_order == "rgb":
                 color.node.setColorOrder(dai.ColorCameraProperties.ColorOrder.RGB)
-            color_handlers.append(SensorAndQueueHandler(sensor, self.oak.queue(color, 30)))
+            color_handlers.append(
+                SensorAndQueueHandler(sensor, self.oak.queue(color, 30))
+            )
         self.color_handlers = color_handlers
         return primary_color_component  # stereo and pc will be aligned to the primary color sensor if requested & possible
 
-    def _configure_stereo(self, color_component: CameraComponent) -> Optional[StereoComponent]:
+    def _configure_stereo(
+        self, color_component: CameraComponent
+    ) -> Optional[StereoComponent]:
         """
         Creates and configures stereo depth component— or doesn't
         (based on the config).
         """
-        def make_mono_cam(mono: Sensor) -> Tuple[CameraComponent, dai.MonoCameraProperties.SensorResolution]:
-            resolution = get_closest_dai_resolution(mono.width, mono.height, DIMENSIONS_TO_MONO_RES)
+
+        def make_mono_cam(
+            mono: Sensor,
+        ) -> Tuple[CameraComponent, dai.MonoCameraProperties.SensorResolution]:
+            resolution = get_closest_dai_resolution(
+                mono.width, mono.height, DIMENSIONS_TO_MONO_RES
+            )
             self.logger.debug(
                 f"Closest mono resolution: {resolution}. Inputted width & height: ({mono.width}, {mono.height})"
             )
@@ -351,15 +377,21 @@ class Worker:
             mono1_component, mono1_res = make_mono_cam(mono1)
             mono2_component, mono2_res = make_mono_cam(mono2)
             if mono1_res != mono2_res:
-                self.logger.warn(f"Stereo depth pair mono cams configured with different resolutions. Defaulting to {mono1_res}")
-            stereo = self.oak.stereo(mono1_res, mono1.frame_rate, mono1_component, mono2_component)
+                self.logger.warn(
+                    f"Stereo depth pair mono cams configured with different resolutions. Defaulting to {mono1_res}"
+                )
+            stereo = self.oak.stereo(
+                mono1_res, mono1.frame_rate, mono1_component, mono2_component
+            )
             if color_component:
                 # Ensures camera alignment between color and depth
                 stereo.config_stereo(align=color_component)
             self.stereo_queue_handler = self.oak.queue(stereo, max_size=30)
             return stereo
 
-    def _configure_pc(self, color_component: CameraComponent, stereo_component: StereoComponent):
+    def _configure_pc(
+        self, color_component: CameraComponent, stereo_component: StereoComponent
+    ):
         """
         Creates and configures point cloud component— or doesn't
         (based on the config)
@@ -449,4 +481,3 @@ class MessageSynchronizer:
     def _cleanup_msgs(self):
         while len(self.msgs) > self.MAX_MSGS_SIZE:
             self.msgs.popitem(last=False)  # remove oldest item
-

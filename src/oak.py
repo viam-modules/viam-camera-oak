@@ -37,7 +37,13 @@ from viam.media.video import CameraMimeType, NamedImage
 # OAK module
 from src.worker.worker import Worker
 from src.helpers.shared import CapturedData
-from src.helpers.encoders import encode_jpeg_bytes, encode_depth_raw, encode_pcd, handle_synced_color_and_depth, make_metadata_from_seconds_float
+from src.helpers.encoders import (
+    encode_jpeg_bytes,
+    encode_depth_raw,
+    encode_pcd,
+    handle_synced_color_and_depth,
+    make_metadata_from_seconds_float,
+)
 from src.helpers.config import Validator, OakConfig, OAKDConfig, OAKFFC3PConfig
 from src.worker.worker_manager import WorkerManager
 
@@ -250,7 +256,9 @@ class Oak(Camera, Reconfigurable):
         main_sensor_type = self.oak_cfg.sensors.primary_sensor.sensor_type
         if main_sensor_type == "color":
             if mime_type == CameraMimeType.JPEG:
-                arr = cls.worker.get_color_output(self.oak_cfg.sensors.primary_sensor).np_array
+                arr = cls.worker.get_color_output(
+                    self.oak_cfg.sensors.primary_sensor
+                ).np_array
                 jpeg_encoded_bytes = encode_jpeg_bytes(arr)
                 return ViamImage(jpeg_encoded_bytes, CameraMimeType.JPEG)
 
@@ -363,7 +371,7 @@ class Oak(Camera, Reconfigurable):
             str: The mimetype of the point cloud (e.g. PCD).
         """
         # Validation
-        if (not self.oak_cfg.sensors.color_sensors):
+        if not self.oak_cfg.sensors.color_sensors:
             details = "Cannot process PCD. OAK camera not configured for stereo depth outputs. See README for details"
             raise MethodNotAllowed(method_name="get_point_cloud", details=details)
 

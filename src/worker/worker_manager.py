@@ -33,9 +33,7 @@ class WorkerManager(Thread):
         while self.worker.should_exec:
             self.logger.debug("Checking if worker must be reconfigured.")
             if self.worker.oak and self.worker.oak.device.isClosed():
-                self.logger.info(
-                    "Camera is closed. Stopping and reconfiguring worker."
-                )
+                self.logger.info("Camera is closed. Stopping and reconfiguring worker.")
                 self.worker.reset()
                 self.worker.configure()
                 self.worker.start()

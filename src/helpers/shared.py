@@ -3,8 +3,10 @@ from numpy.typing import NDArray
 
 from depthai_sdk.components.camera_component import CameraComponent
 
+
 class Sensor:
     component: Optional[CameraComponent] = None
+
     def __init__(
         self,
         socket: Literal["cam_a", "cam_b", "cam_c"],
