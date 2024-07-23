@@ -199,21 +199,6 @@ class Oak(Camera, Reconfigurable):
             distortion_parameters=None,
             intrinsic_parameters=None,
         )
-        attribute_map = config.attributes.fields
-        self.sensors = list(attribute_map["sensors"].list_value)
-        LOGGER.debug(f"Set sensors attr to {self.sensors}")
-        self.height = int(attribute_map["height_px"].number_value) or DEFAULT_HEIGHT
-        LOGGER.debug(f"Set height attr to {self.height}")
-        self.width = int(attribute_map["width_px"].number_value) or DEFAULT_WIDTH
-        LOGGER.debug(f"Set width attr to {self.width}")
-        self.frame_rate = attribute_map["frame_rate"].number_value or DEFAULT_FRAME_RATE
-        LOGGER.debug(f"Set frame_rate attr to {self.frame_rate}")
-
-        user_wants_color, user_wants_depth = (
-            "color" in self.sensors,
-            "depth" in self.sensors,
-        )
-        callback = lambda: self.reconfigure(config, dependencies)
 
         cls.worker = Worker(
             oak_config=self.oak_cfg,
