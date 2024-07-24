@@ -9,8 +9,8 @@ from src.helpers.shared import Sensor, Sensors
 
 # Be sure to update README.md if default attributes are changed
 DEFAULT_FRAME_RATE = 30
-DEFAULT_WIDTH = 640
-DEFAULT_HEIGHT = 400
+DEFAULT_WIDTH = 1280
+DEFAULT_HEIGHT = 720
 DEFAULT_COLOR_ORDER = "rgb"
 DEFAULT_INTERLEAVED = False
 LOGGER = getLogger("oak-config-logger")
