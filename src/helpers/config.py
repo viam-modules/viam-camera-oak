@@ -1,7 +1,7 @@
-from logging import Logger
 from typing import List, Literal, Mapping, Optional
 
 from viam.errors import ValidationError
+from viam.logging import getLogger
 from viam.proto.app.robot import ComponentConfig
 
 from src.helpers.shared import Sensor, Sensors
@@ -13,13 +13,13 @@ DEFAULT_WIDTH = 640
 DEFAULT_HEIGHT = 400
 DEFAULT_COLOR_ORDER = "rgb"
 DEFAULT_INTERLEAVED = False
+LOGGER = getLogger("oak-config-logger")
 
 
 class Validator:
-    def __init__(self, config: ComponentConfig, logger: Logger):
+    def __init__(self, config: ComponentConfig):
         self.config = config
         self.attribute_map = config.attributes.fields
-        self.logger = logger
 
     def handle_err(self, err_msg: str) -> None:
         """
@@ -28,7 +28,7 @@ class Validator:
         raises & propagates the error
         """
         full_err_msg = f"Config attribute validation error: {err_msg}"
-        self.logger.error(full_err_msg)
+        LOGGER.error(full_err_msg)
         raise ValidationError(full_err_msg)
 
     def validate_attr_type(

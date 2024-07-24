@@ -1,5 +1,4 @@
 import io
-from logging import Logger
 import struct
 from typing import Tuple
 
@@ -8,13 +7,16 @@ import numpy as np
 from numpy.typing import NDArray
 from PIL import Image
 
+from viam.logging import getLogger
 from viam.media.video import CameraMimeType, NamedImage
 from viam.proto.common import ResponseMetadata
 
 from src.helpers.shared import CapturedData
 
+LOGGER = getLogger("oak-encoders-logger")
 
-def encode_depth_raw(data: bytes, shape: Tuple[int, int], logger: Logger) -> bytes:
+
+def encode_depth_raw(data: bytes, shape: Tuple[int, int]) -> bytes:
     """
     Encodes raw data into a bytes payload deserializable by the Viam SDK (camera mime type depth)
 
@@ -40,10 +42,10 @@ def encode_depth_raw(data: bytes, shape: Tuple[int, int], logger: Logger) -> byt
     total_byte_count = (
         MAGIC_BYTE_COUNT + WIDTH_BYTE_COUNT + HEIGHT_BYTE_COUNT + pixel_byte_count
     )
-    logger.debug(
+    LOGGER.debug(
         f"Calculated size:  {MAGIC_BYTE_COUNT} + {WIDTH_BYTE_COUNT} + {HEIGHT_BYTE_COUNT} + {pixel_byte_count} = {total_byte_count}"
     )
-    logger.debug(f"Actual data size: {len(data)}")
+    LOGGER.debug(f"Actual data size: {len(data)}")
 
     # Create a bytearray to store the encoded data
     raw_buf = bytearray(total_byte_count)
@@ -129,9 +131,7 @@ def make_metadata_from_seconds_float(seconds_float: float) -> ResponseMetadata:
     return metadata
 
 
-def handle_synced_color_and_depth(
-    color_data: CapturedData, depth_data: CapturedData, logger: Logger
-):
+def handle_synced_color_and_depth(color_data: CapturedData, depth_data: CapturedData):
     images = []
     arr, captured_at = color_data.np_array, color_data.captured_at
     jpeg_encoded_bytes = encode_jpeg_bytes(arr)
@@ -139,7 +139,7 @@ def handle_synced_color_and_depth(
     images.append(img)
 
     arr, captured_at = depth_data.np_array, depth_data.captured_at
-    depth_encoded_bytes = encode_depth_raw(arr.tobytes(), arr.shape, logger)
+    depth_encoded_bytes = encode_depth_raw(arr.tobytes(), arr.shape)
     img = NamedImage("depth", depth_encoded_bytes, CameraMimeType.VIAM_RAW_DEPTH)
     images.append(img)
 
