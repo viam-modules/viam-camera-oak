@@ -7,7 +7,7 @@ from viam.resource.registry import Registry, ResourceCreatorRegistration
 from src.oak import Oak
 
 
-LOGGER = getLogger(__name__)
+LOGGER = getLogger("oak-main-logger")
 
 
 async def main():

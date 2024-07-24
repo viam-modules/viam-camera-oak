@@ -5,7 +5,6 @@ from queue import Empty
 from threading import Lock
 import time
 from typing import (
-    Callable,
     Dict,
     List,
     Literal,
@@ -15,7 +14,7 @@ from typing import (
     Union,
 )
 
-from logging import Logger
+from viam.logging import getLogger
 
 import cv2
 import depthai as dai
@@ -28,7 +27,6 @@ from numpy.typing import NDArray
 from src.helpers.shared import CapturedData, Sensor
 from src.helpers.config import OakConfig
 
-
 DIMENSIONS_TO_MONO_RES = {
     (1280, 800): dai.MonoCameraProperties.SensorResolution.THE_800_P,
     (1280, 720): dai.MonoCameraProperties.SensorResolution.THE_720_P,
@@ -40,6 +38,10 @@ DIMENSIONS_TO_COLOR_RES = {
     (3840, 2160): dai.ColorCameraProperties.SensorResolution.THE_4_K,
     (1920, 1080): dai.ColorCameraProperties.SensorResolution.THE_1080_P,
 }  # color camera component only accepts this subset of depthai_sdk.components.camera_helper.colorResolutions
+
+MAX_GRPC_MESSAGE_BYTE_COUNT = 4194304  # Update this if the gRPC config ever changes
+
+LOGGER = getLogger("oak-worker-logger")
 
 
 def get_closest_dai_resolution(
@@ -78,9 +80,6 @@ def get_closest_dai_resolution(
     return dimensions_to_resolution[closest]
 
 
-MAX_GRPC_MESSAGE_BYTE_COUNT = 4194304  # Update this if the gRPC config ever changes
-
-
 class SensorAndQueueHandler:
     def __init__(self, sensor: Sensor, queue_handler: QueuePacketHandler):
         self.sensor = sensor
@@ -105,12 +104,10 @@ class Worker:
         self,
         oak_config: OakConfig,
         user_wants_pc: bool,
-        logger: Logger,
     ) -> None:
-        logger.info("Initializing worker.")
+        LOGGER.info("Initializing worker.")
         self.cfg = oak_config
         self.user_wants_pc = user_wants_pc
-        self.logger = logger
 
         self.oak = None
         self.color_handlers = None
@@ -129,7 +126,7 @@ class Worker:
         if (
             not self.should_exec
         ):  # possible SIGTERM between initializing OakCamera and here
-            self.logger.debug("Stopping configuration due to termination signal")
+            LOGGER.debug("Stopping configuration due to termination signal")
             return
 
         self._config_oak_camera()
@@ -140,7 +137,7 @@ class Worker:
     def start(self):
         if self.oak:
             self.oak.start()
-            self.logger.info("Started OakCamera")
+            LOGGER.info("Started OakCamera")
         else:
             raise AttributeError(
                 "oak.start() called before oak was assigned. Must configure worker first."
@@ -183,7 +180,7 @@ class Worker:
                 )
                 return color_data, depth_data
 
-            self.logger.debug("Waiting for synced color and depth frames...")
+            LOGGER.debug("Waiting for synced color and depth frames...")
             await asyncio.sleep(0.001)
 
     def get_color_output(self, requested_sensor: Sensor):
@@ -253,7 +250,7 @@ class Worker:
         """
         Handles closing resources and exiting logic in worker.
         """
-        self.logger.debug("Stopping worker.")
+        LOGGER.debug("Stopping worker.")
         self.should_exec = False
         self.configured = False
         self.running = False
@@ -261,7 +258,7 @@ class Worker:
             self.oak.close()
 
     def reset(self) -> None:
-        self.logger.debug("Resetting worker.")
+        LOGGER.debug("Resetting worker.")
         self.should_exec = True
         self.configured = False
         self.running = False
@@ -277,9 +274,9 @@ class Worker:
         while not self.oak and self.should_exec:
             try:
                 self.oak = OakCamera()
-                self.logger.info("Successfully initialized OakCamera.")
+                LOGGER.info("Successfully initialized OakCamera.")
             except Exception as e:
-                self.logger.error(f"Error initializing OakCamera: {e}")
+                LOGGER.error(f"Error initializing OakCamera: {e}")
                 time.sleep(1)
 
     def _config_oak_camera(self):
@@ -296,7 +293,7 @@ class Worker:
             stage = "point cloud"
             self._configure_pc(color_component, stereo_component)
 
-            self.logger.info("Successfully configured OakCamera")
+            LOGGER.info("Successfully configured OakCamera")
         except Exception as e:
             msg = f"Error configuring OakCamera at stage '{stage}': {e}"
             resolution_err_substr = "bigger than maximum at current sensor resolution"
@@ -305,7 +302,7 @@ class Worker:
                 msg += ". Please adjust 'height_px' and 'width_px' in your config to an accepted resolution."
             elif calibration_err_substr in str(e):
                 msg += ". If using a non-integrated model, please check that the camera is calibrated properly."
-            self.logger.error(msg)
+            LOGGER.error(msg)
 
     def _configure_color(self) -> Optional[CameraComponent]:
         """
@@ -317,11 +314,11 @@ class Worker:
         for sensor in self.cfg.sensors.color_sensors:
             if sensor.sensor_type != "color":
                 continue
-            self.logger.debug("Creating color camera component.")
+            LOGGER.debug("Creating color camera component.")
             resolution = get_closest_dai_resolution(
                 sensor.width, sensor.height, DIMENSIONS_TO_COLOR_RES
             )
-            self.logger.debug(
+            LOGGER.debug(
                 f"Closest color resolution to inputted height & width is: {resolution}"
             )
             color = self.oak.camera(
@@ -360,7 +357,7 @@ class Worker:
             resolution = get_closest_dai_resolution(
                 mono.width, mono.height, DIMENSIONS_TO_MONO_RES
             )
-            self.logger.debug(
+            LOGGER.debug(
                 f"Closest mono resolution: {resolution}. Inputted width & height: ({mono.width}, {mono.height})"
             )
             mono_component = self.oak.camera(
@@ -372,12 +369,12 @@ class Worker:
 
         stereo_pair = self.cfg.sensors.stereo_pair
         if stereo_pair:
-            self.logger.debug("Creating stereo depth component.")
+            LOGGER.debug("Creating stereo depth component.")
             mono1, mono2 = stereo_pair
             mono1_component, mono1_res = make_mono_cam(mono1)
             mono2_component, mono2_res = make_mono_cam(mono2)
             if mono1_res != mono2_res:
-                self.logger.warn(
+                LOGGER.warn(
                     f"Stereo depth pair mono cams configured with different resolutions. Defaulting to {mono1_res}"
                 )
             stereo = self.oak.stereo(
@@ -397,13 +394,13 @@ class Worker:
         (based on the config)
         """
         if stereo_component:
-            self.logger.debug("Creating point cloud component.")
+            LOGGER.debug("Creating point cloud component.")
             pc_component = self.oak.create_pointcloud(stereo_component, color_component)
             self.pc_queue_handler = self.oak.queue(pc_component, 5)
 
     def _process_depth_frame(self, sensor: Sensor, arr: NDArray) -> NDArray:
         if arr.shape[0] > sensor.height and arr.shape[1] > sensor.width:
-            self.logger.debug(
+            LOGGER.debug(
                 f"Outputted depth map's shape is greater than specified in config: {arr.shape}; Manually resizing to {(sensor.height, sensor.width)}."
             )
             top_left_x = (arr.shape[1] - sensor.width) // 2
@@ -416,7 +413,7 @@ class Worker:
 
     def _downsample_pcd(self, arr: NDArray, byte_count: int) -> NDArray:
         factor = byte_count // MAX_GRPC_MESSAGE_BYTE_COUNT + 1
-        self.logger.warn(
+        LOGGER.warn(
             f"PCD bytes ({byte_count}) > max gRPC bytes count ({MAX_GRPC_MESSAGE_BYTE_COUNT}). Subsampling by 1/{factor}."
         )
         arr = arr[::factor, ::factor, :]

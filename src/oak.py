@@ -1,5 +1,3 @@
-# Standard library
-import logging
 import time
 from typing import (
     Any,
@@ -13,12 +11,9 @@ from typing import (
 )
 from typing_extensions import Self
 
-# Third party
-from google.protobuf.timestamp_pb2 import Timestamp
-
 # Viam module
 from viam.errors import NotSupportedError, ViamError
-from viam.logging import getLogger, addHandlers
+from viam.logging import getLogger
 from viam.module.types import Reconfigurable
 from viam.proto.app.robot import ComponentConfig
 from viam.proto.common import ResourceName, ResponseMetadata
@@ -48,22 +43,10 @@ from src.helpers.config import Validator, OakConfig, OAKDConfig, OAKFFC3PConfig
 from src.worker.worker_manager import WorkerManager
 
 
-LOGGER = getLogger(__name__)
+LOGGER = getLogger("oak-module-logger")
 
 # Be sure to update README.md if default attributes are changed
 DEFAULT_IMAGE_MIMETYPE = CameraMimeType.JPEG
-
-
-### TODO RSDK-5592: remove the below bandaid fix
-# once https://github.com/luxonis/depthai/pull/1135 is in a new release
-root_logger = logging.getLogger()
-
-# Remove all handlers from the root logger
-for handler in root_logger.handlers[:]:
-    root_logger.removeHandler(handler)
-
-# Apply Viam's logging handlers
-addHandlers(root_logger)
 
 
 class Oak(Camera, Reconfigurable):
@@ -147,7 +130,7 @@ class Oak(Camera, Reconfigurable):
         Returns:
             None
         """
-        validator = Validator(config, LOGGER)
+        validator = Validator(config)
 
         if config.model == str(cls._depr_oak_agnostic_model):
             LOGGER.warn(
@@ -209,10 +192,9 @@ class Oak(Camera, Reconfigurable):
         cls.worker = Worker(
             oak_config=self.oak_cfg,
             user_wants_pc=cls.get_point_cloud_was_invoked,
-            logger=LOGGER,
         )
 
-        cls.worker_manager = WorkerManager(cls.worker, LOGGER)
+        cls.worker_manager = WorkerManager(cls.worker)
         cls.worker_manager.start()
 
     async def close(self) -> None:
@@ -307,7 +289,7 @@ class Oak(Camera, Reconfigurable):
         # Use MessageSynchronizer only for OAK-D-like
         if self.oak_cfg.sensors.color_sensors and self.oak_cfg.sensors.stereo_pair:
             color_data, depth_data = await cls.worker.get_synced_color_depth_data()
-            return handle_synced_color_and_depth(color_data, depth_data, LOGGER)
+            return handle_synced_color_and_depth(color_data, depth_data)
 
         images: List[NamedImage] = []
         # For timestamp calculation later
@@ -325,7 +307,7 @@ class Oak(Camera, Reconfigurable):
         if self.oak_cfg.sensors.stereo_pair:
             depth_data: CapturedData = cls.worker.get_depth_output()
             arr, captured_at = depth_data.np_array, depth_data.captured_at
-            depth_encoded_bytes = encode_depth_raw(arr.tobytes(), arr.shape, LOGGER)
+            depth_encoded_bytes = encode_depth_raw(arr.tobytes(), arr.shape)
             img = NamedImage(
                 "depth", depth_encoded_bytes, CameraMimeType.VIAM_RAW_DEPTH
             )
@@ -371,7 +353,7 @@ class Oak(Camera, Reconfigurable):
             str: The mimetype of the point cloud (e.g. PCD).
         """
         # Validation
-        if not self.oak_cfg.sensors.color_sensors:
+        if not self.oak_cfg.sensors.stereo_pair:
             details = "Cannot process PCD. OAK camera not configured for stereo depth outputs. See README for details"
             raise MethodNotAllowed(method_name="get_point_cloud", details=details)
 

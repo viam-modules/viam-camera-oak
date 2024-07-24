@@ -1,9 +1,12 @@
 from threading import Thread
 import time
-from typing import Callable
-from logging import Logger
 
 from src.worker.worker import Worker
+
+# TODO RSDK-8342: re-add the commented logging logic
+# from viam.logging import getLogger
+
+# LOGGER = getLogger("oak-manager-logger")
 
 
 class WorkerManager(Thread):
@@ -15,25 +18,24 @@ class WorkerManager(Thread):
     def __init__(
         self,
         worker: Worker,
-        logger: Logger,
     ) -> None:
         self.worker = worker
-        self.logger = logger
 
         super().__init__()
 
     def run(self) -> None:
-        self.logger.debug("Starting worker manager.")
+        # LOGGER.debug("Starting worker manager.")
         if self.worker.should_exec:
             self.worker.configure()
             self.worker.start()
         else:
-            self.logger.warn("Worker already running!")
+            # LOGGER.warn("Worker already running!")
+            pass
 
         while self.worker.should_exec:
-            self.logger.debug("Checking if worker must be reconfigured.")
+            # LOGGER.debug("Checking if worker must be reconfigured.")
             if self.worker.oak and self.worker.oak.device.isClosed():
-                self.logger.info("Camera is closed. Stopping and reconfiguring worker.")
+                # LOGGER.info("Camera is closed. Stopping and reconfiguring worker.")
                 self.worker.reset()
                 self.worker.configure()
                 self.worker.start()
