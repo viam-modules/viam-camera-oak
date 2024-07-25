@@ -264,7 +264,7 @@ class OakConfig:
         raise NotImplementedError("Subclasses should implement this method")
 
 
-class OAKDConfig(OakConfig):
+class OakDConfig(OakConfig):
     def initialize_sensors(self):
         sensors_str_list = list(self.attribute_map["sensors"].list_value)
 
@@ -288,7 +288,7 @@ class OAKDConfig(OakConfig):
         self.sensors = Sensors(sensor_list)
 
 
-class OAKFFC3PConfig(OakConfig):
+class OakFfc3PConfig(OakConfig):
     def initialize_sensors(self):
         cam_sensors_list = self.attribute_map["camera_sensors"].list_value
 

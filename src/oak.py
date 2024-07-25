@@ -39,7 +39,7 @@ from src.helpers.encoders import (
     handle_synced_color_and_depth,
     make_metadata_from_seconds_float,
 )
-from src.helpers.config import Validator, OakConfig, OAKDConfig, OAKFFC3PConfig
+from src.helpers.config import Validator, OakConfig, OakDConfig, OakFfc3PConfig
 from src.worker.worker_manager import WorkerManager
 
 
@@ -174,9 +174,9 @@ class Oak(Camera, Reconfigurable):
             LOGGER.debug("No active worker.")
 
         if self.model == self._oak_d_model:
-            self.oak_cfg = OAKDConfig(config)
+            self.oak_cfg = OakDConfig(config)
         elif self.model == self._oak_ffc_3p_model:
-            self.oak_cfg = OAKFFC3PConfig(config)
+            self.oak_cfg = OakFfc3PConfig(config)
         else:
             raise ViamError(
                 f"Critical error due to spec change of validation failure: unrecognized model {self.model}"
