@@ -1,7 +1,6 @@
 name: Build & publish module to registry 
 
 on:
-  workflow_dispatch:
   release:
     types: [published]
 
