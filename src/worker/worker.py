@@ -120,8 +120,8 @@ class Worker:
         self.configured = False
         self.running = False
 
-    def configure(self):
-        self._init_oak_camera()
+    async def configure(self):
+        await self._init_oak_camera()
 
         if (
             not self.should_exec
@@ -266,7 +266,7 @@ class Worker:
             self.oak.close()
             self.oak = None
 
-    def _init_oak_camera(self):
+    async def _init_oak_camera(self):
         """
         Blocks until the OakCamera is successfully initialized.
         """
@@ -277,7 +277,7 @@ class Worker:
                 LOGGER.info("Successfully initialized OakCamera.")
             except Exception as e:
                 LOGGER.error(f"Error initializing OakCamera: {e}")
-                time.sleep(1)
+                await asyncio.sleep(1)
 
     def _config_oak_camera(self):
         """
@@ -462,13 +462,17 @@ class MessageSynchronizer:
         for msg in q_snapshot:
             self.add_msg(msg, frame_type, msg.get_sequence_num())
 
-    def get_most_recent_msg(
+    async def get_most_recent_msg(
         self, q_handler: QueuePacketHandler, frame_type: Literal["color", "depth"]
     ) -> Optional[BasePacket]:
         self._add_msgs_from_queue(frame_type, q_handler)
+        attempts = 0
         while len(self.msgs) < 1:
+            if attempts > 3:
+                raise Exception("Error getting messages from queue: exceeded max attempts, yet still no messages received")
             self._add_msgs_from_queue(frame_type, q_handler)
-            time.sleep(0.1)
+            attempts += 1
+            await asyncio.sleep(0.1)
         # Traverse in reverse to get the most recent
         for msg_dict in reversed(self.msgs.values()):
             if frame_type in msg_dict:

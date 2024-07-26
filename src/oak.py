@@ -1,4 +1,4 @@
-import time
+import asyncio
 from typing import (
     Any,
     ClassVar,
@@ -168,7 +168,7 @@ class Oak(Camera, Reconfigurable):
         cls: Oak = type(self)
         try:
             LOGGER.debug("Trying to stop worker.")
-            cls.worker.stop()
+            cls.worker_manager.stop()
             LOGGER.info("Reconfiguring OAK.")
         except AttributeError:
             LOGGER.debug("No active worker.")
@@ -203,7 +203,7 @@ class Oak(Camera, Reconfigurable):
         """
         LOGGER.info("Closing OAK component.")
         cls: Oak = type(self)
-        cls.worker.stop()
+        cls.worker_manager.stop()
 
     async def get_image(
         self,
@@ -233,7 +233,7 @@ class Oak(Camera, Reconfigurable):
         mime_type = self._validate_get_image_mime_type(mime_type)
         cls: Oak = type(self)
 
-        self._wait_until_worker_running()
+        await self._wait_until_worker_running()
 
         main_sensor_type = self.oak_cfg.sensors.primary_sensor.sensor_type
         if main_sensor_type == "color":
@@ -269,8 +269,7 @@ class Oak(Camera, Reconfigurable):
         self, *, timeout: Optional[float] = None, **kwargs
     ) -> Tuple[List[NamedImage], ResponseMetadata]:
         """
-        Gets simultaneous images from different imagers, along with associated metadata.
-        This should not be used for getting a time series of images from the same imager.
+        Gets images from every sensor on your OAK device.
 
         Returns:
             Tuple[List[NamedImage], ResponseMetadata]:
@@ -366,12 +365,12 @@ class Oak(Camera, Reconfigurable):
         if not cls.worker.user_wants_pc:
             cls.worker.user_wants_pc = True
             cls.worker.reset()
-            cls.worker.configure()
+            await cls.worker.configure()
             cls.worker.start()
 
         while not cls.worker.running:
             LOGGER.info("Waiting for worker to restart with pcd configured...")
-            time.sleep(0.5)
+            await asyncio.sleep(0.5)
 
         # Get actual PCD data from camera worker
         pcd_obj = cls.worker.get_pcd()
@@ -390,7 +389,7 @@ class Oak(Camera, Reconfigurable):
         """
         return self.camera_properties
 
-    def _wait_until_worker_running(self, max_attempts=5, timeout_seconds=1):
+    async def _wait_until_worker_running(self, max_attempts=5, timeout_seconds=1):
         """
         Blocks on camera data methods that require the worker to be running.
         Unblocks once worker is running or max number of attempts to pass is reached.
@@ -399,16 +398,15 @@ class Oak(Camera, Reconfigurable):
             max_attempts (int, optional): Defaults to 5.
             timeout_seconds (int, optional): Defaults to 1.
 
-        Raises:
-
+        Raises: ViamError
         """
         cls: Oak = type(self)
         attempts = 0
         while attempts < max_attempts:
             if cls.worker.running:
                 return
-            time.sleep(timeout_seconds)
             attempts += 1
+            await asyncio.sleep(timeout_seconds)
         raise ViamError(
             "Camera data requested before camera worker was ready. Please ensure the camera is properly "
             "connected and configured, especially for non-integrated models such as the OAK-FFC."
