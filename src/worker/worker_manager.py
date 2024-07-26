@@ -25,7 +25,7 @@ class WorkerManager(Thread):
         except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-        
+
         loop.create_task(self.check_health())
         loop.run_forever()
 

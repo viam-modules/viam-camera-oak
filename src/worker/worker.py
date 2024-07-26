@@ -469,7 +469,9 @@ class MessageSynchronizer:
         attempts = 0
         while len(self.msgs) < 1:
             if attempts > 3:
-                raise Exception("Error getting messages from queue: exceeded max attempts, yet still no messages received")
+                raise Exception(
+                    "Error getting messages from queue: exceeded max attempts, yet still no messages received"
+                )
             self._add_msgs_from_queue(frame_type, q_handler)
             attempts += 1
             await asyncio.sleep(0.1)
