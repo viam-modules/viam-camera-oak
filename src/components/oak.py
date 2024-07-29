@@ -208,6 +208,8 @@ class Oak(Camera, Reconfigurable):
         LOGGER.info("Closing OAK component.")
         cls: Oak = type(self)
         cls.worker_manager.stop()
+        cls.worker_manager.join()
+        LOGGER.debug("Closed OAK component.")
 
     async def get_image(
         self,

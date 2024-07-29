@@ -11,34 +11,29 @@ class WorkerManager(Thread):
     to the OAK camera is healthy, reconfiguring the entire module if not.
     """
 
-    def __init__(
-        self,
-        worker: Worker,
-    ) -> None:
+    def __init__(self, worker: Worker) -> None:
+        super().__init__()
         self.logger = getLogger("viam-oak-manager-logger")
         self.worker = worker
-        super().__init__()
+        self.loop = None
+        self._stop_event = asyncio.Event()
 
     def run(self):
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
+        self.loop.create_task(self.check_health())
         try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
-        loop.create_task(self.check_health())
-        loop.run_forever()
+            self.loop.run_forever()
+        finally:
+            self.loop.run_until_complete(self.shutdown())
+            self.loop.close()
 
     async def check_health(self) -> None:
         self.logger.debug("Starting worker manager.")
-        if self.worker.should_exec:
-            await self.worker.configure()
-            self.worker.start()
-        else:
-            self.logger.warn("Worker already running!")
-            pass
+        await self.worker.configure()
+        self.worker.start()
 
-        while self.worker.should_exec:
+        while not self._stop_event.is_set():
             self.logger.debug("Checking if worker must be restarted.")
             if (
                 self.worker.oak
@@ -52,4 +47,12 @@ class WorkerManager(Thread):
             await asyncio.sleep(3)
 
     def stop(self):
+        self.loop.call_soon_threadsafe(self._stop_event.set)
+        self.loop.call_soon_threadsafe(self.loop.stop)
+
+    async def shutdown(self):
         self.worker.stop()
+        tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
