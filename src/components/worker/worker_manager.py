@@ -1,7 +1,7 @@
 import asyncio
 from threading import Thread
 
-from src.worker.worker import Worker
+from src.components.worker.worker import Worker
 from viam.logging import getLogger
 
 
@@ -40,7 +40,11 @@ class WorkerManager(Thread):
 
         while self.worker.should_exec:
             self.logger.debug("Checking if worker must be restarted.")
-            if self.worker.oak and self.worker.oak.device.isClosed():
+            if (
+                self.worker.oak
+                and self.worker.oak.device
+                and self.worker.oak.device.isClosed()
+            ):
                 self.logger.info("Camera is closed. Stopping and restarting worker.")
                 self.worker.reset()
                 await self.worker.configure()

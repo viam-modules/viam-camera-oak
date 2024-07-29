@@ -25,22 +25,26 @@ from viam.components.camera import (
     Camera,
     DistortionParameters,
     IntrinsicParameters,
-    ViamImage,
 )
-from viam.media.video import CameraMimeType, NamedImage
+from viam.media.video import CameraMimeType, NamedImage, ViamImage
 
 # OAK module
-from src.worker.worker import Worker
-from src.helpers.shared import CapturedData
-from src.helpers.encoders import (
+from src.components.worker.worker import Worker
+from src.components.helpers.shared import CapturedData
+from src.components.helpers.encoders import (
     encode_jpeg_bytes,
     encode_depth_raw,
     encode_pcd,
     handle_synced_color_and_depth,
     make_metadata_from_seconds_float,
 )
-from src.helpers.config import Validator, OakConfig, OakDConfig, OakFfc3PConfig
-from src.worker.worker_manager import WorkerManager
+from src.components.helpers.config import (
+    Validator,
+    OakConfig,
+    OakDConfig,
+    OakFfc3PConfig,
+)
+from src.components.worker.worker_manager import WorkerManager
 
 
 LOGGER = getLogger("oak-module-logger")

@@ -6,9 +6,7 @@ module.tar.gz
 oak-integration-tests
 
 # subfolder pycache
-src/__pycache__
-src/helpers/__pycache__
-src/worker/__pycache__
+__pycache__/
 
 # unit tests
 tests/__pycache__

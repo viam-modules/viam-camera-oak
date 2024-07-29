@@ -4,7 +4,7 @@ from viam.components.camera import Camera
 from viam.logging import getLogger
 from viam.module.module import Module
 from viam.resource.registry import Registry, ResourceCreatorRegistration
-from src.oak import Oak
+from src.components.oak import Oak
 
 
 LOGGER = getLogger("oak-main-logger")

@@ -11,7 +11,7 @@ from viam.logging import getLogger
 from viam.media.video import CameraMimeType, NamedImage
 from viam.proto.common import ResponseMetadata
 
-from src.helpers.shared import CapturedData
+from src.components.helpers.shared import CapturedData
 
 LOGGER = getLogger("oak-encoders-logger")
 

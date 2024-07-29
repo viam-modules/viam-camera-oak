@@ -24,8 +24,8 @@ from depthai_sdk.components.camera_component import CameraComponent
 from depthai_sdk.components.stereo_component import StereoComponent
 from numpy.typing import NDArray
 
-from src.helpers.shared import CapturedData, Sensor
-from src.helpers.config import OakConfig
+from src.components.helpers.shared import CapturedData, Sensor
+from src.components.helpers.config import OakConfig
 
 DIMENSIONS_TO_MONO_RES = {
     (1280, 800): dai.MonoCameraProperties.SensorResolution.THE_800_P,
