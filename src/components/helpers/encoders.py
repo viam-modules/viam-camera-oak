@@ -13,7 +13,7 @@ from viam.proto.common import ResponseMetadata
 
 from src.components.helpers.shared import CapturedData
 
-LOGGER = getLogger("oak-encoders-logger")
+LOGGER = getLogger("viam-oak-encoders-logger")
 
 
 def encode_depth_raw(data: bytes, shape: Tuple[int, int]) -> bytes:

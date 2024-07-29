@@ -13,7 +13,7 @@ DEFAULT_WIDTH = 1280
 DEFAULT_HEIGHT = 720
 DEFAULT_COLOR_ORDER = "rgb"
 DEFAULT_INTERLEAVED = False
-LOGGER = getLogger("oak-config-logger")
+LOGGER = getLogger("viam-oak-config-logger")
 
 
 class Validator:

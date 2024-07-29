@@ -47,7 +47,7 @@ from src.components.helpers.config import (
 from src.components.worker.worker_manager import WorkerManager
 
 
-LOGGER = getLogger("oak-module-logger")
+LOGGER = getLogger("viam-oak-module-logger")
 
 # Be sure to update README.md if default attributes are changed
 DEFAULT_IMAGE_MIMETYPE = CameraMimeType.JPEG

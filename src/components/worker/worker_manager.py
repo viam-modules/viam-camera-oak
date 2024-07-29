@@ -15,7 +15,7 @@ class WorkerManager(Thread):
         self,
         worker: Worker,
     ) -> None:
-        self.logger = getLogger("oak-manager-logger")
+        self.logger = getLogger("viam-oak-manager-logger")
         self.worker = worker
         super().__init__()
 

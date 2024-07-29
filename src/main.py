@@ -7,7 +7,7 @@ from viam.resource.registry import Registry, ResourceCreatorRegistration
 from src.components.oak import Oak
 
 
-LOGGER = getLogger("oak-main-logger")
+LOGGER = getLogger("viam-luxonis-module-logger")
 
 
 async def main():

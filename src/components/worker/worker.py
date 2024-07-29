@@ -41,7 +41,7 @@ DIMENSIONS_TO_COLOR_RES = {
 
 MAX_GRPC_MESSAGE_BYTE_COUNT = 4194304  # Update this if the gRPC config ever changes
 
-LOGGER = getLogger("oak-worker-logger")
+LOGGER = getLogger("viam-oak-worker-logger")
 
 
 def get_closest_dai_resolution(
