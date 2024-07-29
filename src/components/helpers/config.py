@@ -4,7 +4,7 @@ from viam.errors import ValidationError
 from viam.logging import getLogger
 from viam.proto.app.robot import ComponentConfig
 
-from src.helpers.shared import Sensor, Sensors
+from src.components.helpers.shared import Sensor, Sensors
 
 
 # Be sure to update README.md if default attributes are changed
