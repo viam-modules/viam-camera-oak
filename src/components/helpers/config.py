@@ -267,14 +267,6 @@ class Validator:
             # Validate "interleaved"
             self.validate_attr_type("interleaved", "bool_value", cam_sensor.fields)
 
-            # Validate "device_info"
-            self.validate_attr_type("device_info", "string_value")
-            device_info = self.attribute_map.get(key="device_info", default=None)
-            if device_info is None:
-                LOGGER.info(
-                    '"device_info" attribute unspecified. Will default to the first OAK device detected.'
-                )
-
 
 class OakConfig:
     device_info: str
