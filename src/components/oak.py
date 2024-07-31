@@ -95,9 +95,9 @@ class Oak(Camera, Reconfigurable):
     oak_cfg: OakConfig
     """Native config"""
     worker: Optional[Worker] = None
-    """Singleton `Worker` handles camera logic in a separate thread"""
+    """`Worker` handles camera logic in a separate thread"""
     worker_manager: Optional[WorkerManager] = None
-    """Singleton `WorkerManager` managing the lifecycle of `worker`"""
+    """`WorkerManager` managing the lifecycle of `worker`"""
     get_point_cloud_was_invoked: bool = False
     camera_properties: Camera.Properties
 
