@@ -274,14 +274,14 @@ class OakConfig:
 
     def __init__(self, config: ComponentConfig):
         self.attribute_map = config.attributes.fields
-        self.initialize_sensors()
+        self.initialize_config()
 
-    def initialize_sensors(self):
+    def initialize_config(self):
         raise NotImplementedError("Subclasses should implement this method")
 
 
 class OakDConfig(OakConfig):
-    def initialize_sensors(self):
+    def initialize_config(self):
         self.device_info = self.attribute_map["device_info"].string_value or None
         sensors_str_list = list(self.attribute_map["sensors"].list_value)
 
@@ -306,7 +306,7 @@ class OakDConfig(OakConfig):
 
 
 class OakFfc3PConfig(OakConfig):
-    def initialize_sensors(self):
+    def initialize_config(self):
         self.device_info = self.attribute_map["device_info"].string_value or None
         cam_sensors_list = self.attribute_map["camera_sensors"].list_value
 
