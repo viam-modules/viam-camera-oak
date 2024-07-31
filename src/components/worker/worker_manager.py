@@ -30,20 +30,16 @@ class WorkerManager(Thread):
 
     async def check_health(self) -> None:
         self.logger.debug("Starting worker manager.")
-        await self.worker.configure()
-        self.worker.start()
+        self.worker.configure()
+        await self.worker.start()
 
         while not self._stop_event.is_set():
             self.logger.debug("Checking if worker must be restarted.")
-            if (
-                self.worker.oak
-                and self.worker.oak.device
-                and self.worker.oak.device.isClosed()
-            ):
+            if self.worker.device and self.worker.device.isClosed():
                 self.logger.info("Camera is closed. Stopping and restarting worker.")
                 self.worker.reset()
-                await self.worker.configure()
-                self.worker.start()
+                self.worker.configure()
+                await self.worker.start()
             await asyncio.sleep(3)
 
     def stop(self):
