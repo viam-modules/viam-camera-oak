@@ -288,7 +288,7 @@ class Oak(Camera, Reconfigurable):
         LOGGER.debug("get_images called")
         cls: Oak = type(self)
 
-        self._wait_until_worker_running()
+        await self._wait_until_worker_running()
 
         # Split logic into helpers for OAK-D and OAK-D like cameras with FFC-like cameras
         # Use MessageSynchronizer only for OAK-D-like
@@ -364,15 +364,15 @@ class Oak(Camera, Reconfigurable):
 
         cls = type(self)
 
-        self._wait_until_worker_running()
+        await self._wait_until_worker_running()
 
         # By default, we do not get point clouds even when color and depth are both requested
         # We have to reinitialize the worker/OakCamera to start making point clouds
         if not cls.worker.user_wants_pc:
             cls.worker.user_wants_pc = True
             cls.worker.reset()
-            await cls.worker.configure()
-            cls.worker.start()
+            cls.worker.configure()
+            await cls.worker.start()
 
         while not cls.worker.running:
             LOGGER.info("Waiting for worker to restart with pcd configured...")
