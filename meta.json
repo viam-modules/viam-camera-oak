@@ -11,6 +11,14 @@
     {
       "api": "rdk:component:camera",
       "model": "viam:camera:oak-d"
+    },
+    {
+      "api": "rdk:component:camera",
+      "model": "viam:luxonis:oak-ffc-3p"
+    },
+    {
+      "api": "rdk:component:camera",
+      "model": "viam:luxonis:oak-d"
     }
   ],
   "build": {

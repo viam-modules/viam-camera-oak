@@ -142,6 +142,16 @@ only_received_width = (
     "received only one dimension attribute"
 )
 
+wrong_device_info_type = (
+    make_component_config({
+        "sensors": ["color", "depth"],
+        "width_px": 1280,
+        "height_px": 720,
+        "device_info": 88
+    }, "viam:luxonis:oak-d"),
+    "attribute must be a string_value"
+)
+
 configs_and_msgs = [
     invalid_attribute_name,
     sensors_not_present,
@@ -168,6 +178,11 @@ full_correct_config = make_component_config({
     "height_px": 800,
     "width_px": 1280,
     "frame_rate": 60,
+    "device_info": "18443010016B060F00"
+}, "viam:luxonis:oak-d")
+
+minimal_correct_config = make_component_config({
+    "sensors": ["color"]
 }, "viam:luxonis:oak-d")
 
 @pytest.mark.parametrize("config,msg", configs_and_msgs)
@@ -180,6 +195,7 @@ def test_validate_errors_parameterized(config, msg):
 def test_validate_no_errors():
     try:
         Oak.validate(full_correct_config)
+        Oak.validate(minimal_correct_config)
     except Exception as e:
         s = (f"Expected a correct config to not raise {type(e)} during validation, yet it did :,)")
         pytest.fail(reason=s)

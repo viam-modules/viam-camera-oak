@@ -94,11 +94,11 @@ class Oak(Camera, Reconfigurable):
     """Viam model of component"""
     oak_cfg: OakConfig
     """Native config"""
-    worker: ClassVar[Optional[Worker]] = None
-    """Singleton `Worker` handles camera logic in a separate thread"""
-    worker_manager: ClassVar[Optional[WorkerManager]] = None
-    """Singleton `WorkerManager` managing the lifecycle of `worker`"""
-    get_point_cloud_was_invoked: ClassVar[bool] = False
+    worker: Optional[Worker] = None
+    """`Worker` handles camera logic in a separate thread"""
+    worker_manager: Optional[WorkerManager] = None
+    """`WorkerManager` managing the lifecycle of `worker`"""
+    get_point_cloud_was_invoked: bool = False
     camera_properties: Camera.Properties
 
     @classmethod
@@ -153,6 +153,7 @@ class Oak(Camera, Reconfigurable):
         else:
             raise ViamError(f"Cannot validate unrecognized model: {cls.model}")
 
+        validator.validate_shared_attrs()
         if cls.model == cls._oak_d_model:
             validator.validate_oak_d()
         else:
@@ -169,14 +170,6 @@ class Oak(Camera, Reconfigurable):
             config (ComponentConfig)
             dependencies (Mapping[ResourceName, ResourceBase])
         """
-        cls: Oak = type(self)
-        try:
-            LOGGER.debug("Trying to stop worker.")
-            cls.worker_manager.stop()
-            LOGGER.info("Reconfiguring OAK.")
-        except AttributeError:
-            LOGGER.debug("No active worker.")
-
         if self.model == self._oak_d_model:
             self.oak_cfg = OakDConfig(config)
         elif self.model == self._oak_ffc_3p_model:
@@ -193,22 +186,21 @@ class Oak(Camera, Reconfigurable):
             intrinsic_parameters=None,
         )
 
-        cls.worker = Worker(
+        self.worker = Worker(
             oak_config=self.oak_cfg,
-            user_wants_pc=cls.get_point_cloud_was_invoked,
+            user_wants_pc=self.get_point_cloud_was_invoked,
         )
 
-        cls.worker_manager = WorkerManager(cls.worker)
-        cls.worker_manager.start()
+        self.worker_manager = WorkerManager(self.worker)
+        self.worker_manager.start()
 
     async def close(self) -> None:
         """
         Implements `close` to free resources on shutdown.
         """
         LOGGER.info("Closing OAK component.")
-        cls: Oak = type(self)
-        cls.worker_manager.stop()
-        cls.worker_manager.join()
+        self.worker_manager.stop()
+        self.worker_manager.join()
         LOGGER.debug("Closed OAK component.")
 
     async def get_image(
@@ -237,14 +229,13 @@ class Oak(Camera, Reconfigurable):
             PIL.Image.Image | RawImage: The frame
         """
         mime_type = self._validate_get_image_mime_type(mime_type)
-        cls: Oak = type(self)
 
         await self._wait_until_worker_running()
 
         main_sensor_type = self.oak_cfg.sensors.primary_sensor.sensor_type
         if main_sensor_type == "color":
             if mime_type == CameraMimeType.JPEG:
-                arr = cls.worker.get_color_output(
+                arr = self.worker.get_color_output(
                     self.oak_cfg.sensors.primary_sensor
                 ).np_array
                 jpeg_encoded_bytes = encode_jpeg_bytes(arr)
@@ -255,7 +246,7 @@ class Oak(Camera, Reconfigurable):
             )
 
         if main_sensor_type == "depth":
-            captured_data = cls.worker.get_depth_output()
+            captured_data = self.worker.get_depth_output()
             arr = captured_data.np_array
             if mime_type == CameraMimeType.JPEG:
                 jpeg_encoded_bytes = encode_jpeg_bytes(arr, is_depth=True)
@@ -286,14 +277,13 @@ class Oak(Camera, Reconfigurable):
                   The metadata associated with this response
         """
         LOGGER.debug("get_images called")
-        cls: Oak = type(self)
 
         self._wait_until_worker_running()
 
         # Split logic into helpers for OAK-D and OAK-D like cameras with FFC-like cameras
         # Use MessageSynchronizer only for OAK-D-like
         if self.oak_cfg.sensors.color_sensors and self.oak_cfg.sensors.stereo_pair:
-            color_data, depth_data = await cls.worker.get_synced_color_depth_data()
+            color_data, depth_data = await self.worker.get_synced_color_depth_data()
             return handle_synced_color_and_depth(color_data, depth_data)
 
         images: List[NamedImage] = []
@@ -302,7 +292,7 @@ class Oak(Camera, Reconfigurable):
 
         if self.oak_cfg.sensors.color_sensors:
             for cs in self.oak_cfg.sensors.color_sensors:
-                color_data: CapturedData = cls.worker.get_color_output(cs)
+                color_data: CapturedData = self.worker.get_color_output(cs)
                 arr, captured_at = color_data.np_array, color_data.captured_at
                 jpeg_encoded_bytes = encode_jpeg_bytes(arr)
                 img = NamedImage("color", jpeg_encoded_bytes, CameraMimeType.JPEG)
@@ -310,7 +300,7 @@ class Oak(Camera, Reconfigurable):
                 images.append(img)
 
         if self.oak_cfg.sensors.stereo_pair:
-            depth_data: CapturedData = cls.worker.get_depth_output()
+            depth_data: CapturedData = self.worker.get_depth_output()
             arr, captured_at = depth_data.np_array, depth_data.captured_at
             depth_encoded_bytes = encode_depth_raw(arr.tobytes(), arr.shape)
             img = NamedImage(
@@ -362,24 +352,22 @@ class Oak(Camera, Reconfigurable):
             details = "Cannot process PCD. OAK camera not configured for stereo depth outputs. See README for details"
             raise MethodNotAllowed(method_name="get_point_cloud", details=details)
 
-        cls = type(self)
-
         self._wait_until_worker_running()
 
         # By default, we do not get point clouds even when color and depth are both requested
         # We have to reinitialize the worker/OakCamera to start making point clouds
-        if not cls.worker.user_wants_pc:
-            cls.worker.user_wants_pc = True
-            cls.worker.reset()
-            await cls.worker.configure()
-            cls.worker.start()
+        if not self.worker.user_wants_pc:
+            self.worker.user_wants_pc = True
+            self.worker.reset()
+            await self.worker.configure()
+            self.worker.start()
 
-        while not cls.worker.running:
+        while not self.worker.running:
             LOGGER.info("Waiting for worker to restart with pcd configured...")
             await asyncio.sleep(0.5)
 
         # Get actual PCD data from camera worker
-        pcd_obj = cls.worker.get_pcd()
+        pcd_obj = self.worker.get_pcd()
         arr = pcd_obj.np_array
 
         return encode_pcd(arr)
@@ -406,10 +394,9 @@ class Oak(Camera, Reconfigurable):
 
         Raises: ViamError
         """
-        cls: Oak = type(self)
         attempts = 0
         while attempts < max_attempts:
-            if cls.worker.running:
+            if self.worker.running:
                 return
             attempts += 1
             await asyncio.sleep(timeout_seconds)

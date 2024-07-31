@@ -273,7 +273,7 @@ class Worker:
         self.oak = None
         while not self.oak and self.should_exec:
             try:
-                self.oak = OakCamera()
+                self.oak = OakCamera(device=self.cfg.device_info)
                 LOGGER.info("Successfully initialized OakCamera.")
             except Exception as e:
                 LOGGER.error(f"Error initializing OakCamera: {e}")

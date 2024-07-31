@@ -22,6 +22,7 @@ On the new component panel, copy and paste the following attribute template into
   "width_px": 640,
   "height_px": 480,
   "frame_rate": 30,
+  "device_info": "<mxid-or-ip-address-or-usb-port-name>"
 }
 ```
 
@@ -40,6 +41,7 @@ The following attributes are available for `oak` cameras:
 | `width_px` | int | Optional | Width in pixels of the images output by this camera. If the camera cannot produce the requested resolution, the component will be configured to the closest resolution to the given height/width. Therefore, the image output size will not always match the input size. Default: `1280` |
 | `height_px` | int | Optional | Height in pixels of the images output by this camera. If the camera cannot produce the requested resolution, the component will be configured to the closest resolution to the given height/width. Therefore, the image output size will not always match the input size. Default: `720` |
 | `frame_rate` | int | Optional | The frame rate the camera will capture images at. Default: `30` |
+| `device_info` | string | Optional | Physical device identifier to connect to a specific OAK camera connected to your machine. If not specified, the module will pick the first device it detects. `device_info` can be a MXID, usb port path, or IP address. [See DepthAI documentation for more details](https://docs.luxonis.com/software/depthai/examples/device_information#Device%20information). |
 
 > [!NOTE]  
 > Higher resolutions may cause out of memory errors. See Luxonis documentation [here](https://docs.luxonis.com/projects/api/en/latest/tutorials/ram_usage/.).
@@ -56,6 +58,7 @@ The following attributes are available for `oak` cameras:
         "width_px": 640,
         "height_px": 480,
         "frame_rate": 30,
+        "device_info": "<mxid-or-ip-address-or-usb-port-name>"
       },
       "namespace": "rdk",
       "type": "camera",

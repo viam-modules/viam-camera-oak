@@ -88,6 +88,15 @@ class Validator:
                 f'inputted "{attribute}" of {int_value} cannot be less than or equal to 0.'
             )
 
+    def validate_shared_attrs(self) -> None:
+        # Validate "device_info"
+        self.validate_attr_type("device_info", "string_value")
+        device_info = self.attribute_map.get(key="device_info", default=None)
+        if device_info is None:
+            LOGGER.info(
+                '"device_info" attribute unspecified. Will default to the first OAK device detected.'
+            )
+
     def validate_oak_d(self) -> None:
         """
         A procedure called to validate the OAK-D config.
@@ -101,7 +110,13 @@ class Validator:
         Returns:
             None
         """
-        VALID_ATTRIBUTES = ["height_px", "width_px", "sensors", "frame_rate"]
+        VALID_ATTRIBUTES = [
+            "height_px",
+            "width_px",
+            "sensors",
+            "frame_rate",
+            "device_info",
+        ]
         # Check config keys are valid
         for attribute in self.attribute_map.keys():
             if attribute not in VALID_ATTRIBUTES:
@@ -254,18 +269,20 @@ class Validator:
 
 
 class OakConfig:
+    device_info: str
     sensors: Sensors
 
     def __init__(self, config: ComponentConfig):
         self.attribute_map = config.attributes.fields
-        self.initialize_sensors()
+        self.initialize_config()
 
-    def initialize_sensors(self):
+    def initialize_config(self):
         raise NotImplementedError("Subclasses should implement this method")
 
 
 class OakDConfig(OakConfig):
-    def initialize_sensors(self):
+    def initialize_config(self):
+        self.device_info = self.attribute_map["device_info"].string_value or None
         sensors_str_list = list(self.attribute_map["sensors"].list_value)
 
         height = int(self.attribute_map["height_px"].number_value) or DEFAULT_HEIGHT
@@ -289,7 +306,8 @@ class OakDConfig(OakConfig):
 
 
 class OakFfc3PConfig(OakConfig):
-    def initialize_sensors(self):
+    def initialize_config(self):
+        self.device_info = self.attribute_map["device_info"].string_value or None
         cam_sensors_list = self.attribute_map["camera_sensors"].list_value
 
         sensor_list = []

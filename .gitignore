@@ -1,9 +1,14 @@
 # top level
+.build-venv
+.canon.yaml
 .DS_Store
 .pytest_cache
 .venv
 module.tar.gz
 oak-integration-tests
+
+# build side effects
+main.spec
 
 # subfolder pycache
 __pycache__/
