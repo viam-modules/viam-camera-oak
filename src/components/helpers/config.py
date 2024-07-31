@@ -1,21 +1,25 @@
-from logging import Logger
-from typing import Literal, Mapping, Optional
-
-from google.protobuf.struct_pb2 import Struct
+from typing import List, Literal, Mapping, Optional
 
 from viam.errors import ValidationError
+from viam.logging import getLogger
 from viam.proto.app.robot import ComponentConfig
 
+from src.components.helpers.shared import Sensor, Sensors
 
-from src.worker.worker import Worker
+
+# Be sure to update README.md if default attributes are changed
+DEFAULT_FRAME_RATE = 30
+DEFAULT_WIDTH = 1280
+DEFAULT_HEIGHT = 720
+DEFAULT_COLOR_ORDER = "rgb"
+DEFAULT_INTERLEAVED = False
+LOGGER = getLogger("viam-oak-config-logger")
 
 
 class Validator:
-    def __init__(self, worker: Worker, config: ComponentConfig, logger: Logger):
-        self.worker = worker
+    def __init__(self, config: ComponentConfig):
         self.config = config
         self.attribute_map = config.attributes.fields
-        self.logger = logger
 
     def handle_err(self, err_msg: str) -> None:
         """
@@ -24,9 +28,7 @@ class Validator:
         raises & propagates the error
         """
         full_err_msg = f"Config attribute validation error: {err_msg}"
-        self.logger.error(full_err_msg)
-        if self.worker:  # stop worker if active
-            self.worker.stop()
+        LOGGER.error(full_err_msg)
         raise ValidationError(full_err_msg)
 
     def validate_attr_type(
@@ -249,3 +251,60 @@ class Validator:
 
             # Validate "interleaved"
             self.validate_attr_type("interleaved", "bool_value", cam_sensor.fields)
+
+
+class OakConfig:
+    sensors: Sensors
+
+    def __init__(self, config: ComponentConfig):
+        self.attribute_map = config.attributes.fields
+        self.initialize_sensors()
+
+    def initialize_sensors(self):
+        raise NotImplementedError("Subclasses should implement this method")
+
+
+class OakDConfig(OakConfig):
+    def initialize_sensors(self):
+        sensors_str_list = list(self.attribute_map["sensors"].list_value)
+
+        height = int(self.attribute_map["height_px"].number_value) or DEFAULT_HEIGHT
+        width = int(self.attribute_map["width_px"].number_value) or DEFAULT_WIDTH
+        frame_rate = self.attribute_map["frame_rate"].number_value or DEFAULT_FRAME_RATE
+
+        sensor_list = []
+        for sensor_str in sensors_str_list:
+            if sensor_str == "depth":
+                for cam_socket in ["cam_b", "cam_c"]:
+                    depth_sensor = Sensor(
+                        cam_socket, "depth", width, height, frame_rate
+                    )
+                    sensor_list.append(depth_sensor)
+            elif sensor_str == "color":
+                color_sensor = Sensor(
+                    "cam_a", "color", width, height, frame_rate, "rgb"
+                )
+                sensor_list.append(color_sensor)
+        self.sensors = Sensors(sensor_list)
+
+
+class OakFfc3PConfig(OakConfig):
+    def initialize_sensors(self):
+        cam_sensors_list = self.attribute_map["camera_sensors"].list_value
+
+        sensor_list = []
+        for cam_sensor_struct in cam_sensors_list:
+            fields = cam_sensor_struct.fields
+            socket = fields.get("socket").string_value
+            sensor_type = fields.get("type").string_value
+            width = int(fields.get("width_px").number_value)
+            height = int(fields.get("height_px").number_value)
+            frame_rate = fields["frame_rate"].number_value or DEFAULT_FRAME_RATE
+            color_order = fields["color_order"].string_value or DEFAULT_COLOR_ORDER
+            interleaved = fields["interleaved"].bool_value or DEFAULT_INTERLEAVED
+
+            sensor = Sensor(
+                socket, sensor_type, width, height, frame_rate, color_order, interleaved
+            )
+            sensor_list.append(sensor)
+        self.sensors = Sensors(sensor_list)

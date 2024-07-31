@@ -4,10 +4,10 @@ from viam.components.camera import Camera
 from viam.logging import getLogger
 from viam.module.module import Module
 from viam.resource.registry import Registry, ResourceCreatorRegistration
-from src.oak import Oak
+from src.components.oak import Oak
 
 
-LOGGER = getLogger(__name__)
+LOGGER = getLogger("viam-luxonis-module-logger")
 
 
 async def main():

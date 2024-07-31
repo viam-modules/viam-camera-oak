@@ -2,7 +2,7 @@ import pytest
 
 from viam.errors import ValidationError
 
-from src.oak import Oak
+from src.components.oak import Oak
 from tests.test_helpers import make_component_config
 
 

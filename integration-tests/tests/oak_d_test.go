@@ -19,10 +19,10 @@ import (
 )
 
 const (
-	componentName string = "oak-cam"
-	// Default values should mirror those at the top of oak.py and worker.py
-	defaultWidth            int = 640
-	defaultHeight           int = 400
+	componentName string = "oak-d-cam"
+	// Default values should mirror those in source code
+	defaultWidth            int = 1280
+	defaultHeight           int = 720
 	maxGRPCMessageByteCount     = 4194304 // Update this if the gRPC config ever changes
 )
 
@@ -80,7 +80,7 @@ func TestCameraServer(t *testing.T) {
 	})
 }
 
-func setUpViamServer(ctx context.Context, t *testing.T) (robot.Robot, error) {
+func setUpViamServer(ctx context.Context, _ *testing.T) (robot.Robot, error) {
 	logger := logging.NewLogger("oak-integration-tests-logger")
 
 	moduleString := strings.TrimSpace(*modulePath)
@@ -94,7 +94,7 @@ func setUpViamServer(ctx context.Context, t *testing.T) (robot.Robot, error) {
 		"components": [
 			{
 			"name": "%v",
-			"model": "viam:camera:oak",
+			"model": "viam:luxonis:oak-d",
 			"type": "camera",
 			"namespace": "rdk",
 			"attributes": {

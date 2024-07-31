@@ -1,10 +1,6 @@
-# Standard library
-import logging
-import threading
-import time
+import asyncio
 from typing import (
     Any,
-    Callable,
     ClassVar,
     Dict,
     List,
@@ -15,14 +11,10 @@ from typing import (
 )
 from typing_extensions import Self
 
-# Third party
-from google.protobuf.timestamp_pb2 import Timestamp
-import numpy as np
-
 # Viam module
 from viam.errors import NotSupportedError, ViamError
-from viam.logging import getLogger, addHandlers
-from viam.module.types import Reconfigurable, Stoppable
+from viam.logging import getLogger
+from viam.module.types import Reconfigurable
 from viam.proto.app.robot import ComponentConfig
 from viam.proto.common import ResourceName, ResponseMetadata
 from viam.resource.base import ResourceBase
@@ -33,47 +25,42 @@ from viam.components.camera import (
     Camera,
     DistortionParameters,
     IntrinsicParameters,
-    ViamImage,
 )
-from viam.media.video import CameraMimeType, NamedImage
+from viam.media.video import CameraMimeType, NamedImage, ViamImage
 
 # OAK module
-from src.worker.worker import Worker
-from src.helpers.helpers import CapturedData, encode_jpeg_bytes, encode_depth_raw
-from src.helpers.validators import Validator
-from src.worker.worker_manager import WorkerManager
+from src.components.worker.worker import Worker
+from src.components.helpers.shared import CapturedData
+from src.components.helpers.encoders import (
+    encode_jpeg_bytes,
+    encode_depth_raw,
+    encode_pcd,
+    handle_synced_color_and_depth,
+    make_metadata_from_seconds_float,
+)
+from src.components.helpers.config import (
+    Validator,
+    OakConfig,
+    OakDConfig,
+    OakFfc3PConfig,
+)
+from src.components.worker.worker_manager import WorkerManager
 
 
-LOGGER = getLogger(__name__)
+LOGGER = getLogger("viam-oak-module-logger")
 
 # Be sure to update README.md if default attributes are changed
-DEFAULT_FRAME_RATE = 30
-DEFAULT_WIDTH = 640
-DEFAULT_HEIGHT = 400
 DEFAULT_IMAGE_MIMETYPE = CameraMimeType.JPEG
 
 
-### TODO RSDK-5592: remove the below bandaid fix
-# once https://github.com/luxonis/depthai/pull/1135 is in a new release
-root_logger = logging.getLogger()
-
-# Remove all handlers from the root logger
-for handler in root_logger.handlers[:]:
-    root_logger.removeHandler(handler)
-
-# Apply Viam's logging handlers
-addHandlers(root_logger)
-
-
-class Oak(Camera, Reconfigurable, Stoppable):
+class Oak(Camera, Reconfigurable):
     """
     This class implements all available methods for the camera class: get_image,
     get_images, get_point_cloud, and get_properties.
 
     It inherits from the built-in resource subtype Base and conforms to the
     ``Reconfigurable`` protocol, which signifies that this component can be
-    reconfigured. It also confirms to the `Stoppable` protocol, which signifies
-    that the component can be stopped manually using `stop`
+    reconfigured.
 
     The constructor conforms to the ``resource.types.ResourceCreator``
     type required for all models.
@@ -105,6 +92,8 @@ class Oak(Camera, Reconfigurable, Stoppable):
 
     model: Model
     """Viam model of component"""
+    oak_cfg: OakConfig
+    """Native config"""
     worker: ClassVar[Optional[Worker]] = None
     """Singleton `Worker` handles camera logic in a separate thread"""
     worker_manager: ClassVar[Optional[WorkerManager]] = None
@@ -145,7 +134,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
         Returns:
             None
         """
-        validator = Validator(cls.worker, config, LOGGER)
+        validator = Validator(config)
 
         if config.model == str(cls._depr_oak_agnostic_model):
             LOGGER.warn(
@@ -183,66 +172,44 @@ class Oak(Camera, Reconfigurable, Stoppable):
         cls: Oak = type(self)
         try:
             LOGGER.debug("Trying to stop worker.")
-            cls.worker.stop()
+            cls.worker_manager.stop()
             LOGGER.info("Reconfiguring OAK.")
         except AttributeError:
             LOGGER.debug("No active worker.")
 
+        if self.model == self._oak_d_model:
+            self.oak_cfg = OakDConfig(config)
+        elif self.model == self._oak_ffc_3p_model:
+            self.oak_cfg = OakFfc3PConfig(config)
+        else:
+            raise ViamError(
+                f"Critical error due to spec change of validation failure: unrecognized model {self.model}"
+            )
+
+        supports_pcd = bool(self.oak_cfg.sensors.stereo_pair)
         self.camera_properties = Camera.Properties(
-            supports_pcd=True,
+            supports_pcd=supports_pcd,
             distortion_parameters=None,
             intrinsic_parameters=None,
         )
-        attribute_map = config.attributes.fields
-        self.sensors = list(attribute_map["sensors"].list_value)
-        LOGGER.debug(f"Set sensors attr to {self.sensors}")
-        self.height = int(attribute_map["height_px"].number_value) or DEFAULT_HEIGHT
-        LOGGER.debug(f"Set height attr to {self.height}")
-        self.width = int(attribute_map["width_px"].number_value) or DEFAULT_WIDTH
-        LOGGER.debug(f"Set width attr to {self.width}")
-        self.frame_rate = attribute_map["frame_rate"].number_value or DEFAULT_FRAME_RATE
-        LOGGER.debug(f"Set frame_rate attr to {self.frame_rate}")
-
-        user_wants_color, user_wants_depth = (
-            "color" in self.sensors,
-            "depth" in self.sensors,
-        )
-        callback = lambda: self.reconfigure(config, dependencies)
 
         cls.worker = Worker(
-            height=self.height,
-            width=self.width,
-            frame_rate=self.frame_rate,
-            user_wants_color=user_wants_color,
-            user_wants_depth=user_wants_depth,
+            oak_config=self.oak_cfg,
             user_wants_pc=cls.get_point_cloud_was_invoked,
-            reconfigure=callback,
-            logger=LOGGER,
         )
 
-        cls.worker_manager = WorkerManager(cls.worker, LOGGER, callback)
+        cls.worker_manager = WorkerManager(cls.worker)
         cls.worker_manager.start()
 
-    def stop(
-        self,
-        *,
-        extra: Optional[Mapping[str, Any]] = None,
-        timeout: Optional[float] = None,
-        **kwargs,
-    ) -> None:
+    async def close(self) -> None:
         """
-        Implements `stop` under the Stoppable protocol to free resources.
-
-        Args:
-            extra (Optional[Mapping[str, Any]], optional): Unused.
-            timeout (Optional[float], optional): Accepted. Defaults to None and will run with no timeout.
+        Implements `close` to free resources on shutdown.
         """
-        LOGGER.info("Stopping OAK.")
+        LOGGER.info("Closing OAK component.")
         cls: Oak = type(self)
-        if timeout:
-            self._run_with_timeout(timeout, cls.worker_manager.stop)
-        else:
-            cls.worker.stop()
+        cls.worker_manager.stop()
+        cls.worker_manager.join()
+        LOGGER.debug("Closed OAK component.")
 
     async def get_image(
         self,
@@ -272,13 +239,14 @@ class Oak(Camera, Reconfigurable, Stoppable):
         mime_type = self._validate_get_image_mime_type(mime_type)
         cls: Oak = type(self)
 
-        self._wait_until_worker_running()
+        await self._wait_until_worker_running()
 
-        main_sensor = self.sensors[0]
-
-        if main_sensor == "color":
+        main_sensor_type = self.oak_cfg.sensors.primary_sensor.sensor_type
+        if main_sensor_type == "color":
             if mime_type == CameraMimeType.JPEG:
-                arr = cls.worker.get_color_image().np_array
+                arr = cls.worker.get_color_output(
+                    self.oak_cfg.sensors.primary_sensor
+                ).np_array
                 jpeg_encoded_bytes = encode_jpeg_bytes(arr)
                 return ViamImage(jpeg_encoded_bytes, CameraMimeType.JPEG)
 
@@ -286,8 +254,8 @@ class Oak(Camera, Reconfigurable, Stoppable):
                 f'mime_type "{mime_type}" is not supported for color. Please use {CameraMimeType.JPEG}'
             )
 
-        if main_sensor == "depth":
-            captured_data = cls.worker.get_depth_map()
+        if main_sensor_type == "depth":
+            captured_data = cls.worker.get_depth_output()
             arr = captured_data.np_array
             if mime_type == CameraMimeType.JPEG:
                 jpeg_encoded_bytes = encode_jpeg_bytes(arr, is_depth=True)
@@ -307,8 +275,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
         self, *, timeout: Optional[float] = None, **kwargs
     ) -> Tuple[List[NamedImage], ResponseMetadata]:
         """
-        Gets simultaneous images from different imagers, along with associated metadata.
-        This should not be used for getting a time series of images from the same imager.
+        Gets images from every sensor on your OAK device.
 
         Returns:
             Tuple[List[NamedImage], ResponseMetadata]:
@@ -323,42 +290,36 @@ class Oak(Camera, Reconfigurable, Stoppable):
 
         self._wait_until_worker_running()
 
-        # Accumulator for images
+        # Split logic into helpers for OAK-D and OAK-D like cameras with FFC-like cameras
+        # Use MessageSynchronizer only for OAK-D-like
+        if self.oak_cfg.sensors.color_sensors and self.oak_cfg.sensors.stereo_pair:
+            color_data, depth_data = await cls.worker.get_synced_color_depth_data()
+            return handle_synced_color_and_depth(color_data, depth_data)
+
         images: List[NamedImage] = []
         # For timestamp calculation later
         seconds_float: float = None
 
-        color_data: Optional[CapturedData] = None
-        depth_data: Optional[CapturedData] = None
-        if "color" in self.sensors and "depth" in self.sensors:
-            color_data, depth_data = await cls.worker.get_synced_color_depth_data()
+        if self.oak_cfg.sensors.color_sensors:
+            for cs in self.oak_cfg.sensors.color_sensors:
+                color_data: CapturedData = cls.worker.get_color_output(cs)
+                arr, captured_at = color_data.np_array, color_data.captured_at
+                jpeg_encoded_bytes = encode_jpeg_bytes(arr)
+                img = NamedImage("color", jpeg_encoded_bytes, CameraMimeType.JPEG)
+                seconds_float = captured_at
+                images.append(img)
 
-        if "color" in self.sensors:
-            if color_data is None:
-                color_data: CapturedData = cls.worker.get_color_image()
-            arr, captured_at = color_data.np_array, color_data.captured_at
-            jpeg_encoded_bytes = encode_jpeg_bytes(arr)
-            img = NamedImage("color", jpeg_encoded_bytes, CameraMimeType.JPEG)
-            seconds_float = captured_at
-            images.append(img)
-
-        if "depth" in self.sensors:
-            if not depth_data:
-                depth_data: CapturedData = cls.worker.get_depth_map()
+        if self.oak_cfg.sensors.stereo_pair:
+            depth_data: CapturedData = cls.worker.get_depth_output()
             arr, captured_at = depth_data.np_array, depth_data.captured_at
-            depth_encoded_bytes = encode_depth_raw(arr.tobytes(), arr.shape, LOGGER)
+            depth_encoded_bytes = encode_depth_raw(arr.tobytes(), arr.shape)
             img = NamedImage(
                 "depth", depth_encoded_bytes, CameraMimeType.VIAM_RAW_DEPTH
             )
             seconds_float = captured_at
             images.append(img)
 
-        # Create timestamp for metadata
-        seconds_int = int(seconds_float)
-        nanoseconds_int = int((seconds_float - seconds_int) * 1e9)
-        metadata = ResponseMetadata(
-            captured_at=Timestamp(seconds=seconds_int, nanos=nanoseconds_int)
-        )
+        metadata = make_metadata_from_seconds_float(seconds_float)
         return images, metadata
 
     async def get_point_cloud(
@@ -397,10 +358,8 @@ class Oak(Camera, Reconfigurable, Stoppable):
             str: The mimetype of the point cloud (e.g. PCD).
         """
         # Validation
-        if "color" not in self.sensors or "depth" not in self.sensors:
-            details = (
-                'Please include "color" and "depth" in the "sensors" attribute list.'
-            )
+        if not self.oak_cfg.sensors.stereo_pair:
+            details = "Cannot process PCD. OAK camera not configured for stereo depth outputs. See README for details"
             raise MethodNotAllowed(method_name="get_point_cloud", details=details)
 
         cls = type(self)
@@ -410,34 +369,20 @@ class Oak(Camera, Reconfigurable, Stoppable):
         # By default, we do not get point clouds even when color and depth are both requested
         # We have to reinitialize the worker/OakCamera to start making point clouds
         if not cls.worker.user_wants_pc:
-            cls.get_point_cloud_was_invoked = True
-            cls.worker.oak.close()  # triggers reconfigure callback
+            cls.worker.user_wants_pc = True
+            cls.worker.reset()
+            await cls.worker.configure()
+            cls.worker.start()
 
-        while not cls.worker.user_wants_pc or not cls.worker.running:
-            LOGGER.debug("Waiting for worker to restart with pcd configured...")
-            time.sleep(0.5)
+        while not cls.worker.running:
+            LOGGER.info("Waiting for worker to restart with pcd configured...")
+            await asyncio.sleep(0.5)
 
         # Get actual PCD data from camera worker
         pcd_obj = cls.worker.get_pcd()
         arr = pcd_obj.np_array
 
-        # DepthAI examples indicate that we need to normalize data by / 1000
-        # https://github.com/luxonis/depthai/blob/f4a0d3d4364565faacf3ce9f131a42b2b951ec1b/depthai_sdk/src/depthai_sdk/visualize/visualizers/viewer_visualizer.py#L72
-        flat_array = arr.reshape(-1, arr.shape[-1]) / 1000.0
-        version = "VERSION .7\n"
-        fields = "FIELDS x y z\n"
-        size = "SIZE 4 4 4\n"
-        type_of = "TYPE F F F\n"
-        count = "COUNT 1 1 1\n"
-        height = "HEIGHT 1\n"
-        viewpoint = "VIEWPOINT 0 0 0 1 0 0 0\n"
-        data = "DATA binary\n"
-        width = f"WIDTH {len(flat_array)}\n"
-        points = f"POINTS {len(flat_array)}\n"
-        header = f"{version}{fields}{size}{type_of}{count}{width}{height}{viewpoint}{points}{data}"
-        header_bytes = bytes(header, "UTF-8")
-        float_array = np.array(flat_array, dtype="f")
-        return (header_bytes + float_array.tobytes(), CameraMimeType.PCD)
+        return encode_pcd(arr)
 
     async def get_properties(
         self, *, timeout: Optional[float] = None, **kwargs
@@ -450,7 +395,7 @@ class Oak(Camera, Reconfigurable, Stoppable):
         """
         return self.camera_properties
 
-    def _wait_until_worker_running(self, max_attempts=5, timeout_seconds=1):
+    async def _wait_until_worker_running(self, max_attempts=5, timeout_seconds=1):
         """
         Blocks on camera data methods that require the worker to be running.
         Unblocks once worker is running or max number of attempts to pass is reached.
@@ -459,16 +404,15 @@ class Oak(Camera, Reconfigurable, Stoppable):
             max_attempts (int, optional): Defaults to 5.
             timeout_seconds (int, optional): Defaults to 1.
 
-        Raises:
-
+        Raises: ViamError
         """
         cls: Oak = type(self)
         attempts = 0
         while attempts < max_attempts:
             if cls.worker.running:
                 return
-            time.sleep(timeout_seconds)
             attempts += 1
+            await asyncio.sleep(timeout_seconds)
         raise ViamError(
             "Camera data requested before camera worker was ready. Please ensure the camera is properly "
             "connected and configured, especially for non-integrated models such as the OAK-FFC."
@@ -494,8 +438,8 @@ class Oak(Camera, Reconfigurable, Stoppable):
             return CameraMimeType.JPEG  # default is JPEG
 
         # Get valid types based on main sensor
-        main_sensor = self.sensors[0]
-        if main_sensor == "color":
+        main_sensor_type = self.oak_cfg.sensors.primary_sensor.sensor_type
+        if main_sensor_type == "color":
             valid_mime_types = [CameraMimeType.JPEG]
         else:  # depth
             valid_mime_types = [CameraMimeType.JPEG, CameraMimeType.VIAM_RAW_DEPTH]
@@ -510,21 +454,6 @@ class Oak(Camera, Reconfigurable, Stoppable):
             raise err
 
         return mime_type
-
-    def _run_with_timeout(self, timeout: float, function: Callable) -> None:
-        """
-        Run a function with timeout.
-
-        Args:
-            timeout (float)
-            function (Callable)
-        """
-        thread = threading.Thread(target=function)
-        thread.start()
-        thread.join(timeout)
-        if thread.is_alive():
-            thread.join()
-            LOGGER.error(f"{function.__name__} timed out after {timeout} seconds.")
 
 
 class MethodNotAllowed(ViamError):
