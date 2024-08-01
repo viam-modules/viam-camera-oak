@@ -62,7 +62,7 @@ The following attributes are available for `oak` cameras:
       },
       "namespace": "rdk",
       "type": "camera",
-      "model": "viam:camera:oak"
+      "model": "viam:luxonis:oak-d"
     }
   ]
 }

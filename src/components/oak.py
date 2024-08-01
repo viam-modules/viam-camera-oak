@@ -170,8 +170,7 @@ class Oak(Camera, Reconfigurable):
             config (ComponentConfig)
             dependencies (Mapping[ResourceName, ResourceBase])
         """
-        if self.worker:
-            self.worker.stop()
+        self._close()
 
         if self.model == self._oak_d_model:
             self.oak_cfg = OakDConfig(config)
@@ -202,9 +201,15 @@ class Oak(Camera, Reconfigurable):
         Implements `close` to free resources on shutdown.
         """
         LOGGER.info("Closing OAK component.")
-        self.worker_manager.stop()
-        self.worker_manager.join()
+        self._close()
         LOGGER.debug("Closed OAK component.")
+
+    def _close(self) -> None:
+        if self.worker_manager:
+            self.worker_manager.stop()
+            self.worker_manager.join()
+        if self.worker:
+            self.worker.stop()
 
     async def get_image(
         self,
