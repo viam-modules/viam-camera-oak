@@ -64,14 +64,14 @@ def get_closest_dai_resolution(
         Union[dai.ColorCameraProperties.SensorResolution, dai.MonoCameraProperties.SensorResolution]
     """
 
-    def euclidian_distance(width_and_height: Tuple[int, int]) -> float:
+    def euclidean_distance(width_and_height: Tuple[int, int]) -> float:
         w1, h1 = width_and_height
         w2, h2 = width, height
         return math.sqrt((w1 - w2) ** 2 + (h1 - h2) ** 2)
 
     closest = min(
         dimensions_to_resolution.keys(),
-        key=euclidian_distance,
+        key=euclidean_distance,
     )
     return dimensions_to_resolution[closest]
 
