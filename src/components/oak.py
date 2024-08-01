@@ -170,6 +170,9 @@ class Oak(Camera, Reconfigurable):
             config (ComponentConfig)
             dependencies (Mapping[ResourceName, ResourceBase])
         """
+        if self.worker:
+            self.worker.stop()
+
         if self.model == self._oak_d_model:
             self.oak_cfg = OakDConfig(config)
         elif self.model == self._oak_ffc_3p_model:
@@ -352,15 +355,15 @@ class Oak(Camera, Reconfigurable):
             details = "Cannot process PCD. OAK camera not configured for stereo depth outputs. See README for details"
             raise MethodNotAllowed(method_name="get_point_cloud", details=details)
 
-        self._wait_until_worker_running()
+        await self._wait_until_worker_running()
 
         # By default, we do not get point clouds even when color and depth are both requested
         # We have to reinitialize the worker/OakCamera to start making point clouds
         if not self.worker.user_wants_pc:
             self.worker.user_wants_pc = True
             self.worker.reset()
-            await self.worker.configure()
-            self.worker.start()
+            self.worker.configure()
+            await self.worker.start()
 
         while not self.worker.running:
             LOGGER.info("Waiting for worker to restart with pcd configured...")

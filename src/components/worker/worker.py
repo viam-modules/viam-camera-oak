@@ -89,16 +89,16 @@ class Worker:
 
     pipeline: Optional[dai.Pipeline]
     device: Optional[dai.Device]
+    color_sensor_queues: Optional[List[SensorAndQueue]]
+    depth_queue: Optional[dai.DataOutputQueue]
+    pcd_queue: Optional[dai.DataOutputQueue]
+
     should_exec: bool
     configured: bool
     running: bool
 
     depth_stream_name = "depth"
     pc_stream_name = "pc"
-
-    color_sensor_queues: List[SensorAndQueue]
-    depth_queue: dai.DataOutputQueue
-    pcd_queue: dai.DataOutputQueue
 
     def __init__(
         self,
@@ -111,6 +111,9 @@ class Worker:
 
         self.device = None
         self.pipeline = None
+        self.color_sensor_queues = None
+        self.depth_queue = None
+        self.pcd_queue = None
 
         # Flag for stopping execution and busy loops
         self.should_exec = True
@@ -410,12 +413,8 @@ class Worker:
 
     def reset(self) -> None:
         LOGGER.debug("Resetting worker.")
+        self.stop()
         self.should_exec = True
-        self.configured = False
-        self.running = False
-        if self.device:
-            self.device.close()
-            self.device = None
 
     def _process_depth_frame(self, sensor: Sensor, arr: NDArray) -> NDArray:
         if arr.dtype != np.uint16:

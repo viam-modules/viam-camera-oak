@@ -40,11 +40,12 @@ func TestCameraServer(t *testing.T) {
 		test.That(t, err, test.ShouldBeNil)
 	})
 
-	t.Run("Get images method", func(t *testing.T) {
+	t.Run("Get images method (two images)", func(t *testing.T) {
 		images, metadata, err := cam.Images(timeoutCtx)
 		test.That(t, err, test.ShouldBeNil)
 		test.That(t, images, test.ShouldNotBeNil)
 		test.That(t, metadata, test.ShouldNotBeNil)
+		test.That(t, len(images), test.ShouldEqual, 2)
 		for _, img := range images {
 			test.That(t, img.SourceName, test.ShouldEqual, componentName)
 			bounds := img.Image.Bounds()
@@ -64,7 +65,7 @@ func TestCameraServer(t *testing.T) {
 	t.Run("Reconfigure module", func(t *testing.T) {
 		cfg := resource.Config{
 			Attributes: utils.AttributeMap{
-				"sensors": []string{"color"},
+				"sensors": []string{"depth"},
 			},
 		}
 		err := cam.Reconfigure(timeoutCtx, resource.Dependencies{}, cfg)
