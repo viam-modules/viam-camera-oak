@@ -286,7 +286,7 @@ class Oak(Camera, Reconfigurable):
         """
         LOGGER.debug("get_images called")
 
-        self._wait_until_worker_running()
+        await self._wait_until_worker_running()
 
         # Split logic into helpers for OAK-D and OAK-D like cameras with FFC-like cameras
         # Use MessageSynchronizer only for OAK-D-like
@@ -360,7 +360,7 @@ class Oak(Camera, Reconfigurable):
             details = "Cannot process PCD. OAK camera not configured for stereo depth outputs. See README for details"
             raise MethodNotAllowed(method_name="get_point_cloud", details=details)
 
-        self._wait_until_worker_running()
+        await self._wait_until_worker_running()
 
         # By default, we do not get point clouds even when color and depth are both requested
         # We have to reinitialize the worker/OakCamera to start making point clouds
