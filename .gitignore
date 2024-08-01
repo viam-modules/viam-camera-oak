@@ -1,6 +1,5 @@
 # top level
 .build-env
-.canon.yaml
 .DS_Store
 .pytest_cache
 .venv

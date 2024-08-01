@@ -1,0 +1,4 @@
+# This file provides project-level configuration for the canon dev environment utility. https://github.com/viamrobotics/canon
+oak:
+    default: true
+    image_arm64: ghcr.io/viamrobotics/cloud-build-base:arm64
