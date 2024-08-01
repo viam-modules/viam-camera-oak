@@ -243,9 +243,9 @@ class Worker:
             stage = "point cloud"
             configure_pc(color_node, depth_node)
 
-            LOGGER.info("Successfully configured OakCamera")
+            LOGGER.info("Successfully configured pipeline.")
         except Exception as e:
-            msg = f"Error configuring OakCamera at stage '{stage}': {e}"
+            msg = f"Error configuring pipeline at stage '{stage}': {e}"
             resolution_err_substr = "bigger than maximum at current sensor resolution"
             calibration_err_substr = "no Camera data available"
             if resolution_err_substr in str(e):
@@ -262,9 +262,9 @@ class Worker:
         while not self.device and self.should_exec:
             try:
                 self.device = dai.Device(self.pipeline)
-                LOGGER.info("Successfully initialized OakCamera.")
+                LOGGER.debug("Successfully initialized device.")
             except Exception as e:
-                LOGGER.error(f"Error initializing OakCamera: {e}")
+                LOGGER.error(f"Error initializing device: {e}")
                 await asyncio.sleep(1)
 
         self.color_sensor_queues: List[SensorAndQueue] = []
@@ -292,6 +292,7 @@ class Worker:
             self.message_synchronizer.callbacks_set = True
 
         self.running = True
+        LOGGER.info("Successfully started camera worker.")
 
     async def get_synced_color_depth_data(self) -> Tuple[CapturedData, CapturedData]:
         if not self.running:
@@ -447,7 +448,7 @@ class Worker:
 
 class MessageSynchronizer:
     """
-    MessageSynchronizer manages synchronization of frame messages for color and depth data from OakCamera packet queues,
+    MessageSynchronizer manages synchronization of frame messages for color and depth data packet queues,
     maintaining an ordered dictionary of messages keyed chronologically by sequence number.
     """
 
