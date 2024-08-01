@@ -1,9 +1,10 @@
 # top level
-.build-venv
+.build-env
 .canon.yaml
 .DS_Store
 .pytest_cache
 .venv
+build
 module.tar.gz
 oak-integration-tests
 
