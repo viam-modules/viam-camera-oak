@@ -244,7 +244,7 @@ class Worker:
 
             LOGGER.info("Successfully configured pipeline.")
         except Exception as e:
-            msg = f"Error configuring pipeline at stage '{stage}': {e}"
+            msg = f"Error configuring pipeline at stage '{stage}'. Note the error following this log"
             resolution_err_substr = "bigger than maximum at current sensor resolution"
             calibration_err_substr = "no Camera data available"
             if resolution_err_substr in str(e):
@@ -252,6 +252,7 @@ class Worker:
             elif calibration_err_substr in str(e):
                 msg += ". If using a non-integrated model, please check that the camera is calibrated properly."
             LOGGER.error(msg)
+            raise e
 
         self.message_synchronizer = MessageSynchronizer()
         self.configured = True
