@@ -1,15 +1,30 @@
 from typing import Dict, List, Literal, Optional, Tuple
 from numpy.typing import NDArray
 
-from depthai_sdk.components.camera_component import CameraComponent
+from depthai import CameraBoardSocket
+
+
+def get_socket_from_str(s: str) -> CameraBoardSocket:
+    if s == "cam_a":
+        return CameraBoardSocket.CAM_A
+    elif s == "cam_b":
+        return CameraBoardSocket.CAM_B
+    elif s == "cam_c":
+        return CameraBoardSocket.CAM_C
+    else:
+        raise Exception(f"Camera socket '{s}' is not recognized or supported.")
 
 
 class Sensor:
-    component: Optional[CameraComponent] = None
+    def get_unique_name(self) -> str:
+        if self.sensor_type == "color":
+            return f"{self.socket_str}_rgb"
+        else:
+            return f"{self.socket_str}_mono"
 
     def __init__(
         self,
-        socket: Literal["cam_a", "cam_b", "cam_c"],
+        socket_str: Literal["cam_a", "cam_b", "cam_c"],
         sensor_type: Literal["color", "depth"],
         width: int,
         height: int,
@@ -17,7 +32,8 @@ class Sensor:
         color_order: Literal["rgb", "bgr"] = "rgb",
         interleaved: bool = False,
     ):
-        self.socket = socket
+        self.socket_str = socket_str
+        self.socket = get_socket_from_str(socket_str)
         self.sensor_type = sensor_type
         self.width = width
         self.height = height
@@ -35,7 +51,7 @@ class Sensors:
     def __init__(self, sensors: List[Sensor]):
         self._mapping = dict()
         for sensor in sensors:
-            self._mapping[sensor.socket] = sensor
+            self._mapping[sensor.socket_str] = sensor
 
         self.color_sensors = self._find_color_sensors()
         self.stereo_pair = self._find_stereo_pair()

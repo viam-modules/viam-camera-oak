@@ -363,12 +363,12 @@ class Oak(Camera, Reconfigurable):
         await self._wait_until_worker_running()
 
         # By default, we do not get point clouds even when color and depth are both requested
-        # We have to reinitialize the worker/OakCamera to start making point clouds
+        # We have to reinitialize the worker/pipeline+device to start making point clouds
         if not self.worker.user_wants_pc:
             self.worker.user_wants_pc = True
             self.worker.reset()
-            await self.worker.configure()
-            self.worker.start()
+            self.worker.configure()
+            await self.worker.start()
 
         while not self.worker.running:
             LOGGER.info("Waiting for worker to restart with pcd configured...")
