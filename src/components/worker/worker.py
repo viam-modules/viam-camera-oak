@@ -269,7 +269,9 @@ class Worker:
 
         self.color_sensor_queues: List[SensorAndQueue] = []
         for cs in self.cfg.sensors.color_sensors:
-            q = self.device.getOutputQueue(cs.get_unique_name(), MAX_COLOR_DEPTH_QUEUE_SIZE, blocking=False)
+            q = self.device.getOutputQueue(
+                cs.get_unique_name(), MAX_COLOR_DEPTH_QUEUE_SIZE, blocking=False
+            )
             self.color_sensor_queues.append(SensorAndQueue(cs, q))
 
         if self.cfg.sensors.stereo_pair:
