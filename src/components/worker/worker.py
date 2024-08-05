@@ -36,6 +36,9 @@ DIMENSIONS_TO_COLOR_RES = {
 }  # color camera component only accepts this subset of depthai_sdk.components.camera_helper.colorResolutions
 
 MAX_GRPC_MESSAGE_BYTE_COUNT = 4194304  # Update this if the gRPC config ever changes
+MAX_COLOR_DEPTH_QUEUE_SIZE = 30
+MAX_PC_QUEUE_SIZE = 5
+MAX_MSG_SYCHRONIZER_MSGS_SIZE = 50
 
 LOGGER = getLogger("viam-oak-worker-logger")
 
@@ -265,16 +268,16 @@ class Worker:
 
         self.color_sensor_queues: List[SensorAndQueue] = []
         for cs in self.cfg.sensors.color_sensors:
-            q = self.device.getOutputQueue(cs.get_unique_name(), 30, blocking=False)
+            q = self.device.getOutputQueue(cs.get_unique_name(), MAX_COLOR_DEPTH_QUEUE_SIZE, blocking=False)
             self.color_sensor_queues.append(SensorAndQueue(cs, q))
 
         if self.cfg.sensors.stereo_pair:
             self.depth_queue = self.device.getOutputQueue(
-                self.depth_stream_name, 30, blocking=False
+                self.depth_stream_name, MAX_COLOR_DEPTH_QUEUE_SIZE, blocking=False
             )
             if self.user_wants_pc:
                 self.pcd_queue = self.device.getOutputQueue(
-                    self.pc_stream_name, 5, blocking=False
+                    self.pc_stream_name, MAX_PC_QUEUE_SIZE, blocking=False
                 )
 
         should_get_synced_color_depth_outputs = len(
@@ -448,7 +451,6 @@ class MessageSynchronizer:
     maintaining an ordered dictionary of messages keyed chronologically by sequence number.
     """
 
-    MAX_MSGS_SIZE = 50
     msgs: OrderedDict[int, Dict[str, dai.ADatatype]]
     write_lock: Lock
     callbacks_set: bool
@@ -487,5 +489,5 @@ class MessageSynchronizer:
             self._cleanup_msgs()
 
     def _cleanup_msgs(self):
-        while len(self.msgs) > self.MAX_MSGS_SIZE:
+        while len(self.msgs) > MAX_MSG_SYCHRONIZER_MSGS_SIZE:
             self.msgs.popitem(last=False)  # remove oldest item
