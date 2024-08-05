@@ -21,7 +21,7 @@ from numpy.typing import NDArray
 import numpy as np
 
 from src.components.helpers.shared import CapturedData, Sensor
-from src.components.helpers.config import OakConfig
+from src.config import OakConfig
 
 DIMENSIONS_TO_MONO_RES = {
     (1280, 800): dai.MonoCameraProperties.SensorResolution.THE_800_P,

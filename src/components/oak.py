@@ -38,8 +38,7 @@ from src.components.helpers.encoders import (
     handle_synced_color_and_depth,
     make_metadata_from_seconds_float,
 )
-from src.components.helpers.config import (
-    Validator,
+from src.config import (
     OakConfig,
     OakDConfig,
     OakFfc3PConfig,
@@ -49,7 +48,6 @@ from src.components.worker.worker_manager import WorkerManager
 
 LOGGER = getLogger("viam-oak-module-logger")
 
-# Be sure to update README.md if default attributes are changed
 DEFAULT_IMAGE_MIMETYPE = CameraMimeType.JPEG
 
 
@@ -121,7 +119,7 @@ class Oak(Camera, Reconfigurable):
         return camera_cls
 
     @classmethod
-    def validate(cls, config: ComponentConfig) -> None:
+    def validate(cls, config: ComponentConfig) -> List[str]:
         """
         A procedure called to validate the camera config.
 
@@ -132,10 +130,8 @@ class Oak(Camera, Reconfigurable):
             ValidationError: with a description of what is wrong about the config
 
         Returns:
-            None
+            List[str]: of dep names
         """
-        validator = Validator(config)
-
         if config.model == str(cls._depr_oak_agnostic_model):
             LOGGER.warn(
                 f"The '{cls._depr_oak_agnostic_model}' is deprecated. Please switch to '{cls._oak_d_model}' or '{cls._oak_ffc_3p_model}'"
@@ -153,11 +149,10 @@ class Oak(Camera, Reconfigurable):
         else:
             raise ViamError(f"Cannot validate unrecognized model: {cls.model}")
 
-        validator.validate_shared_attrs()
         if cls.model == cls._oak_d_model:
-            validator.validate_oak_d()
+            return OakDConfig.validate(config.attributes.fields)
         else:
-            validator.validate_oak_ffc_3p()
+            return OakFfc3PConfig.validate(config.attributes.fields)
 
     def reconfigure(
         self, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]
@@ -173,13 +168,14 @@ class Oak(Camera, Reconfigurable):
         self._close()
 
         if self.model == self._oak_d_model:
-            self.oak_cfg = OakDConfig(config)
+            self.oak_cfg = OakDConfig(config.attributes.fields)
         elif self.model == self._oak_ffc_3p_model:
-            self.oak_cfg = OakFfc3PConfig(config)
+            self.oak_cfg = OakFfc3PConfig(config.attributes.fields)
         else:
             raise ViamError(
-                f"Critical error due to spec change of validation failure: unrecognized model {self.model}"
+                f"Critical logic error due to spec change or validation failure: unrecognized model {self.model}"
             )
+        self.oak_cfg.initialize_config()
 
         supports_pcd = bool(self.oak_cfg.sensors.stereo_pair)
         self.camera_properties = Camera.Properties(
