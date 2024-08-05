@@ -34,7 +34,6 @@ class YoloDetectionNetwork(Vision, Reconfigurable):
         self_obj.reconfigure(config, dependencies)
         return self_obj
 
-    # Validates JSON Configuration and returns list of dep names
     @classmethod
     def validate(cls, config: ServiceConfig) -> Sequence[str]:
         return YDNConfig.validate(config.attributes.fields)
