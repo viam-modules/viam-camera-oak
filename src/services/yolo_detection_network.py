@@ -37,7 +37,7 @@ class YoloDetectionNetwork(Vision, Reconfigurable):
     @classmethod
     def validate(cls, config: ServiceConfig) -> Sequence[str]:
         return YDNConfig.validate(config.attributes.fields)
-    
+
     def reconfigure(
         self, config: ServiceConfig, dependencies: Mapping[ResourceName, ResourceBase]
     ):
@@ -102,7 +102,7 @@ class YoloDetectionNetwork(Vision, Reconfigurable):
         **kwargs,
     ):
         raise NotImplementedError
-    
+
     async def get_properties(
         self,
         *,

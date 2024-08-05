@@ -481,18 +481,37 @@ class YDNConfig(BaseConfig):
         self.input_source = self.attribute_map["input_source"].string_value
         self.width = int(self.attribute_map["width_px"].number_value)
         self.height = int(self.attribute_map["height_px"].number_value)
-        self.num_threads = int(self.attribute_map["num_threads"].number_value) or self.num_threads
-        self.num_nce_per_thread = int(self.attribute_map["num_nce_per_thread"].number_value) or self.num_nce_per_thread
-        self.is_object_tracker = self.attribute_map["is_object_tracker"].bool_value or self.is_object_tracker
+        self.num_threads = (
+            int(self.attribute_map["num_threads"].number_value) or self.num_threads
+        )
+        self.num_nce_per_thread = (
+            int(self.attribute_map["num_nce_per_thread"].number_value)
+            or self.num_nce_per_thread
+        )
+        self.is_object_tracker = (
+            self.attribute_map["is_object_tracker"].bool_value or self.is_object_tracker
+        )
 
         yolo_cfg = self.attribute_map["yolo_config"].struct_value.fields
         self.blob_path = yolo_cfg["blob_path"].string_value
         self.label_map = [label for label in yolo_cfg["labels"].list_value]
-        self.confidence_threshold = yolo_cfg["confidence_threshold"].number_value or self.confidence_threshold
-        self.iou_threshold = yolo_cfg["iou_threshold"].number_value or self.iou_threshold
+        self.confidence_threshold = (
+            yolo_cfg["confidence_threshold"].number_value or self.confidence_threshold
+        )
+        self.iou_threshold = (
+            yolo_cfg["iou_threshold"].number_value or self.iou_threshold
+        )
         self.anchors = yolo_cfg["anchors"].list_value if "anchors" in yolo_cfg else []
-        self.anchor_masks = {
-            field_name: anchors.list_value
-            for field_name, anchors in yolo_cfg["anchor_masks"].struct_value.fields.items()
-        } if "anchor_masks" in yolo_cfg else dict()
-        self.coordinate_size = int(yolo_cfg["coordinate_size"].number_value) or self.coordinate_size
+        self.anchor_masks = (
+            {
+                field_name: anchors.list_value
+                for field_name, anchors in yolo_cfg[
+                    "anchor_masks"
+                ].struct_value.fields.items()
+            }
+            if "anchor_masks" in yolo_cfg
+            else dict()
+        )
+        self.coordinate_size = (
+            int(yolo_cfg["coordinate_size"].number_value) or self.coordinate_size
+        )

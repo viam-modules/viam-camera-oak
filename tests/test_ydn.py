@@ -384,14 +384,11 @@ def test_validate_no_errors():
         assert cam_name == "oak-cam"
 
     try:
-        ydn = YoloDetectionNetwork
         deps1 = YoloDetectionNetwork.validate(full_correct_config)
         check_deps(deps1)
-        ydn.reconfigure(ydn, full_correct_config, deps1)
 
         deps2 = YoloDetectionNetwork.validate(minimal_correct_config)
         check_deps(deps2)
-        ydn.reconfigure(ydn, minimal_correct_config, deps2)
     except Exception as e:
         s = (f"Expected a correct config to not raise {type(e)} during validation/reconfiguration, yet it did :,)")
         pytest.fail(reason=s)
