@@ -55,8 +55,11 @@ class WorkerManager(threading.Thread):
         while not self._stop_event.is_set():
             self.logger.debug("Checking if worker must be restarted.")
             if self.worker.device and self.worker.device.isClosed():
-                self.logger.info("Camera is closed. Stopping and restarting worker.")
-                await self._restart_worker()
+                with self.restart_atomic_bool.lock:
+                    self.logger.info(
+                        "Camera is closed. Stopping and restarting worker."
+                    )
+                    await self._restart_worker()
             if self.restart_atomic_bool.get():
                 with self.restart_atomic_bool.lock:
                     self.logger.info(
