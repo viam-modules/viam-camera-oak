@@ -1,4 +1,4 @@
-from typing import List, Literal, Mapping, Optional, Self
+from typing import List, Literal, Mapping, Optional
 
 from google.protobuf.struct_pb2 import Value
 
@@ -345,7 +345,7 @@ class YDNConfig(BaseConfig):
     service_id: str
 
     @classmethod
-    def from_kwargs(cls, **kwargs) -> Self:
+    def from_kwargs(cls, **kwargs):
         self = cls(dict())
         self.input_source = kwargs["input_source"]
         self.width = kwargs["width"]

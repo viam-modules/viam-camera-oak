@@ -1,6 +1,5 @@
 import asyncio
 import threading
-from typing import Self
 
 from src.components.worker.worker import Worker
 from viam.logging import getLogger
@@ -10,7 +9,7 @@ class AtomicBoolean:
     boolean: bool
     lock: threading.Lock
 
-    def __init__(self, initial_value=False) -> Self:
+    def __init__(self, initial_value=False):
         # Only access and modify value with lock acquired. Trusting you on this...
         self.boolean = initial_value
         self.lock = threading.Lock()
