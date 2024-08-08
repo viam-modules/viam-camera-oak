@@ -19,6 +19,10 @@
     {
       "api": "rdk:component:camera",
       "model": "viam:luxonis:oak-d"
+    },
+    {
+      "api": "rdk:service:vision",
+      "model": "viam:luxonis:yolo-detection-service"
     }
   ],
   "build": {
