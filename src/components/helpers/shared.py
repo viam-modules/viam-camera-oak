@@ -87,7 +87,14 @@ class CapturedData:
     """
     CapturedData is image data with the data as an np array,
     plus the timestamp it was captured at.
+
+    This class uses __slots__ to:
+        - Optimize memory usage by pre-defining attributes.
+        - Speed up attribute access slightly.
+        - Prevent unidiomatic additions of new attributes at runtime.
     """
+
+    __slots__ = ("np_array", "captured_at")
 
     def __init__(self, np_array: NDArray, captured_at: float) -> None:
         self.np_array = np_array

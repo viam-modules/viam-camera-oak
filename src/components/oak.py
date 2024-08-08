@@ -4,6 +4,7 @@ from typing import (
     ClassVar,
     Dict,
     List,
+    Literal,
     Mapping,
     NamedTuple,
     Optional,
@@ -19,6 +20,7 @@ from viam.proto.app.robot import ComponentConfig
 from viam.proto.common import ResourceName, ResponseMetadata
 from viam.resource.base import ResourceBase
 from viam.resource.types import Model, ModelFamily
+from viam.utils import ValueTypes
 
 # Viam camera
 from viam.components.camera import (
@@ -28,7 +30,7 @@ from viam.components.camera import (
 )
 from viam.media.video import CameraMimeType, NamedImage, ViamImage
 
-# OAK module
+# src
 from src.components.worker.worker import Worker
 from src.components.helpers.shared import CapturedData
 from src.components.helpers.encoders import (
@@ -38,12 +40,16 @@ from src.components.helpers.encoders import (
     handle_synced_color_and_depth,
     make_metadata_from_seconds_float,
 )
-from src.config import (
-    OakConfig,
-    OakDConfig,
-    OakFfc3PConfig,
-)
+from src.config import OakConfig, OakDConfig, OakFfc3PConfig, YDNConfig
 from src.components.worker.worker_manager import WorkerManager
+from src.do_command_helpers import (
+    decode_ydn_configure_command,
+    encode_detections,
+    encode_image_data,
+    YDN_CONFIGURE,
+    YDN_DECONFIGURE,
+    YDN_CAPTURE_ALL,
+)
 
 
 LOGGER = getLogger("viam-oak-module-logger")
@@ -92,6 +98,8 @@ class Oak(Camera, Reconfigurable):
     """Viam model of component"""
     oak_cfg: OakConfig
     """Native config"""
+    ydn_configs: Mapping[str, YDNConfig]
+    """Configs populated by ydn service"""
     worker: Optional[Worker] = None
     """`Worker` handles camera logic in a separate thread"""
     worker_manager: Optional[WorkerManager] = None
@@ -103,20 +111,11 @@ class Oak(Camera, Reconfigurable):
     def new(
         cls, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]
     ) -> Self:
-        """
-        Used to register the module model class as a resource.
-
-        Args:
-            config (ComponentConfig)
-            dependencies (Mapping[ResourceName, ResourceBase])
-
-        Returns:
-            Self: the OAK model class
-        """
-        camera_cls = cls(config.name)
-        camera_cls.validate(config)
-        camera_cls.reconfigure(config, dependencies)
-        return camera_cls
+        self = cls(config.name)
+        cls.validate(config)
+        self.ydn_configs = dict()  # YDN configs have to survive reconfigures
+        self.reconfigure(config, dependencies)
+        return self
 
     @classmethod
     def validate(cls, config: ComponentConfig) -> List[str]:
@@ -173,7 +172,7 @@ class Oak(Camera, Reconfigurable):
             self.oak_cfg = OakFfc3PConfig(config.attributes.fields)
         else:
             raise ViamError(
-                f"Critical logic error due to spec change or validation failure: unrecognized model {self.model}"
+                f"Critical logic error due to spec change or validation failure: unrecognized model {self.model}. This is likely a bug."
             )
         self.oak_cfg.initialize_config()
 
@@ -186,6 +185,7 @@ class Oak(Camera, Reconfigurable):
 
         self.worker = Worker(
             oak_config=self.oak_cfg,
+            ydn_configs=self.ydn_configs,
             user_wants_pc=self.get_point_cloud_was_invoked,
         )
 
@@ -234,14 +234,15 @@ class Oak(Camera, Reconfigurable):
         """
         mime_type = self._validate_get_image_mime_type(mime_type)
 
-        await self._wait_until_worker_running()
+        await self._wait_for_worker()
 
         main_sensor_type = self.oak_cfg.sensors.primary_sensor.sensor_type
         if main_sensor_type == "color":
             if mime_type == CameraMimeType.JPEG:
-                arr = self.worker.get_color_output(
+                captured_data = await self.worker.get_color_output(
                     self.oak_cfg.sensors.primary_sensor
-                ).np_array
+                )
+                arr = captured_data.np_array
                 jpeg_encoded_bytes = encode_jpeg_bytes(arr)
                 return ViamImage(jpeg_encoded_bytes, CameraMimeType.JPEG)
 
@@ -250,7 +251,7 @@ class Oak(Camera, Reconfigurable):
             )
 
         if main_sensor_type == "depth":
-            captured_data = self.worker.get_depth_output()
+            captured_data = await self.worker.get_depth_output()
             arr = captured_data.np_array
             if mime_type == CameraMimeType.JPEG:
                 jpeg_encoded_bytes = encode_jpeg_bytes(arr, is_depth=True)
@@ -282,7 +283,7 @@ class Oak(Camera, Reconfigurable):
         """
         LOGGER.debug("get_images called")
 
-        await self._wait_until_worker_running()
+        await self._wait_for_worker()
 
         # Split logic into helpers for OAK-D and OAK-D like cameras with FFC-like cameras
         # Use MessageSynchronizer only for OAK-D-like
@@ -296,7 +297,7 @@ class Oak(Camera, Reconfigurable):
 
         if self.oak_cfg.sensors.color_sensors:
             for cs in self.oak_cfg.sensors.color_sensors:
-                color_data: CapturedData = self.worker.get_color_output(cs)
+                color_data: CapturedData = await self.worker.get_color_output(cs)
                 arr, captured_at = color_data.np_array, color_data.captured_at
                 jpeg_encoded_bytes = encode_jpeg_bytes(arr)
                 img = NamedImage("color", jpeg_encoded_bytes, CameraMimeType.JPEG)
@@ -304,7 +305,7 @@ class Oak(Camera, Reconfigurable):
                 images.append(img)
 
         if self.oak_cfg.sensors.stereo_pair:
-            depth_data: CapturedData = self.worker.get_depth_output()
+            depth_data: CapturedData = await self.worker.get_depth_output()
             arr, captured_at = depth_data.np_array, depth_data.captured_at
             depth_encoded_bytes = encode_depth_raw(arr.tobytes(), arr.shape)
             img = NamedImage(
@@ -356,7 +357,7 @@ class Oak(Camera, Reconfigurable):
             details = "Cannot process PCD. OAK camera not configured for stereo depth outputs. See README for details"
             raise MethodNotAllowed(method_name="get_point_cloud", details=details)
 
-        await self._wait_until_worker_running()
+        await self._wait_for_worker()
 
         # By default, we do not get point clouds even when color and depth are both requested
         # We have to reinitialize the worker/pipeline+device to start making point clouds
@@ -371,7 +372,7 @@ class Oak(Camera, Reconfigurable):
             await asyncio.sleep(0.5)
 
         # Get actual PCD data from camera worker
-        pcd_obj = self.worker.get_pcd()
+        pcd_obj = await self.worker.get_pcd()
         arr = pcd_obj.np_array
 
         return encode_pcd(arr)
@@ -387,20 +388,111 @@ class Oak(Camera, Reconfigurable):
         """
         return self.camera_properties
 
-    async def _wait_until_worker_running(self, max_attempts=5, timeout_seconds=1):
+    async def do_command(
+        self,
+        command: Mapping[str, ValueTypes],
+        *,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> Mapping[str, ValueTypes]:
+        # Get cmd type from command
+        if "cmd" not in command:
+            raise ViamError(
+                "Critical logic error: 'cmd' field not present in OAK's do_command mapping arg. This is likely a bug."
+            )
+        cmd = command["cmd"]
+
+        # Handle different commands conditionally
+        if cmd == YDN_CONFIGURE:
+            LOGGER.debug(
+                f"Received CONFIGURE_YOLO_DETECTION_NETWORK_CMD with mapping: {command}"
+            )
+            await self._wait_for_worker()
+            ydn_config = decode_ydn_configure_command(command)
+            self.ydn_configs[ydn_config.service_id] = ydn_config
+            LOGGER.info(
+                "Closing camera to reconfigure pipeline with yolo detection network."
+            )
+            self.worker_manager.restart_atomic_bool.set(True)
+            return {}
+        elif cmd == YDN_DECONFIGURE:
+            LOGGER.debug(
+                f"Received DECONFIGURE_YOLO_DETECTION_NETWORK_CMD with mapping: {command}"
+            )
+            id = command["sender_id"]
+            if id in self.ydn_configs:
+                del self.ydn_configs[id]
+            self.worker.reset()
+            return {}
+        elif cmd == YDN_CAPTURE_ALL:
+            await self._wait_for_worker()
+            resp = dict()
+            service_id = command["sender_id"]
+            service_name = command["sender_name"]
+            ydn_config = self.ydn_configs[service_id]
+            # Find respective Sensor to the YDN config
+            sensor = None
+            if ydn_config.input_source == "color":
+                try:
+                    sensor = self.oak_cfg.sensors.color_sensors[
+                        0
+                    ]  # primary color sensor
+                except (AttributeError, IndexError) as e:
+                    LOGGER.error(
+                        f'"color" input source was requested by service "{ydn_config.service_name}", but no color camera exists in OAK config.'
+                    )
+                    raise e
+            else:  # input_source is like f"cam_{x}"
+                for cs in self.oak_cfg.sensors.color_sensors:
+                    if ydn_config.input_source == cs.socket_str:
+                        sensor = cs
+                        break
+            if sensor is None:
+                LOGGER.error(
+                    f'"{ydn_config.input_source}" was requested by service "{ydn_config.service_name}", but was not found in the OAK config.'
+                )
+
+            if command["return_detections"]:
+                detections = self.worker.get_detections(service_id, service_name)
+                resp["detections"] = encode_detections(
+                    detections, ydn_config.labels, sensor
+                )
+            if command["return_image"]:
+                captured_data = await self.worker.get_color_output(sensor)
+                arr = captured_data.np_array
+                jpeg_encoded_bytes = encode_jpeg_bytes(arr)
+                resp["image_data"] = encode_image_data(jpeg_encoded_bytes)
+            return resp
+        else:
+            raise ViamError(f'"cmd": "{cmd}" is not a valid command.')
+
+    async def _wait_for_worker(
+        self,
+        max_attempts=5,
+        timeout_seconds=1,
+        desired_status: Literal["running", "configured"] = "running",
+    ):
         """
-        Blocks on camera data methods that require the worker to be running.
-        Unblocks once worker is running or max number of attempts to pass is reached.
+        Blocks on camera data methods that require the worker to be the desired status.
+        Unblocks once worker is in the desire status or max number of attempts to pass is reached.
 
         Args:
             max_attempts (int, optional): Defaults to 5.
             timeout_seconds (int, optional): Defaults to 1.
+            desired_status (Literal["running", "configured"], optional): Defaults to "running",
 
         Raises: ViamError
         """
+        if desired_status not in ["running", "configured"]:
+            raise ViamError(
+                f"Critical logic error: _wait_for_worker was called with unrecognized desired status: {desired_status}. This is likely a bug."
+            )
+
         attempts = 0
         while attempts < max_attempts:
-            if self.worker.running:
+            if self.worker.running and desired_status == "running":
+                return
+            if self.worker.configured and desired_status == "configured":
                 return
             attempts += 1
             await asyncio.sleep(timeout_seconds)

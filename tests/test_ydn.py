@@ -65,7 +65,7 @@ invalid_num_threads_value = (
 
 invalid_num_nce_value = (
     make_service_config({
-        "input_source": "depth",
+        "input_source": "color",
         "width_px": 1280,
         "height_px": 720,
         "num_nce_per_thread": 3
@@ -346,7 +346,7 @@ full_correct_config = make_service_config({
     "is_object_tracker": True,
     "yolo_config": {
         "blob_path": "/path/to/blob",
-        "labels": ["label1, label2"],
+        "labels": ["label1", "label2"],
         "confidence_threshold": 0.5,
         "iou_threshold": 0.5,
         "anchors": [1, 2, 3],
