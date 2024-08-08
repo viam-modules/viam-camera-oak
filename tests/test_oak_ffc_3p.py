@@ -3,7 +3,7 @@ import pytest
 from viam.errors import ValidationError
 
 from src.components.oak import Oak
-from tests.test_helpers import make_component_config
+from tests.helpers import make_component_config
 
 
 ### TEST INVALID CONFIGS
@@ -229,7 +229,7 @@ missing_width_config = (
             },
         ],
     }, "viam:luxonis:oak-ffc-3p"),
-   '"width_px" is a required field. Please see README for details.'
+   '"width_px" is a required field, but was not detected. Please see README for details.'
 )
 
 missing_height_config = (
@@ -244,7 +244,7 @@ missing_height_config = (
             },
         ],
     }, "viam:luxonis:oak-ffc-3p"),
-   '"height_px" is a required field. Please see README for details.'
+   '"height_px" is a required field, but was not detected. Please see README for details.'
 )
 
 dimension_not_num_type_config = (

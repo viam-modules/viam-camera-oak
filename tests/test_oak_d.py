@@ -3,7 +3,7 @@ import pytest
 from viam.errors import ValidationError
 
 from src.components.oak import Oak
-from tests.test_helpers import make_component_config
+from tests.helpers import make_component_config
 
 
 invalid_attribute_name = (
