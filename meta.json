@@ -22,7 +22,7 @@
     },
     {
       "api": "rdk:service:vision",
-      "model": "viam:luxonis:yolo-detection-service"
+      "model": "viam:luxonis:yolo-detection-network"
     }
   ],
   "build": {
