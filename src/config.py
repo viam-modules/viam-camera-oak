@@ -13,7 +13,7 @@ DEFAULT_WIDTH = 1280
 DEFAULT_HEIGHT = 720
 DEFAULT_COLOR_ORDER = "rgb"
 DEFAULT_INTERLEAVED = False
-LOGGER = getLogger("viam-oak-config-logger")
+LOGGER = getLogger("viam-luxonis-configuration")
 
 
 def handle_err(err_msg: str) -> None:
@@ -78,8 +78,9 @@ def validate_dimension(attribute: str, attribute_map: Mapping[str, Value]) -> No
 
 
 class BaseConfig:
-    def __init__(self, attribute_map: Mapping[str, Value]):
+    def __init__(self, attribute_map: Mapping[str, Value], name: str):
         self.attribute_map = attribute_map
+        self.name = name
 
     @classmethod
     def validate(cls, attribute_map: Mapping[str, Value]) -> List[str]:
@@ -346,7 +347,7 @@ class YDNConfig(BaseConfig):
 
     @classmethod
     def from_kwargs(cls, **kwargs):
-        self = cls(dict())
+        self = cls(dict(), kwargs["service_name"])
         self.input_source = kwargs["input_source"]
         self.width = kwargs["width"]
         self.height = kwargs["height"]

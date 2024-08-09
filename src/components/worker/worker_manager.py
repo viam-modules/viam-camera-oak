@@ -31,7 +31,7 @@ class WorkerManager(threading.Thread):
 
     def __init__(self, worker: Worker) -> None:
         super().__init__()
-        self.logger = getLogger("viam-oak-manager-logger")
+        self.logger = worker.logger
         self.worker = worker
         self.loop = None
         self.restart_atomic_bool = AtomicBoolean()

@@ -44,14 +44,13 @@ class YoloDetectionNetwork(Vision, Reconfigurable):
     def new(
         cls, config: ServiceConfig, dependencies: Mapping[ResourceName, ResourceBase]
     ) -> Self:
-        self_obj = cls(config.name)
-        self_obj.logger = getLogger(f"{config.name}-logger")
-        # Leave this in the constructor since it needs to stay the same until close
-        self_obj.ydn_service_id = uuid.uuid4()
-        self_obj.pipeline_configured = False
-        self_obj.should_exec = True
-        self_obj.reconfigure(config, dependencies)
-        return self_obj
+        self = cls(config.name)
+        self.logger = getLogger(config.name)
+        self.ydn_service_id = uuid.uuid4()
+        self.pipeline_configured = False
+        self.should_exec = True
+        self.reconfigure(config, dependencies)
+        return self
 
     @classmethod
     def validate(cls, config: ServiceConfig) -> Sequence[str]:
@@ -60,7 +59,7 @@ class YoloDetectionNetwork(Vision, Reconfigurable):
     def reconfigure(
         self, config: ServiceConfig, dependencies: Mapping[ResourceName, ResourceBase]
     ):
-        self.cfg = YDNConfig(config.attributes.fields)
+        self.cfg = YDNConfig(config.attributes.fields, config.name)
         self.cfg.initialize_config()
 
         self.cam_name = config.attributes.fields["cam_name"].string_value

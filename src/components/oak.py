@@ -1,4 +1,5 @@
 import asyncio
+from logging import Logger
 from typing import (
     Any,
     ClassVar,
@@ -51,9 +52,6 @@ from src.do_command_helpers import (
     YDN_CAPTURE_ALL,
 )
 
-
-LOGGER = getLogger("viam-oak-module-logger")
-
 DEFAULT_IMAGE_MIMETYPE = CameraMimeType.JPEG
 
 
@@ -93,7 +91,11 @@ class Oak(Camera, Reconfigurable):
         _oak_d_model,
     )
     ALL_MODELS: ClassVar[Tuple[Model]] = DEPRECATED_MODELS + SUPPORTED_MODELS
+    logger: ClassVar[Logger]
+    """Class scoped logger"""
 
+    logger: Logger
+    """Instance scoped logger"""
     model: Model
     """Viam model of component"""
     oak_cfg: OakConfig
@@ -114,6 +116,8 @@ class Oak(Camera, Reconfigurable):
         self = cls(config.name)
         cls.validate(config)
         self.ydn_configs = dict()  # YDN configs have to survive reconfigures
+        cls.logger = getLogger("viam-oak")
+        self.logger = getLogger(config.name)
         self.reconfigure(config, dependencies)
         return self
 
@@ -132,12 +136,12 @@ class Oak(Camera, Reconfigurable):
             List[str]: of dep names
         """
         if config.model == str(cls._depr_oak_agnostic_model):
-            LOGGER.warn(
+            cls.logger.warn(
                 f"The '{cls._depr_oak_agnostic_model}' is deprecated. Please switch to '{cls._oak_d_model}' or '{cls._oak_ffc_3p_model}'"
             )
             cls.model = cls._oak_d_model
         elif config.model == str(cls._depr_oak_d_model):
-            LOGGER.warn(
+            cls.logger.warn(
                 f"The '{cls._depr_oak_d_model}' is deprecated. Please switch to '{cls._oak_d_model}'"
             )
             cls.model = cls._oak_d_model
@@ -167,9 +171,9 @@ class Oak(Camera, Reconfigurable):
         self._close()
 
         if self.model == self._oak_d_model:
-            self.oak_cfg = OakDConfig(config.attributes.fields)
+            self.oak_cfg = OakDConfig(config.attributes.fields, config.name)
         elif self.model == self._oak_ffc_3p_model:
-            self.oak_cfg = OakFfc3PConfig(config.attributes.fields)
+            self.oak_cfg = OakFfc3PConfig(config.attributes.fields, config.name)
         else:
             raise ViamError(
                 f"Critical logic error due to spec change or validation failure: unrecognized model {self.model}. This is likely a bug."
@@ -196,9 +200,9 @@ class Oak(Camera, Reconfigurable):
         """
         Implements `close` to free resources on shutdown.
         """
-        LOGGER.info("Closing OAK component.")
+        self.logger.info("Closing OAK component.")
         self._close()
-        LOGGER.debug("Closed OAK component.")
+        self.logger.debug("Closed OAK component.")
 
     def _close(self) -> None:
         if self.worker_manager:
@@ -281,7 +285,7 @@ class Oak(Camera, Reconfigurable):
                 - ResponseMetadata:
                   The metadata associated with this response
         """
-        LOGGER.debug("get_images called")
+        self.logger.debug("get_images called")
 
         await self._wait_for_worker()
 
@@ -368,7 +372,7 @@ class Oak(Camera, Reconfigurable):
             await self.worker.start()
 
         while not self.worker.running:
-            LOGGER.info("Waiting for worker to restart with pcd configured...")
+            self.logger.info("Waiting for worker to restart with pcd configured...")
             await asyncio.sleep(0.5)
 
         # Get actual PCD data from camera worker
@@ -404,19 +408,19 @@ class Oak(Camera, Reconfigurable):
 
         # Handle different commands conditionally
         if cmd == YDN_CONFIGURE:
-            LOGGER.debug(
+            self.logger.debug(
                 f"Received CONFIGURE_YOLO_DETECTION_NETWORK_CMD with mapping: {command}"
             )
             await self._wait_for_worker()
             ydn_config = decode_ydn_configure_command(command)
             self.ydn_configs[ydn_config.service_id] = ydn_config
-            LOGGER.info(
+            self.logger.info(
                 "Closing camera to reconfigure pipeline with yolo detection network."
             )
             self.worker_manager.restart_atomic_bool.set(True)
             return {}
         elif cmd == YDN_DECONFIGURE:
-            LOGGER.debug(
+            self.logger.debug(
                 f"Received DECONFIGURE_YOLO_DETECTION_NETWORK_CMD with mapping: {command}"
             )
             id = command["sender_id"]
@@ -438,7 +442,7 @@ class Oak(Camera, Reconfigurable):
                         0
                     ]  # primary color sensor
                 except (AttributeError, IndexError) as e:
-                    LOGGER.error(
+                    self.logger.error(
                         f'"color" input source was requested by service "{ydn_config.service_name}", but no color camera exists in OAK config.'
                     )
                     raise e
@@ -448,7 +452,7 @@ class Oak(Camera, Reconfigurable):
                         sensor = cs
                         break
             if sensor is None:
-                LOGGER.error(
+                self.logger.error(
                     f'"{ydn_config.input_source}" was requested by service "{ydn_config.service_name}", but was not found in the OAK config.'
                 )
 
@@ -536,7 +540,7 @@ class Oak(Camera, Reconfigurable):
                 f'mime_type "{mime_type}" is not supported for get_image.'
                 f"Valid mime type(s): {valid_mime_types}."
             )
-            LOGGER.error(err)
+            self.logger.error(err)
             raise err
 
         return mime_type

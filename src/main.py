@@ -11,7 +11,7 @@ from src.services.yolo_detection_network import (
     YoloDetectionNetwork,
 )
 
-LOGGER = getLogger("viam-luxonis-module-logger")
+LOGGER = getLogger("viam-luxonis-module")
 
 
 def register_oak(module: Module) -> None:
