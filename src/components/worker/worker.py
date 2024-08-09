@@ -185,7 +185,7 @@ class Worker:
                 color_cam.setInterleaved(sensor.interleaved)
                 color_cam.setBoardSocket(sensor.socket)
                 color_cam.setFps(sensor.frame_rate)
-                if sensor.color_order == 'bgr':
+                if sensor.color_order == "bgr":
                     color_cam.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)
                 else:
                     color_cam.setColorOrder(dai.ColorCameraProperties.ColorOrder.RGB)
