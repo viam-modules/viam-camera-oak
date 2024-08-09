@@ -63,7 +63,13 @@ class YoloDetectionNetwork(Vision, Reconfigurable):
         self.cfg.initialize_config()
 
         self.cam_name = config.attributes.fields["cam_name"].string_value
-        self.cam = dependencies[Camera.get_resource_name(self.cam_name)]
+        try:
+            self.cam = dependencies[Camera.get_resource_name(self.cam_name)]
+        except KeyError as e:
+            self.logger.error(
+                f"Could not find camera dep '{self.cam_name}' in deps list."
+            )
+            raise e
         self.ydn_service_name = config.name
 
         async def async_do_command():
