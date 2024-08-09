@@ -454,9 +454,12 @@ class Oak(Camera, Reconfigurable):
 
             if command["return_detections"]:
                 detections = self.worker.get_detections(service_id, service_name)
-                resp["detections"] = encode_detections(
-                    detections, ydn_config.labels, sensor
-                )
+                if detections is None:
+                    resp["detections"] = []
+                else:
+                    resp["detections"] = encode_detections(
+                        detections, ydn_config.labels, sensor
+                    )
             if command["return_image"]:
                 captured_data = await self.worker.get_color_output(sensor)
                 arr = captured_data.np_array

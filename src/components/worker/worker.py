@@ -484,7 +484,9 @@ class Worker:
         timestamp = msg.getTimestamp().total_seconds()
         return CapturedData(pc_output, timestamp)
 
-    def get_detections(self, service_id: str, service_name: str) -> dai.ImgDetections:
+    def get_detections(
+        self, service_id: str, service_name: str
+    ) -> Optional[dai.ImgDetections]:
         q: Optional[dai.DataOutputQueue] = None
         for obj in self.ydn_config_queues:
             if obj.ydn_config.service_id == service_id:
@@ -498,9 +500,7 @@ class Worker:
         dets = q.tryGet()
         if dets is not None and not isinstance(dets, dai.ImgDetections):
             raise ViamError(f"Incorrect type received for detections: {type(dets)}")
-        if dets:
-            return dets
-        return []
+        return dets
 
     def stop(self) -> None:
         """
