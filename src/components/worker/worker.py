@@ -38,7 +38,7 @@ DIMENSIONS_TO_COLOR_RES = {
 }  # color camera component only accepts this subset of depthai_sdk.components.camera_helper.colorResolutions
 
 MAX_GRPC_MESSAGE_BYTE_COUNT = 4194304  # Update this if the gRPC config ever changes
-MAX_COLOR_DEPTH_QUEUE_SIZE = 30
+MAX_COLOR_DEPTH_QUEUE_SIZE = 5
 MAX_PC_QUEUE_SIZE = 5
 MAX_YDN_QUEUE_SIZE = 5
 MAX_MSG_SYCHRONIZER_MSGS_SIZE = 50
@@ -271,7 +271,10 @@ class Worker:
                     input_node = color_nodes[0]  # primary color cam
                 else:  # cam_{n}
                     for color_node in color_nodes:
-                        if color_node.getBoardSocket().name == ydn_config.input_source:
+                        if (
+                            color_node.getBoardSocket().name.lower()
+                            == ydn_config.input_source
+                        ):
                             input_node = color_node
                             break
                 if input_node is None:
@@ -320,6 +323,7 @@ class Worker:
         while not self.device and self.should_exec:
             try:
                 self.device = dai.Device(self.pipeline)
+                self.device.startPipeline()
                 LOGGER.debug("Successfully initialized device.")
             except ViamError as e:
                 LOGGER.error(f"Error initializing device: {e}")

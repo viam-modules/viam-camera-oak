@@ -1,4 +1,5 @@
 import asyncio
+from logging import Logger
 from typing import ClassVar, List, Mapping, Sequence, Any, Dict, Optional
 from typing_extensions import Self
 import uuid
@@ -26,8 +27,6 @@ from src.do_command_helpers import (
     YDN_CAPTURE_ALL,
 )
 
-LOGGER = getLogger("viam-luxonis-yolo-detection-network")
-
 
 class YoloDetectionNetwork(Vision, Reconfigurable):
     MODEL: ClassVar[Model] = Model(
@@ -39,12 +38,14 @@ class YoloDetectionNetwork(Vision, Reconfigurable):
     ydn_service_id: uuid.UUID
     pipeline_configured: bool
     should_exec: bool
+    logger: Logger
 
     @classmethod
     def new(
         cls, config: ServiceConfig, dependencies: Mapping[ResourceName, ResourceBase]
     ) -> Self:
         self_obj = cls(config.name)
+        self_obj.logger = getLogger(f"{config.name}-logger")
         # Leave this in the constructor since it needs to stay the same until close
         self_obj.ydn_service_id = uuid.uuid4()
         self_obj.pipeline_configured = False
@@ -75,7 +76,7 @@ class YoloDetectionNetwork(Vision, Reconfigurable):
                     await self.cam.do_command(command=configure_cmd)
                     self.pipeline_configured = True
                 except Exception as e:
-                    LOGGER.warn(
+                    self.logger.warn(
                         f"Error in do_command: {e}. Trying to configure via do_command again..."
                     )
                 await asyncio.sleep(1)
@@ -94,7 +95,7 @@ class YoloDetectionNetwork(Vision, Reconfigurable):
         timeout: Optional[float] = None,
     ) -> CaptureAllResult:
         if camera_name == "" or camera_name is None:
-            LOGGER.warn(
+            self.logger.warn(
                 f"camera_name arg was unspecified. Defaulting to '{self.cam_name}'"
             )
         elif camera_name != self.cam_name:
@@ -131,7 +132,7 @@ class YoloDetectionNetwork(Vision, Reconfigurable):
         extra: Mapping[str, Any],
         timeout: float,
     ) -> List[Detection]:
-        LOGGER.warn(
+        self.logger.warn(
             "WARNING! get_detections calls get_detections_from_camera under the hood. Use only for debugging purposes. Your image will be ignored."
         )
         return await self.get_detections_from_camera("", extra=None, timeout=None)
@@ -140,7 +141,7 @@ class YoloDetectionNetwork(Vision, Reconfigurable):
         self, camera_name: str, *, extra: Mapping[str, Any], timeout: float
     ) -> List[Detection]:
         if camera_name == "" or camera_name is None:
-            LOGGER.warn(
+            self.logger.warn(
                 f"camera_name arg was unspecified. Defaulting to '{self.cam_name}'"
             )
         elif camera_name != self.cam_name:
@@ -157,7 +158,7 @@ class YoloDetectionNetwork(Vision, Reconfigurable):
                 "sender_name": self.ydn_service_name,
             }
         )
-        LOGGER.info(f"Received dets: {mapping}")
+        self.logger.info(f"Received dets: {mapping}")
         if "detections" not in mapping:
             raise ViamError(
                 "Critical logic error: 'detections' attr not found in response. This is likely a bug."
