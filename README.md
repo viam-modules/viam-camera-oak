@@ -18,7 +18,7 @@ Other OAK family cameras may work with the either component model, but are not o
 
 ## How to use on your own machine
 > [!NOTE]  
-> Before configuring your resource, you must [Add a New Robot](https://docs.viam.com/manage/fleet/robots/#add-a-new-robot), and for more details on the configuration process as a whole, see [Configure a Robot](https://docs.viam.com/manage/configuration/).
+> Before configuring your resource, you must create a new robot. See [here](https://docs.viam.com/use-cases/configure/#configure-a-machine) for how to do that and more on the setup and configuration process as a whole.
 
 Navigate to the **Config** tab of your robot’s page in [the Viam app](https://app.viam.com/).
 
