@@ -18,9 +18,9 @@ Other OAK family cameras may work with the either component model, but are not o
 
 ## How to use on your own machine
 > [!NOTE]  
-> Before configuring your resource, you must create a new robot. See [here](https://docs.viam.com/use-cases/configure/#configure-a-machine) for how to do that and more on the setup and configuration process as a whole.
+> Before configuring your resource, you must create a new smart machine. See [here](https://docs.viam.com/use-cases/configure/#configure-a-machine) for how to do that and more on the setup and configuration process as a whole.
 
-Navigate to the **Config** tab of your robot’s page in [the Viam app](https://app.viam.com/).
+Navigate to the **Config** tab of your machine's page in [the Viam app](https://app.viam.com/).
 
 For camera components, click on the **Components** subtab and click **Create component**.
 Select the `camera` type, then select the `oak-d` or `oak-ffc-3p` model.
@@ -183,7 +183,7 @@ This is done by using the `-debug` flag when starting the Viam server in order f
 - [warning] skipping X_LINK_UNBOOTED device having name "<error>"
 - Insufficient permissions to communicate with X_LINK_UNBOOTED device with name "1.1". Make sure udev rules are set
 
-If you see any of the above errors, you may need to set udev rules on your Linux machine. See [here](https://docs.luxonis.com/en/latest/pages/troubleshooting/?highlight=udev#udev-rules-on-linux) for more information.
+If you see any of the above errors, you may need to set udev rules on your Linux machine. See [here](https://github.com/luxonis/depthai-docs-website/blob/master/source/pages/troubleshooting.rst) for more information.
 
 ```console
 echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="03e7", MODE="0666"' | sudo tee /etc/udev/rules.d/80-movidius.rules
@@ -194,7 +194,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger
 
 If you do not want to use the Viam registry, you can use the module from source [here](https://github.com/viamrobotics/viam-camera-oak).
 
-You must, however, verify that your system Python3 is compatible with Viam to run the module locally. Open a terminal on your robot, and run the following commands to check its Python and pip versions:
+You must, however, verify that your system Python3 is compatible with Viam to run the module locally. Open a terminal on your machine, and run the following commands to check its Python and pip versions:
 
 ```console
 sudo python3 --version
@@ -203,7 +203,7 @@ sudo python3 -m ensurepip --default-pip
 sudo pip3 --version
 ```
 
-Verify that your robot's Python3 version is 3.8.1 or later, and that it is installed and linked to the `python3` command to avoid compatibility issues.
+Verify that your machine's Python3 version is 3.8.1 or later, and that it is installed and linked to the `python3` command to avoid compatibility issues.
 Similarly, make sure that `venv` and `pip3` are installed properly by making sure the subsequent commands do not produce an error.
 
 ```console
@@ -211,11 +211,11 @@ cd <path-to-your-directory>
 git clone https://github.com/viamrobotics/viam-camera-oak.git
 ```
 
-Then modify your robot's config file as per the above instructions per model, and start the robot.
+Then modify your machine's config file as per the above instructions per model, and start the machine.
 
 ### Integration Tests
 
 The repo comes with a suite of integration tests that allows one to test if the module works with an actual OAK device on the machine of interest. You will need to compile the binary on the same machine you expect to run it on.
 
-- Copy the repo to your local robot: `git clone https://github.com/viamrobotics/viam-camera-oak.git`
+- Copy the repo to your local machine: `git clone https://github.com/viamrobotics/viam-camera-oak.git`
 - Run `make integration-tests`
