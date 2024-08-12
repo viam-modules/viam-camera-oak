@@ -12,13 +12,12 @@ Learn about the difference between modules, models, components, and services in 
 
 Other OAK family cameras may work with the either component model, but are not officially supported and tested.
 
-### Service(s)
+### Services
 * `viam:luxonis:yolo-detection-network` - Configures [a DepthAI Yolo Detection Network](https://docs.luxonis.com/software/depthai-components/nodes/yolo_detection_network/) on the OAK device pipeline.
 
 ## How to use on your own machine
 > [!NOTE]  
 > Before configuring your resource, you must [create a robot](https://docs.viam.com/manage/fleet/robots/#add-a-new-robot).
-> [!NOTE]  
 > For more details, see [Configure a Robot](https://docs.viam.com/manage/configuration/).
 
 Navigate to the **Config** tab of your robot’s page in [the Viam app](https://app.viam.com/).
@@ -26,13 +25,11 @@ For camera models: click on the **Components** subtab and click **Create compone
 Select the `camera` type, then select the `oak-d` or `oak-ffc-3p` model.
 Enter a name for your camera and click **Create**.
 
-For vision service(s): click on the **Services** subtab and click **Create service**.
+For vision service: click on the **Services** subtab and click **Create service**.
 Select the `vision` type, then select the `yolo-detection-network` model.
 Enter a name for your vision service and click **Create**.
 
-On the new resource config panel, copy and paste your attributes JSON into the **Attributes** box:
-
-Edit these attributes as applicable to your machine. See below for the available config attributes per model.
+On the new resource config panel, modify the attributes JSON in the **Attributes** box. See below for the available config attributes per model.
 
 ## Configuration Attributes
 
@@ -41,7 +38,7 @@ Edit these attributes as applicable to your machine. See below for the available
 #### Example Configuration
 
 Below is an example JSON of an `oak-d` component's attributes:
-```
+```json
 {
   "components": [
     {
