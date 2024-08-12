@@ -21,8 +21,17 @@ YDN_CAPTURE_ALL = "ydn_capture_all"
 def encode_ydn_configure_command(
     cfg: YDNConfig, service_name: str, service_id: UUID
 ) -> Dict[str, ValueTypes]:
-    """Encodes the YDNConfig object into a format suitable for the `do_command` call."""
+    """
+    Encodes the YDNConfig object into a format suitable for the `do_command` call.
 
+    Args:
+        cfg (YDNConfig): native yolo detection network config
+        service_name (str): name of Viam service issuing the command
+        service_id (UUID): unique id of Viam service issuing the command
+
+    Returns:
+        Dict[str, ValueTypes]: do_command dict
+    """
     command_dict = {
         "input_source": cfg.input_source,
         "width": cfg.width,
@@ -48,8 +57,15 @@ def encode_ydn_configure_command(
 
 
 def decode_ydn_configure_command(command_dict: Mapping[str, ValueTypes]) -> YDNConfig:
-    """Decodes a command dictionary into a YDNConfig object."""
+    """
+    Decodes a do_command dictionary into a YDNConfig object.
 
+    Args:
+        command_dict (Mapping[str, ValueTypes]): from do_command
+
+    Returns:
+        YDNConfig: YDN service native config
+    """
     yolo_config_dict = command_dict["yolo_config"]
     cfg = YDNConfig.from_kwargs(
         input_source=command_dict["input_source"],
@@ -74,6 +90,16 @@ def decode_ydn_configure_command(command_dict: Mapping[str, ValueTypes]) -> YDNC
 def encode_ydn_deconfigure_command(
     service_id: UUID,
 ) -> Dict[str, ValueTypes]:
+    """
+    Encodes a do_command msg to deconfigure/deregister a YDN from the pipeline
+    owned by the component.
+
+    Args:
+        service_id (UUID): id of service to deconfigure
+
+    Returns:
+        Dict[str, ValueTypes]: do_command dict
+    """
     command_dict = {
         "cmd": YDN_DECONFIGURE,
         "sender_id": service_id.hex,
@@ -84,6 +110,20 @@ def encode_ydn_deconfigure_command(
 def _normalize_bbox(
     width: int, height: int, xmin: float, ymin: float, xmax: float, ymax: float
 ) -> Tuple[int, int, int, int]:
+    """
+    Convert normalized bbox coordinates (0-1 floats) to pixel values.
+
+    Args:
+        width (int): Frame width
+        height (int): Frame height
+        xmin (float): Normalized x min (0-1)
+        ymin (float): Normalized y min (0-1)
+        xmax (float): Normalized x max (0-1)
+        ymax (float): Normalized y max (0-1)
+
+    Returns:
+        Tuple[int, int, int, int]: bbox as (xmin, ymin, xmax, ymax) in pixels
+    """
     normVals = np.array([width, height, width, height])
     bbox = np.array([xmin, ymin, xmax, ymax])
     normalized_bbox = (np.clip(bbox, 0, 1) * normVals).astype(int)
@@ -93,6 +133,18 @@ def _normalize_bbox(
 def encode_detections(
     dets: dai.ImgDetections, labels: List[str], sensor: Sensor
 ) -> List[Dict]:
+    """
+    Encodes dai.ImgDetections obj to a List[Dict] that can be sent
+    via do_command.
+
+    Args:
+        dets (dai.ImgDetections): the DepthAI detections obj
+        labels (List[str]): list of labels with indices corresponding to label num from ImgDetection
+        sensor (Sensor): sensor config
+
+    Returns:
+        List[Dict]: List of dictionaries containing detection data
+    """
     encoded_detections = []
     for det in dets.detections:
         xmin, ymin, xmax, ymax = _normalize_bbox(
@@ -111,6 +163,15 @@ def encode_detections(
 
 
 def decode_detections(det_list: List) -> List[Detection]:
+    """
+    Convert a list of detection dicts from do_command to Detection objects.
+
+    Args:
+        det_list (List): List of detection dicts
+
+    Returns:
+        List[Detection]: List of Detection objects
+    """
     viam_dets: List[Detection] = []
     for det_dict in det_list:
         viam_det = Detection(
@@ -126,6 +187,15 @@ def decode_detections(det_list: List) -> List[Detection]:
 
 
 def encode_image_data(img_bytes: bytes) -> Dict:
+    """
+    Encode image bytes to a base64 dict compatible with do_command.
+
+    Args:
+        img_bytes (bytes): Image bytes
+
+    Returns:
+        Dict: Encoded image data
+    """
     img_data_dict = {
         "bytes": base64.b64encode(img_bytes).decode("ascii"),
         "mime_type": CameraMimeType.JPEG.value,
@@ -134,6 +204,18 @@ def encode_image_data(img_bytes: bytes) -> Dict:
 
 
 def decode_image_data(img_dict: Dict) -> ViamImage:
+    """
+    Decode image data dict to a ViamImage.
+
+    Args:
+        img_dict (Dict): Image data dict
+
+    Raises:
+        ValueError: If the dict is invalid
+
+    Returns:
+        ViamImage: Decoded ViamImage
+    """
     try:
         jpeg_bytes = base64.b64decode(img_dict["bytes"])
         mime_type_str = img_dict["mime_type"]
@@ -143,7 +225,16 @@ def decode_image_data(img_dict: Dict) -> ViamImage:
     return ViamImage(jpeg_bytes, mime_type)
 
 
-def convert_capture_all_dict_into_capture_all(d: Dict) -> CaptureAllResult:
+def decode_capture_all_result(d: Dict) -> CaptureAllResult:
+    """
+    Decodes a "capture all" do_command dict as a CaptureAllResult.
+
+    Args:
+        d (Dict): Capture all dict
+
+    Returns:
+        CaptureAllResult: CaptureAllResult object
+    """
     res = CaptureAllResult()
     if "image_data" in d:
         img_dict: Dict = d["image_data"]

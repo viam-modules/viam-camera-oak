@@ -6,6 +6,11 @@ from viam.logging import getLogger
 
 
 class AtomicBoolean:
+    """
+    Implementation of an atomic boolean used to prevent races in
+    restarting the worker from the worker manager.
+    """
+
     boolean: bool
     lock: threading.Lock
 
@@ -38,6 +43,10 @@ class WorkerManager(threading.Thread):
         self._stop_event = asyncio.Event()
 
     def run(self):
+        """
+        .start() of thread.Thread calls this method to begin execution
+        in different event loop.
+        """
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
         self.loop.create_task(self.check_health())
@@ -48,6 +57,10 @@ class WorkerManager(threading.Thread):
             self.loop.close()
 
     async def check_health(self) -> None:
+        """
+        Starts task to periodically check the health of the worker as well
+        as respond to manual restart requests.
+        """
         self.logger.debug("Starting worker manager.")
         self.worker.configure()
         await self.worker.start()
@@ -71,10 +84,16 @@ class WorkerManager(threading.Thread):
             await asyncio.sleep(3)
 
     def stop(self):
+        """
+        Thread-safe stop method to set the event to stop the singular health checking task.
+        """
         self.loop.call_soon_threadsafe(self._stop_event.set)
         self.loop.call_soon_threadsafe(self.loop.stop)
 
     async def shutdown(self):
+        """
+        Taking care of and closing straggler tasks.
+        """
         self.worker.stop()
         tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
         for task in tasks:
@@ -82,6 +101,9 @@ class WorkerManager(threading.Thread):
         await asyncio.gather(*tasks, return_exceptions=True)
 
     async def _restart_worker(self):
+        """
+        Tears down and fully reboots worker and its pipeline.
+        """
         self.worker.reset()
         self.worker.configure()
         await self.worker.start()

@@ -1,6 +1,6 @@
 import io
 import struct
-from typing import Tuple
+from typing import List, Tuple
 
 from google.protobuf.timestamp_pb2 import Timestamp
 import numpy as np
@@ -122,7 +122,17 @@ def encode_pcd(arr: NDArray):
     return (header_bytes + float_array.tobytes(), CameraMimeType.PCD)
 
 
-def make_metadata_from_seconds_float(seconds_float: float) -> ResponseMetadata:
+def convert_seconds_float_to_metadata(seconds_float: float) -> ResponseMetadata:
+    """
+    Converts a float representing seconds since epoch to a Viam ResponseMetadata
+    proto msg object.
+
+    Args:
+        seconds_float (float): seconds with decimals
+
+    Returns:
+        ResponseMetadata: ResponseMetadata obj
+    """
     seconds_int = int(seconds_float)
     nanoseconds_int = int((seconds_float - seconds_int) * 1e9)
     metadata = ResponseMetadata(
@@ -131,7 +141,20 @@ def make_metadata_from_seconds_float(seconds_float: float) -> ResponseMetadata:
     return metadata
 
 
-def handle_synced_color_and_depth(color_data: CapturedData, depth_data: CapturedData):
+def handle_synced_color_and_depth(
+    color_data: CapturedData, depth_data: CapturedData
+) -> Tuple[List[NamedImage], ResponseMetadata]:
+    """
+    Takes outputted color and depth frame data and encodes them into the format
+    get_images expects them to be in to send as a gRPC message.
+
+    Args:
+        color_data (CapturedData): color data
+        depth_data (CapturedData): depth data
+
+    Returns:
+        Tuple[List[NamedImage], ResponseMetadata]: get_images return types
+    """
     images = []
     arr, captured_at = color_data.np_array, color_data.captured_at
     jpeg_encoded_bytes = encode_jpeg_bytes(arr)
@@ -143,5 +166,5 @@ def handle_synced_color_and_depth(color_data: CapturedData, depth_data: Captured
     img = NamedImage("depth", depth_encoded_bytes, CameraMimeType.VIAM_RAW_DEPTH)
     images.append(img)
 
-    metadata = make_metadata_from_seconds_float(seconds_float=captured_at)
+    metadata = convert_seconds_float_to_metadata(seconds_float=captured_at)
     return images, metadata

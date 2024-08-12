@@ -78,6 +78,10 @@ def validate_dimension(attribute: str, attribute_map: Mapping[str, Value]) -> No
 
 
 class BaseConfig:
+    """
+    Base class for native configurations for all models in this module.
+    """
+
     def __init__(self, attribute_map: Mapping[str, Value], name: str):
         self.attribute_map = attribute_map
         self.name = name
@@ -85,7 +89,7 @@ class BaseConfig:
     @classmethod
     def validate(cls, attribute_map: Mapping[str, Value]) -> List[str]:
         """
-        Equivalent to the validate() method for modules.
+        Equivalent to the module validate() method but specific to a model's specific config.
 
         Subclasses should inherit and implement this method.
 
@@ -107,6 +111,10 @@ class BaseConfig:
 
 
 class OakConfig(BaseConfig):
+    """
+    Base config class for OAK component models.
+    """
+
     device_info: str
     sensors: Sensors
 
@@ -122,6 +130,10 @@ class OakConfig(BaseConfig):
 
 
 class OakDConfig(OakConfig):
+    """
+    OAK-D component model native config
+    """
+
     def initialize_config(self):
         self.device_info = self.attribute_map["device_info"].string_value or None
         sensors_str_list = list(self.attribute_map["sensors"].list_value)
@@ -219,6 +231,10 @@ class OakDConfig(OakConfig):
 
 
 class OakFfc3PConfig(OakConfig):
+    """
+    Native config for OAK-FFC-3P component model.
+    """
+
     @classmethod
     def validate(cls, attribute_map: Mapping[str, Value]) -> List[str]:
         super().validate(attribute_map)
@@ -324,6 +340,10 @@ class OakFfc3PConfig(OakConfig):
 
 
 class YDNConfig(BaseConfig):
+    """
+    Native config for configuring a yolo detection network in the DepthAI pipeline.
+    """
+
     # Default values for non-required attributes are set here
     cam_name: str
     input_source: str

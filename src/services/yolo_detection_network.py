@@ -23,12 +23,18 @@ from src.do_command_helpers import (
     encode_ydn_configure_command,
     encode_ydn_deconfigure_command,
     decode_detections,
-    convert_capture_all_dict_into_capture_all,
+    decode_capture_all_result,
     YDN_CAPTURE_ALL,
 )
 
 
 class YoloDetectionNetwork(Vision, Reconfigurable):
+    """
+    YoloDetectionNetwork is the implementation of the yolo detection network
+    service model in this module. It wraps the OAK component and sends do_commands
+    to (re)configure the underlying pipeline to support on-VPU YOLO detection inference.
+    It serves Vision detection APIs and capture all.
+    """    
     MODEL: ClassVar[Model] = Model(
         ModelFamily("viam", "luxonis"), "yolo-detection-network"
     )
@@ -59,6 +65,17 @@ class YoloDetectionNetwork(Vision, Reconfigurable):
     def reconfigure(
         self, config: ServiceConfig, dependencies: Mapping[ResourceName, ResourceBase]
     ):
+        """
+        This reconfigure method reinitializes the config and updates the YDNConfig
+        on the component pipeline side using a do_command.
+
+        Args:
+            config (ServiceConfig): Viam service config
+            dependencies (Mapping[ResourceName, ResourceBase]): list of deps
+
+        Raises:
+            e: KeyError if camera dep is not found in dependencies
+        """
         self.cfg = YDNConfig(config.attributes.fields, config.name)
         self.cfg.initialize_config()
 
@@ -119,7 +136,7 @@ class YoloDetectionNetwork(Vision, Reconfigurable):
         if return_image == False and return_detections == False:
             raise ViamError("Please request either return_image or return_detections.")
 
-        mapping = await self.cam.do_command(
+        d = await self.cam.do_command(
             {
                 "cmd": YDN_CAPTURE_ALL,
                 "return_detections": return_detections,
@@ -128,7 +145,7 @@ class YoloDetectionNetwork(Vision, Reconfigurable):
                 "sender_name": self.ydn_service_name,
             }
         )
-        return convert_capture_all_dict_into_capture_all(mapping)
+        return decode_capture_all_result(d)
 
     async def get_detections(
         self,

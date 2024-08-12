@@ -39,7 +39,7 @@ from src.components.helpers.encoders import (
     encode_depth_raw,
     encode_pcd,
     handle_synced_color_and_depth,
-    make_metadata_from_seconds_float,
+    convert_seconds_float_to_metadata,
 )
 from src.config import OakConfig, OakDConfig, OakFfc3PConfig, YDNConfig
 from src.components.worker.worker_manager import WorkerManager
@@ -58,7 +58,8 @@ DEFAULT_IMAGE_MIMETYPE = CameraMimeType.JPEG
 class Oak(Camera, Reconfigurable):
     """
     This class implements all available methods for the camera class: get_image,
-    get_images, get_point_cloud, and get_properties.
+    get_images, get_point_cloud, and get_properties. The underlying hardware
+    is an OAK family camera supported in the model list.
 
     It inherits from the built-in resource subtype Base and conforms to the
     ``Reconfigurable`` protocol, which signifies that this component can be
@@ -318,7 +319,7 @@ class Oak(Camera, Reconfigurable):
             seconds_float = captured_at
             images.append(img)
 
-        metadata = make_metadata_from_seconds_float(seconds_float)
+        metadata = convert_seconds_float_to_metadata(seconds_float)
         return images, metadata
 
     async def get_point_cloud(
