@@ -18,10 +18,10 @@ Other OAK family cameras may work with the either component model, but are not o
 
 ## How to use on your own machine
 > [!NOTE]  
-> Before configuring your resource, you must [create a robot](https://docs.viam.com/manage/fleet/robots/#add-a-new-robot).
-> For more details, see [Configure a Robot](https://docs.viam.com/manage/configuration/).
+> Before configuring your resource, you must [Add a New Robot](https://docs.viam.com/manage/fleet/robots/#add-a-new-robot), and for more details on the configuration process as a whole, see [Configure a Robot](https://docs.viam.com/manage/configuration/).
 
 Navigate to the **Config** tab of your robot’s page in [the Viam app](https://app.viam.com/).
+
 For camera components, click on the **Components** subtab and click **Create component**.
 Select the `camera` type, then select the `oak-d` or `oak-ffc-3p` model.
 Enter a name for your camera and click **Create**.
@@ -30,7 +30,7 @@ For vision services, click on the **Services** subtab and click **Create service
 Select the `vision` type, then select the `yolo-detection-network` model.
 Enter a name for your vision service and click **Create**.
 
-On the new resource config panel, modify the attributes JSON in the **Attributes** box. If you are confused which attributes to supply, consult the per-model below configuration attributes guides.
+On the new resource config panel, modify the attributes JSON in the **Attributes** box. If you are confused which attributes to supply, consult the per-model configuration attributes guides below.
 
 ## Configuration Attributes
 
@@ -107,7 +107,7 @@ The following attributes are available for the `oak-ffc-3p` component:
 | Name | Type | Inclusion | Description |
 | ---- | ---- | --------- | ----------- |
 | `device_info` | string | Optional | Physical device identifier to connect to a specific OAK camera connected to your machine. If not specified, the module will pick the first device it detects. `device_info` can be a MXID, usb port path, or IP address. [See DepthAI documentation for more details](https://docs.luxonis.com/software/depthai/examples/device_information#Device%20information). |
-| `camera_sensors` | list[struct] | **Required** | A list of struct mappings of strings to values representing the sub-configuration per camera sensor on the device. |
+| `camera_sensors` | list[struct] | **Required** | A list of struct mappings of strings to values representing the sub-configuration per camera sensor on the device. The first element of this list will be considered the primary sensor. |
 
 The below attributes are nested inside each camera sensor struct inside `camera_sensors`:
 | Name | Type | Inclusion | Description |
