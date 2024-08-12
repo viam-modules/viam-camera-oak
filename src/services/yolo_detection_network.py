@@ -34,7 +34,8 @@ class YoloDetectionNetwork(Vision, Reconfigurable):
     service model in this module. It wraps the OAK component and sends do_commands
     to (re)configure the underlying pipeline to support on-VPU YOLO detection inference.
     It serves Vision detection APIs and capture all.
-    """    
+    """
+
     MODEL: ClassVar[Model] = Model(
         ModelFamily("viam", "luxonis"), "yolo-detection-network"
     )

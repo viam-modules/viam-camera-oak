@@ -32,6 +32,7 @@ class WorkerManager(threading.Thread):
     """
     WorkerManager starts then watches Worker, making sure the connection
     to the OAK camera is healthy, reconfiguring the entire module if not.
+    It also handles manual worker restart requests.
     """
 
     def __init__(self, worker: Worker) -> None:
