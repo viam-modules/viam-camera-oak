@@ -2,7 +2,8 @@
 
 This is a [Viam module](https://docs.viam.com/manage/configuration/#modules) for the [OAK](https://shop.luxonis.com/collections/oak-cameras-1) family of cameras. Registered at https://app.viam.com/module/viam/oak. The module supports getting color and stereo depth frames from OAK cameras using the `oak-d` and `oak-ffc-3p` component models, as well as setting up a YOLO detection network on the camera VPU using `yolo-detection-network` vision service model.
 
-Learn about the difference between modules, models, components, and services in [our docs](https://docs.viam.com/appendix/glossary/).
+> [!NOTE]  
+> Learn about the difference between modules, models, components, and services in [our docs](https://docs.viam.com/appendix/glossary/).
 
 ## Supported Models
 
@@ -21,15 +22,15 @@ Other OAK family cameras may work with the either component model, but are not o
 > For more details, see [Configure a Robot](https://docs.viam.com/manage/configuration/).
 
 Navigate to the **Config** tab of your robot’s page in [the Viam app](https://app.viam.com/).
-For camera models: click on the **Components** subtab and click **Create component**.
+For camera components, click on the **Components** subtab and click **Create component**.
 Select the `camera` type, then select the `oak-d` or `oak-ffc-3p` model.
 Enter a name for your camera and click **Create**.
 
-For vision service: click on the **Services** subtab and click **Create service**.
+For vision services, click on the **Services** subtab and click **Create service**.
 Select the `vision` type, then select the `yolo-detection-network` model.
 Enter a name for your vision service and click **Create**.
 
-On the new resource config panel, modify the attributes JSON in the **Attributes** box. See below for the available config attributes per model.
+On the new resource config panel, modify the attributes JSON in the **Attributes** box. If you are confused which attributes to supply, consult the per-model below configuration attributes guides.
 
 ## Configuration Attributes
 
