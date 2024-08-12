@@ -40,21 +40,17 @@ On the new resource config panel, modify the attributes JSON in the **Attributes
 Below is an example JSON of an `oak-d` component's attributes:
 ```json
 {
-  "components": [
-    {
-      "name": "my-oak",
-      "attributes": {
-        "sensors": ["color", "depth"],
-        "width_px": 640,
-        "height_px": 480,
-        "frame_rate": 30,
-        "device_info": "<mxid-or-ip-address-or-usb-port-name>"
-      },
-      "namespace": "rdk",
-      "type": "camera",
-      "model": "viam:luxonis:oak-d"
-    }
-  ]
+  "name": "my-oak",
+  "attributes": {
+    "sensors": ["color", "depth"],
+    "width_px": 640,
+    "height_px": 480,
+    "frame_rate": 30,
+    "device_info": "<mxid-or-ip-address-or-usb-port-name>"
+  },
+  "namespace": "rdk",
+  "type": "camera",
+  "model": "viam:luxonis:oak-d"
 }
 ```
 
@@ -69,59 +65,6 @@ The following attributes are available for the `oak-d` component:
 | `height_px` | int | Optional | Height in pixels of the images output by this camera. Default: `720` |
 | `frame_rate` | int | Optional | The frame rate the camera will capture images at. Default: `30` |
 | `device_info` | string | Optional | Physical device identifier to connect to a specific OAK camera connected to your machine. If not specified, the module will pick the first device it detects. `device_info` can be a MXID, usb port path, or IP address. [See DepthAI documentation for more details](https://docs.luxonis.com/software/depthai/examples/device_information#Device%20information). |
-
-> [!NOTE]  
-> Higher resolutions may cause out of memory errors. See Luxonis documentation [here](https://docs.luxonis.com/projects/api/en/latest/tutorials/ram_usage/.).
-
-### Configuring the OAK-FFC-3P component model
-
-#### Example Configuration
-Below is an example JSON of an `oak-ffc-3p` component's attributes:
-```json
-{
-    "device_info": "6944301071407E1369",
-    "camera_sensors": [
-        {
-            "socket": "cam_b",
-            "type": "color",
-            "width_px": 640,
-            "height_px": 480,
-            "frame_rate": 30,
-            "color_order": "rgb",
-            "interleaved": false
-        },
-        {
-            "socket": "cam_c",
-            "type": "color",
-            "width_px": 640,
-            "height_px": 480,
-            "frame_rate": 30,
-            "color_order": "rgb",
-            "interleaved": false
-        }
-    ]
-}
-```
-
-#### Attributes
-
-The following attributes are available for the `oak-ffc-3p` component:
-
-| Name | Type | Inclusion | Description |
-| ---- | ---- | --------- | ----------- |
-| `device_info` | string | Optional | Physical device identifier to connect to a specific OAK camera connected to your machine. If not specified, the module will pick the first device it detects. `device_info` can be a MXID, usb port path, or IP address. [See DepthAI documentation for more details](https://docs.luxonis.com/software/depthai/examples/device_information#Device%20information). |
-| `camera_sensors` | list[struct] | **Required** | A list of struct mappings of strings to values representing the sub-configuration per camera sensor on the device. |
-
-The below attributes are nested inside each camera sensor struct inside `camera_sensors`:
-| Name | Type | Inclusion | Description |
-| ---- | ---- | --------- | ----------- |
-| `socket` | str | Required | The socket the sensor is connected to: "cam_a", "cam_b", or "cam_c", corresponding to the three available sensor sockets on the OAK-FFC-3P. Read more about DepthAI camera sockets on [their docs](https://docs.luxonis.com/software/api/python/#depthai.CameraBoardSocket). |
-| `type` | str | Required | The type of the sensor: "color" or "depth", corresponding to whether the sensor on the respective socket is a color or mono depth camera. |
-| `width_px` | int | Optional | Width in pixels of the images output by this camera. Default: `1280` |
-| `height_px` | int | Optional | Height in pixels of the images output by this camera. Default: `720` |
-| `frame_rate` | int | Optional | The frame rate the camera will capture images at. Default: `30` |
-| `color_order` | str | Optional | The color order of the output frames (used for color sensor type only): "rgb" or "bgr". Default: `rgb` |
-| `interleaved` | bool | Optional | Whether or not output frames should be stored in an interleaved format. Default: `false` |
 
 > [!NOTE]  
 > Higher resolutions may cause out of memory errors. See Luxonis documentation [here](https://docs.luxonis.com/projects/api/en/latest/tutorials/ram_usage/.).
