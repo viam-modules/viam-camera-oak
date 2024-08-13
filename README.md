@@ -191,7 +191,7 @@ The following attributes are available for the `yolo-detection-network` service:
 The below attributes are nested inside the `yolo_config` struct:
 | Name | Type | Inclusion | Description |
 | ---- | ---- | --------- | ----------- |
-| `blob_path` | string | Required | The local path to the YOLO model blob. The model must be in the .blob format compatible with Luxonis VPUs. See [here](https://docs.luxonis.com/software/ai-inference/conversion/) for more information. |
+| `blob_path` | string | Required | The local path to the YOLO model blob. The model must be in the .blob format compatible with Luxonis VPUs. See [here](https://docs.luxonis.com/software/ai-inference/conversion/) for more information. You can find many .blob formatted models to use in the [DepthAI Model Zoo](https://blobconverter.luxonis.com/), or use the converter to make your own. |
 | `labels` | list[string] | Required | A list of strings representing each label the YOLO model can output. Order matters here as YOLO models use label index mapping to retrieve string labels. |
 | `confidence_threshold` | float | Required | The minimum confidence level required for a detection to be considered valid. Default `0.5`. |
 | `iou_threshold` | float | Required | The Intersection Over Union (IOU) threshold used for non-max suppression to filter out overlapping bounding boxes. Default `0.5`. |
