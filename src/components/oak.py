@@ -434,7 +434,11 @@ class Oak(Camera, Reconfigurable):
             resp = dict()
             service_id = command["sender_id"]
             service_name = command["sender_name"]
-            ydn_config = self.ydn_configs[service_id]
+            try:
+                ydn_config = self.ydn_configs[service_id]
+            except KeyError as e:
+                raise ViamError(f'Could not find matching YDN config for YDN service id: "{service_id}" and name: "{service_name}"')
+
             # Find respective Sensor to the YDN config
             sensor = None
             if ydn_config.input_source == "color":
