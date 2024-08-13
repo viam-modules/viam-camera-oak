@@ -41,20 +41,20 @@ On the new resource config panel, modify the attributes JSON in the **Attributes
 
 #### Example configuration
 
-Below is an example JSON of an `oak-d` component's attributes:
+Below is an example JSON of an `oak-d` component:
 ```json
 {
   "name": "my-oak",
+  "namespace": "rdk",
+  "type": "camera",
+  "model": "viam:luxonis:oak-d",
   "attributes": {
     "sensors": ["color", "depth"],
     "width_px": 640,
     "height_px": 480,
     "frame_rate": 30,
     "device_info": "<mxid-or-ip-address-or-usb-port-name>"
-  },
-  "namespace": "rdk",
-  "type": "camera",
-  "model": "viam:luxonis:oak-d"
+  }
 }
 ```
 
@@ -76,30 +76,45 @@ The following attributes are available for the `oak-d` camera component:
 ### `oak-ffc-3p` component model
 
 #### Example configuration
-Below is an example JSON of an `oak-ffc-3p` component's attributes:
+Below is an example JSON of an `oak-ffc-3p` component:
 ```json
 {
-    "device_info": "6944301071407E1369",
-    "camera_sensors": [
-        {
-            "socket": "cam_b",
-            "type": "color",
-            "width_px": 640,
-            "height_px": 480,
-            "frame_rate": 30,
-            "color_order": "rgb",
-            "interleaved": false
-        },
-        {
-            "socket": "cam_c",
-            "type": "color",
-            "width_px": 640,
-            "height_px": 480,
-            "frame_rate": 30,
-            "color_order": "rgb",
-            "interleaved": false
-        }
-    ]
+  "name": "my-oak",
+  "namespace": "rdk",
+  "type": "camera",
+  "model": "viam:luxonis:oak-ffc-3p",
+  "attributes": {
+      "device_info": "6944301071407E1369",
+      "camera_sensors": [
+          {
+              "socket": "cam_a",
+              "type": "color",
+              "width_px": 416,
+              "height_px": 416,
+              "frame_rate": 30,
+              "color_order": "rgb",
+              "interleaved": false
+          },
+          {
+              "socket": "cam_b",
+              "type": "color",
+              "width_px": 416,
+              "height_px": 416,
+              "frame_rate": 30,
+              "color_order": "rgb",
+              "interleaved": false
+          },
+          {
+              "socket": "cam_c",
+              "type": "color",
+              "width_px": 416,
+              "height_px": 416,
+              "frame_rate": 30,
+              "color_order": "rgb",
+              "interleaved": false
+          }
+      ]
+  }
 }
 ```
 
@@ -129,24 +144,27 @@ The below attributes are nested inside each camera sensor struct inside `camera_
 ### `yolo-detection-network` service model
 
 #### Example configuration
-Below is an example JSON of a `yolo-detection-network` service's attributes:
+Below is an example JSON of a `yolo-detection-network` service:
 ```json
 {
-  "cam_name": "my-oak",
-  "input_source": "color",
-  "num_threads": 2,
-  "num_nce_per_thread": 1,
-  "yolo_config": {
-    "blob_path": "<local-path-to-yolo-model>",
-    "label_map": ["person", "apple", "orange", "tv", "etc."],
-    "confidence_threshold": 0.5,
-    "iou_threshold": 0.5,
-    "anchors": [0, 0, 1, 1, 2, 2, 3, 3, 4, 4],
-    "anchor_masks": {
-      "side26": [1, 2, 3],
-      "side13": [3, 4, 5]
-    },
-    "coordinate_size": 4
+  "name": "my-yolo-detection-network",
+  "namespace": "rdk",
+  "type": "vision",
+  "model": "viam:luxonis:yolo-detection-network",
+  "attributes": {
+    "cam_name": "my-oak",
+    "input_source": "cam_a",
+    "num_threads": 2,
+    "num_nce_per_thread": 1,
+    "yolo_config": {
+      "labels": [
+        "person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat", "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "sofa", "pottedplant", "bed", "diningtable", "toilet", "tvmonitor", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"
+      ],
+      "confidence_threshold": 0.5,
+      "iou_threshold": 0.5,
+      "coordinate_size": 4,
+      "blob_path": "/path/to/some/model/like/yolov6n_coco_416x416.blob"
+    }
   }
 }
 ```
