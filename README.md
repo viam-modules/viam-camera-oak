@@ -27,11 +27,11 @@ Enter a name for your camera and click **Create**.
 
 To configure the vision service, click on the **Services** subtab and click **Create service**.
 
-On the new resource config panel, modify the attributes JSON in the **Attributes** box. If you are confused which attributes to supply, consult the per-model configuration attributes guides below.
+On the new resource config panel, modify the attributes JSON in the **Attributes** box. If you are confused which attributes to supply, consult the per-model attribute configuration guides below.
 
-## Configuration Attributes
+## Attribute Configurations Guide
 
-### Configuring the OAK-D component model
+### Configuring the `oak-d` component model
 
 #### Example Configuration
 
@@ -67,7 +67,7 @@ The following attributes are available for the `oak-d` component:
 > [!NOTE]  
 > Higher resolutions may cause out of memory errors. See Luxonis documentation [here](https://docs.luxonis.com/projects/api/en/latest/tutorials/ram_usage/.).
 
-### Configuring the OAK-FFC-3P component model
+### Configuring the `oak-ffc-3p` component model
 
 #### Example Configuration
 Below is an example JSON of an `oak-ffc-3p` component's attributes:
@@ -120,7 +120,7 @@ The below attributes are nested inside each camera sensor struct inside `camera_
 > [!NOTE]  
 > Higher resolutions may cause out of memory errors. See Luxonis documentation [here](https://docs.luxonis.com/projects/api/en/latest/tutorials/ram_usage/.).
 
-### Configuring the YOLO Detection Network service model
+### Configuring the `yolo-detection-network` service model
 
 #### Example Configuration
 Below is an example JSON of a `yolo-detection-network` service's attributes:
