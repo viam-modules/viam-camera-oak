@@ -37,7 +37,7 @@ On the new resource config panel, modify the attributes JSON in the **Attributes
 
 ## Attribute configuration guides
 
-### Configuring the `oak-d` component model
+### `oak-d` component model
 
 #### Example configuration
 
@@ -59,8 +59,6 @@ Below is an example JSON of an `oak-d` component's attributes:
 ```
 
 #### Attributes
-
-### `oak-d` component model
 
 The following attributes are available for the `oak-d` camera component:
 
