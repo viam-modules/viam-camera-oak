@@ -47,6 +47,7 @@ from src.do_command_helpers import (
     decode_ydn_configure_command,
     encode_detections,
     encode_image_data,
+    # YDN = yolo detection network
     YDN_CONFIGURE,
     YDN_DECONFIGURE,
     YDN_CAPTURE_ALL,
@@ -484,7 +485,7 @@ class Oak(Camera, Reconfigurable):
     ):
         """
         Blocks on camera data methods that require the worker to be the desired status.
-        Unblocks once worker is in the desire status or max number of attempts to pass is reached.
+        Unblocks once worker is in the desired status or max number of attempts to pass is reached.
 
         Args:
             max_attempts (int, optional): Defaults to 5.
