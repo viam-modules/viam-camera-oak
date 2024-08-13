@@ -57,7 +57,9 @@ Below is an example JSON of an `oak-d` component's attributes:
 
 #### Attributes
 
-The following attributes are available for the `oak-d` component:
+### `oak-d` component model
+
+The following attributes are available for the `oak-d` camera component:
 
 | Name | Type | Inclusion | Description |
 | ---- | ---- | --------- | ----------- |
