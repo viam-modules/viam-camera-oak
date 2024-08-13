@@ -73,7 +73,7 @@ def decode_ydn_configure_command(command_dict: Mapping[str, ValueTypes]) -> YDNC
         confidence_threshold=yolo_config_dict["confidence_threshold"],
         iou_threshold=yolo_config_dict["iou_threshold"],
         anchors=yolo_config_dict["anchors"],
-        anchor_masks={k: v for k, v in yolo_config_dict["anchor_masks"].items()},
+        anchor_masks=yolo_config_dict["anchor_masks"],
         coordinate_size=int(yolo_config_dict["coordinate_size"]),
         service_name=command_dict["sender_name"],
         service_id=command_dict["sender_id"],
