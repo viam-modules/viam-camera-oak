@@ -20,6 +20,7 @@ var (
 	modulePath = flag.String("module", "", "the path to the OAK module to test. If blank, will test the module from the registry.")
 	blobPath   = flag.String("blob", "", "the path to the model blob. This path can be relative or absolute.")
 	absBlobPath = ""
+	absModulePath = ""
 )
 
 func TestMain(m *testing.M) {
@@ -35,11 +36,12 @@ func TestMain(m *testing.M) {
 	}
 
 	// Resolve absolute path for modulePath
-	absModulePath, err := filepath.Abs(moduleString)
+	absPath, err := filepath.Abs(moduleString)
 	if err != nil {
 		fmt.Printf("  error resolving absolute path for module: %v\n", err.Error())
 		os.Exit(1)
 	}
+	absModulePath = absPath
 
 	// Check if module exists
 	fmt.Printf("Checking if file exists at %q\n", absModulePath)

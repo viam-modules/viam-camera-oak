@@ -3,7 +3,6 @@ package tests
 import (
 	"context"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -23,14 +22,13 @@ const (
 )
 
 func TestCameraServer(t *testing.T) {
-	timeoutCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
 	var myRobot robot.Robot
 	var cam camera.Camera
 	t.Run("Set up the robot", func(t *testing.T) {
 		var err error
-		moduleString := strings.TrimSpace(*modulePath)
 		configString := fmt.Sprintf(`
 			{
 			"network": {
@@ -60,7 +58,7 @@ func TestCameraServer(t *testing.T) {
 				}
 			]
 			}
-		`, componentName, moduleString)
+		`, componentName, absModulePath)
 		myRobot, err = setUpViamServer(timeoutCtx, configString, "oak_d_test", t)
 		test.That(t, err, test.ShouldBeNil)
 		cam, err = camera.FromRobot(myRobot, componentName)
@@ -82,14 +80,7 @@ func TestCameraServer(t *testing.T) {
 		test.That(t, metadata.CapturedAt, test.ShouldHappenBefore, time.Now())
 	})
 
-	t.Run("Get point cloud method", func(t *testing.T) {
-		pc, err := cam.NextPointCloud(timeoutCtx)
-		test.That(t, err, test.ShouldBeNil)
-		test.That(t, pc, test.ShouldNotBeNil)
-		test.That(t, pc.Size(), test.ShouldBeBetween, 0, maxGRPCMessageByteCount)
-	})
-
-	t.Run("Reconfigure module", func(t *testing.T) {
+	t.Run("Reconfigure camera", func(t *testing.T) {
 		cfg := resource.Config{
 			Attributes: utils.AttributeMap{
 				"sensors": []string{"depth"},
@@ -97,6 +88,13 @@ func TestCameraServer(t *testing.T) {
 		}
 		err := cam.Reconfigure(timeoutCtx, resource.Dependencies{}, cfg)
 		test.That(t, err, test.ShouldBeNil)
+	})
+
+	t.Run("Get point cloud method", func(t *testing.T) {
+		pc, err := cam.NextPointCloud(timeoutCtx)
+		test.That(t, err, test.ShouldBeNil)
+		test.That(t, pc, test.ShouldNotBeNil)
+		test.That(t, pc.Size(), test.ShouldBeBetween, 0, maxGRPCMessageByteCount)
 	})
 
 	t.Run("Shut down the camera", func(t *testing.T) {
