@@ -47,6 +47,7 @@ from src.do_command_helpers import (
     decode_ydn_configure_command,
     encode_detections,
     encode_image_data,
+    # YDN = yolo detection network
     YDN_CONFIGURE,
     YDN_DECONFIGURE,
     YDN_CAPTURE_ALL,
