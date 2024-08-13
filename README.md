@@ -31,7 +31,8 @@ Navigate to the **CONFIGURE** tab of your machine's page in [the Viam app](https
 [Add `camera` / `oak-d` or `camera` / `oak-ffc-3p` to your machine](https://docs.viam.com/configure/#components).
 Enter a name for your camera and click **Create**.
 
-To configure the vision service, add [``](/configure/#services).
+[Add `vision` service `yolo-detection-network` to your machine](https://docs.viam.com/configure/#services).
+Enter a name for your service and click **Create**.
 
 On the new resource config panel, modify the attributes JSON in the **Attributes** box. If you are confused which attributes to supply, consult the per-model attribute configuration guides below.
 
@@ -58,7 +59,7 @@ Below is an example JSON of an `oak-d` component:
 }
 ```
 > [!NOTE]  
-> If not directly configuring with the JSON editor, remember to only paste in the `attributes` value and not the full component configuration into the **Attributes** box on the Viam App.
+> If you are not directly configuring with the JSON editor, remember to only paste in the `attributes` struct and not the full component configuration above into the **Attributes** box on the Viam App.
 
 #### Attributes
 
@@ -120,7 +121,7 @@ Below is an example JSON of an `oak-ffc-3p` component:
 }
 ```
 > [!NOTE]  
-> If not directly configuring with the JSON editor, remember to only paste in the `attributes` value and not the full component configuration into the **Attributes** box on the Viam App.
+> If you are not directly configuring with the JSON editor, remember to only paste in the `attributes` struct and not the full component configuration above into the **Attributes** box on the Viam App.
 
 #### Attributes
 
@@ -173,7 +174,7 @@ Below is an example JSON of a `yolo-detection-network` service:
 }
 ```
 > [!NOTE]  
-> If not directly configuring with the JSON editor, remember to only paste in the `attributes` value and not the full component configuration into the **Attributes** box on the Viam App.
+> If you are not directly configuring with the JSON editor, remember to only paste in the `attributes` struct and not the full component configuration above into the **Attributes** box on the Viam App.
 
 #### Attributes
 
