@@ -36,7 +36,7 @@ On the new resource config panel, modify the attributes JSON in the **Attributes
 
 ### Configuring the `oak-d` component model
 
-#### Example Configuration
+#### Example configuration
 
 Below is an example JSON of an `oak-d` component's attributes:
 ```json
