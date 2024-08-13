@@ -409,9 +409,7 @@ class Oak(Camera, Reconfigurable):
 
         # Handle different commands conditionally
         if cmd == YDN_CONFIGURE:
-            self.logger.debug(
-                f"Received YDN_CONFIGURE with mapping: {command}"
-            )
+            self.logger.debug(f"Received YDN_CONFIGURE with mapping: {command}")
             await self._wait_for_worker()
             ydn_config = decode_ydn_configure_command(command)
             self.ydn_configs[ydn_config.service_id] = ydn_config
@@ -421,9 +419,7 @@ class Oak(Camera, Reconfigurable):
             self.worker_manager.restart_atomic_bool.set(True)
             return {}
         elif cmd == YDN_DECONFIGURE:
-            self.logger.debug(
-                f"Received YDN_DECONFIGURE with mapping: {command}"
-            )
+            self.logger.debug(f"Received YDN_DECONFIGURE with mapping: {command}")
             id = command["sender_id"]
             if id in self.ydn_configs:
                 del self.ydn_configs[id]
