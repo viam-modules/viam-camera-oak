@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"strings"
@@ -9,11 +8,8 @@ import (
 	"time"
 
 	"go.viam.com/rdk/components/camera"
-	"go.viam.com/rdk/config"
-	"go.viam.com/rdk/logging"
 	"go.viam.com/rdk/resource"
 	"go.viam.com/rdk/robot"
-	robotimpl "go.viam.com/rdk/robot/impl"
 	"go.viam.com/rdk/utils"
 	"go.viam.com/test"
 )
@@ -34,7 +30,38 @@ func TestCameraServer(t *testing.T) {
 	var cam camera.Camera
 	t.Run("Set up the robot", func(t *testing.T) {
 		var err error
-		myRobot, err = setUpViamServer(timeoutCtx, t)
+		moduleString := strings.TrimSpace(*modulePath)
+		configString := fmt.Sprintf(`
+			{
+			"network": {
+				"bind_address": "0.0.0.0:90831",
+				"insecure": true
+			},
+			"components": [
+				{
+				"name": "%v",
+				"model": "viam:luxonis:oak-d",
+				"type": "camera",
+				"namespace": "rdk",
+				"attributes": {
+					"sensors": [
+					"color",
+					"depth"
+					]
+				},
+				"depends_on": []
+				}
+			],
+			"modules": [
+				{
+				"type": "local",
+				"name": "viam_oak",
+				"executable_path": "%v"
+				}
+			]
+			}
+		`, componentName, moduleString)
+		myRobot, err = setUpViamServer(timeoutCtx, configString, "oak_d_test", t)
 		test.That(t, err, test.ShouldBeNil)
 		cam, err = camera.FromRobot(myRobot, componentName)
 		test.That(t, err, test.ShouldBeNil)
@@ -81,51 +108,3 @@ func TestCameraServer(t *testing.T) {
 	})
 }
 
-func setUpViamServer(ctx context.Context, _ *testing.T) (robot.Robot, error) {
-	logger := logging.NewLogger("oak-integration-tests-logger")
-
-	moduleString := strings.TrimSpace(*modulePath)
-	logger.Info("testing module at %v", moduleString)
-	configString := fmt.Sprintf(`
-		{
-		"network": {
-			"bind_address": "0.0.0.0:90831",
-			"insecure": true
-		},
-		"components": [
-			{
-			"name": "%v",
-			"model": "viam:luxonis:oak-d",
-			"type": "camera",
-			"namespace": "rdk",
-			"attributes": {
-				"sensors": [
-				"color",
-				"depth"
-				]
-			},
-			"depends_on": []
-			}
-		],
-		"modules": [
-			{
-			"type": "local",
-			"name": "viam_oak",
-			"executable_path": "%v"
-			}
-		]
-		}
-	`, componentName, moduleString)
-
-	cfg, err := config.FromReader(ctx, "default.json", bytes.NewReader([]byte(configString)), logger)
-	if err != nil {
-		return nil, err
-	}
-
-	r, err := robotimpl.RobotFromConfig(ctx, cfg, logger)
-	if err != nil {
-		return nil, err
-	}
-
-	return r, nil
-}

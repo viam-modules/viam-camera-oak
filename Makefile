@@ -22,4 +22,4 @@ integration-tests: integration-tests/tests/*
 	cd integration-tests && \
 	go test -c -o oak-integration-tests ./tests/ && \
 	mv oak-integration-tests ../
-	./oak-integration-tests -module ./local_run.sh
+	./oak-integration-tests -module ./local_run.sh -blob ./integration-tests/models/yolov6n_coco_416x416.blob
