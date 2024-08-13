@@ -347,11 +347,8 @@ class YDNConfig(BaseConfig):
     # Default values for non-required attributes are set here
     cam_name: str
     input_source: str
-    width: int
-    height: int
     num_threads: int = 1
     num_nce_per_thread: int = 1
-    is_object_tracker: bool = False
 
     blob_path: str
     labels: List[str]
@@ -404,12 +401,6 @@ class YDNConfig(BaseConfig):
                 f'"input_source" attribute must be either "color", "cam_a", "cam_b", or "cam_c", not "{input_source}"'
             )
 
-        # Validate "width_px" and "height_px"
-        validate_attr_type("width_px", "number_value", attribute_map, True)
-        validate_attr_type("height_px", "number_value", attribute_map, True)
-        validate_dimension("width_px", attribute_map)
-        validate_dimension("height_px", attribute_map)
-
         # Validate "num_threads"
         validate_attr_type("num_threads", "number_value", attribute_map)
         num_threads_container = attribute_map.get("num_threads", None)
@@ -427,9 +418,6 @@ class YDNConfig(BaseConfig):
             num_nce = num_nce_container.number_value
             if num_nce not in [1, 2]:
                 handle_err(f'"num_nce_per_thread" must be 1 or 2. You set {num_nce}')
-
-        # Validate "is_object_tracker"
-        validate_attr_type("is_object_tracker", "bool_value", attribute_map)
 
         # Validate "yolo_cfg" and those nested fields
         validate_attr_type("yolo_config", "struct_value", attribute_map, True)
@@ -533,17 +521,12 @@ class YDNConfig(BaseConfig):
     def initialize_config(self):
         self.cam_name = self.attribute_map["cam_name"].string_value
         self.input_source = self.attribute_map["input_source"].string_value
-        self.width = int(self.attribute_map["width_px"].number_value)
-        self.height = int(self.attribute_map["height_px"].number_value)
         self.num_threads = (
             int(self.attribute_map["num_threads"].number_value) or self.num_threads
         )
         self.num_nce_per_thread = (
             int(self.attribute_map["num_nce_per_thread"].number_value)
             or self.num_nce_per_thread
-        )
-        self.is_object_tracker = (
-            self.attribute_map["is_object_tracker"].bool_value or self.is_object_tracker
         )
 
         yolo_cfg = self.attribute_map["yolo_config"].struct_value.fields
