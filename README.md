@@ -72,7 +72,7 @@ The following attributes are available for the `oak-d` component:
 
 ### Configuring the `oak-ffc-3p` component model
 
-#### Example Configuration
+#### Example configuration
 Below is an example JSON of an `oak-ffc-3p` component's attributes:
 ```json
 {
