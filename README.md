@@ -28,7 +28,7 @@ Other OAK family cameras may work with the either component model, but are not o
 
 Navigate to the **CONFIGURE** tab of your machine's page in [the Viam app](https://app.viam.com/).
 
-[Add `camera` / `oak`,  `camera` / `oak-d` or `camera` / `oak-ffc-3p` to your machine](https://docs.viam.com/configure/#components).
+[Add `camera` / `oak-d` or `camera` / `oak-ffc-3p` to your machine](https://docs.viam.com/configure/#components).
 Enter a name for your camera and click **Create**.
 
 To configure the vision service, click on the **Services** subtab and click **Create service**.
@@ -50,8 +50,8 @@ Below is an example JSON of an `oak-d` component:
   "model": "viam:luxonis:oak-d",
   "attributes": {
     "sensors": ["color", "depth"],
-    "width_px": 640,
-    "height_px": 480,
+    "width_px": 416,
+    "height_px": 416,
     "frame_rate": 30,
     "device_info": "<mxid-or-ip-address-or-usb-port-name>"
   }
@@ -86,7 +86,7 @@ Below is an example JSON of an `oak-ffc-3p` component:
   "type": "camera",
   "model": "viam:luxonis:oak-ffc-3p",
   "attributes": {
-      "device_info": "6944301071407E1369",
+      "device_info": "<mxid-or-ip-address-or-usb-port-name>",
       "camera_sensors": [
           {
               "socket": "cam_a",
