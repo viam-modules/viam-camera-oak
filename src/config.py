@@ -379,9 +379,10 @@ class YDNConfig(BaseConfig):
         self.iou_threshold = kwargs.get("iou_threshold", self.iou_threshold)
         self.anchors = kwargs.get("anchors", [])
         self.anchor_masks = kwargs.get("anchor_masks", dict())
-        for l in self.anchor_masks.values():
-            for i, num in enumerate(l):
-                l[i] = int(num)
+        self.anchor_masks = {
+            key: list(map(int, value))
+            for key, value in kwargs.get("anchor_masks", {}).items()
+        }
         self.coordinate_size = kwargs.get("coordinate_size", self.coordinate_size)
 
         self.service_name = kwargs["service_name"]
