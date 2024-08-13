@@ -65,8 +65,6 @@ func TestYoloDetectionNetwork(t *testing.T) {
 					"input_source": "color",
 					"num_threads": 2,
 					"num_nce_per_thread": 1,
-					"width_px": 416,
-					"height_px": 416,
 					"yolo_config": {
 						"iou_threshold": 0.5,
 						"coordinate_size": 4,
