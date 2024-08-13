@@ -13,10 +13,6 @@ from src.services.yolo_detection_network import (
 
 LOGGER = getLogger("viam-luxonis-module")
 
-from src.components.oak import Oak
-from src.services.yolo_detection_network import (
-    YoloDetectionNetwork,
-)
 
 def register_oak(module: Module) -> None:
     for model in Oak.ALL_MODELS:
