@@ -428,14 +428,12 @@ class YDNConfig(BaseConfig):
         if len(blob_path_value) == 0:
             handle_err('"blob_path" cannot be empty string.')
 
-        # Ensure it is an actual path and convert to absolute path if relative
+        # Convert to absolute path if relative
         try:
             blob_path_value = os.path.expanduser(blob_path_value)
             blob_path_value = os.path.expandvars(blob_path_value)
             if not os.path.isabs(blob_path_value):
                 blob_path_value = os.path.abspath(blob_path_value)
-            if not os.path.exists(blob_path_value):
-                handle_err(f'"blob_path" does not exist: {blob_path_value}')
         except Exception as e:
             handle_err(f"Invalid blob_path: {blob_path_value}. Error: {str(e)}")
         # Update the blob_path in yolo config
