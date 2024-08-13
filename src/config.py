@@ -366,13 +366,10 @@ class YDNConfig(BaseConfig):
     def from_kwargs(cls, **kwargs):
         self = cls(dict(), kwargs["service_name"])
         self.input_source = kwargs["input_source"]
-        self.width = kwargs["width"]
-        self.height = kwargs["height"]
         self.num_threads = kwargs.get("num_threads", self.num_threads)
         self.num_nce_per_thread = kwargs.get(
             "num_nce_per_thread", self.num_nce_per_thread
         )
-        self.is_object_tracker = kwargs.get("is_object_tracker", self.is_object_tracker)
 
         self.blob_path = kwargs["blob_path"]
         self.labels = kwargs["labels"]

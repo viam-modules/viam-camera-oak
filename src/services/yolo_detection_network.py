@@ -91,7 +91,13 @@ class YoloDetectionNetwork(Vision, Reconfigurable):
         self.ydn_service_name = config.name
 
         async def async_do_command():
-            while not self.pipeline_configured and self.should_exec:
+            attempts = 0
+            max_attempts = 5
+            while (
+                not self.pipeline_configured
+                and self.should_exec
+                and attempts < max_attempts
+            ):
                 try:
                     configure_cmd = encode_ydn_configure_command(
                         self.cfg, self.ydn_service_name, self.ydn_service_id
@@ -102,6 +108,11 @@ class YoloDetectionNetwork(Vision, Reconfigurable):
                     self.logger.warn(
                         f"Error in do_command: {e}. Trying to configure via do_command again..."
                     )
+                    attempts += 1
+                    if attempts >= max_attempts:
+                        self.logger.error(
+                            "Max attempts reached. Failed to configure pipeline in OAK component for YOLO Detection Network."
+                        )
                 await asyncio.sleep(1)
 
         asyncio.create_task(async_do_command())
