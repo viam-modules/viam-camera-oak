@@ -70,7 +70,7 @@ The following attributes are available for the `oak-d` component:
 > [!NOTE]  
 > Higher resolutions may cause out of memory errors. See Luxonis documentation [here](https://docs.luxonis.com/projects/api/en/latest/tutorials/ram_usage/.).
 
-### Configuring the `oak-ffc-3p` component model
+### `oak-ffc-3p` component model
 
 #### Example configuration
 Below is an example JSON of an `oak-ffc-3p` component's attributes:
