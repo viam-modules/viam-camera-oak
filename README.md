@@ -32,7 +32,7 @@ To configure the vision service, click on the **Services** subtab and click **Cr
 
 On the new resource config panel, modify the attributes JSON in the **Attributes** box. If you are confused which attributes to supply, consult the per-model attribute configuration guides below.
 
-## Attribute Configuration Guides
+## Attribute configuration guides
 
 ### Configuring the `oak-d` component model
 
