@@ -1,7 +1,12 @@
-depthai-sdk==1.14.0
+# Keep the below block the same as requirements.txt
+depthai==2.26.0
 viam-sdk==0.25.2
 Pillow==10.4.0
+opencv-python==4.10.0.84
 numpy>=1.23,<2.0.0  # >2.0.0 breaks depthai https://github.com/luxonis/depthai-viewer/releases/tag/v0.2.3
 google-api-python-client==2.0.0
+pyinstaller==6.3.0
+
+# Dev specific deps
 pytest
 black

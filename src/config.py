@@ -1,3 +1,4 @@
+import os
 from typing import List, Literal, Mapping, Optional
 
 from google.protobuf.struct_pb2 import Value
@@ -13,7 +14,7 @@ DEFAULT_WIDTH = 1280
 DEFAULT_HEIGHT = 720
 DEFAULT_COLOR_ORDER = "rgb"
 DEFAULT_INTERLEAVED = False
-LOGGER = getLogger("viam-oak-config-logger")
+LOGGER = getLogger("viam-luxonis-configuration")
 
 
 def handle_err(err_msg: str) -> None:
@@ -78,13 +79,18 @@ def validate_dimension(attribute: str, attribute_map: Mapping[str, Value]) -> No
 
 
 class BaseConfig:
-    def __init__(self, attribute_map: Mapping[str, Value]):
+    """
+    Base class for native configurations for all models in this module.
+    """
+
+    def __init__(self, attribute_map: Mapping[str, Value], name: str):
         self.attribute_map = attribute_map
+        self.name = name
 
     @classmethod
     def validate(cls, attribute_map: Mapping[str, Value]) -> List[str]:
         """
-        Equivalent to the validate() method for modules.
+        Equivalent to the module validate() method but specific to a model's specific config.
 
         Subclasses should inherit and implement this method.
 
@@ -106,6 +112,10 @@ class BaseConfig:
 
 
 class OakConfig(BaseConfig):
+    """
+    Base config class for OAK component models.
+    """
+
     device_info: str
     sensors: Sensors
 
@@ -121,6 +131,10 @@ class OakConfig(BaseConfig):
 
 
 class OakDConfig(OakConfig):
+    """
+    OAK-D component model native config
+    """
+
     def initialize_config(self):
         self.device_info = self.attribute_map["device_info"].string_value or None
         sensors_str_list = list(self.attribute_map["sensors"].list_value)
@@ -218,6 +232,10 @@ class OakDConfig(OakConfig):
 
 
 class OakFfc3PConfig(OakConfig):
+    """
+    Native config for OAK-FFC-3P component model.
+    """
+
     @classmethod
     def validate(cls, attribute_map: Mapping[str, Value]) -> List[str]:
         super().validate(attribute_map)
@@ -323,38 +341,64 @@ class OakFfc3PConfig(OakConfig):
 
 
 class YDNConfig(BaseConfig):
+    """
+    Native config for configuring a yolo detection network in the DepthAI pipeline.
+    """
+
     # Default values for non-required attributes are set here
     cam_name: str
     input_source: str
-    width: int
-    height: int
     num_threads: int = 1
     num_nce_per_thread: int = 1
-    is_object_tracker: bool = False
 
     blob_path: str
-    label_map: List[str]
+    labels: List[str]
     confidence_threshold: float = 0.25
     iou_threshold: float = 0.5
     anchors: List[float]
     anchor_masks: Mapping[str, List[int]]
     coordinate_size: int = 4
 
+    # Used in OAK to check what service this config is for
+    service_name: str
+    service_id: str
+
+    @classmethod
+    def from_kwargs(cls, **kwargs):
+        self = cls(dict(), kwargs["service_name"])
+        self.input_source = kwargs["input_source"]
+        self.num_threads = kwargs.get("num_threads", self.num_threads)
+        self.num_nce_per_thread = kwargs.get(
+            "num_nce_per_thread", self.num_nce_per_thread
+        )
+
+        self.blob_path = kwargs["blob_path"]
+        self.labels = kwargs["labels"]
+        self.confidence_threshold = kwargs.get(
+            "confidence_threshold", self.confidence_threshold
+        )
+        self.iou_threshold = kwargs.get("iou_threshold", self.iou_threshold)
+        self.anchors = kwargs.get("anchors", [])
+        self.anchor_masks = kwargs.get("anchor_masks", dict())
+        self.anchor_masks = {
+            key: list(map(int, value))
+            for key, value in kwargs.get("anchor_masks", {}).items()
+        }
+        self.coordinate_size = kwargs.get("coordinate_size", self.coordinate_size)
+
+        self.service_name = kwargs["service_name"]
+        self.service_id = kwargs["service_id"]
+        return self
+
     @classmethod
     def validate(self, attribute_map: Mapping[str, Value]) -> List[str]:
         # Validate "input_source"
         validate_attr_type("input_source", "string_value", attribute_map, True)
         input_source = attribute_map.get("input_source", default=None).string_value
-        if input_source not in ["cam_a", "cam_b", "cam_c", "color", "depth"]:
+        if input_source not in ["cam_a", "cam_b", "cam_c", "color"]:
             handle_err(
-                f'"input_source" attribute must be either "cam_a", "cam_b", or "cam_c", not "{input_source}"'
+                f'"input_source" attribute must be either "color", "cam_a", "cam_b", or "cam_c", not "{input_source}"'
             )
-
-        # Validate "width_px" and "height_px"
-        validate_attr_type("width_px", "number_value", attribute_map, True)
-        validate_attr_type("height_px", "number_value", attribute_map, True)
-        validate_dimension("width_px", attribute_map)
-        validate_dimension("height_px", attribute_map)
 
         # Validate "num_threads"
         validate_attr_type("num_threads", "number_value", attribute_map)
@@ -374,17 +418,26 @@ class YDNConfig(BaseConfig):
             if num_nce not in [1, 2]:
                 handle_err(f'"num_nce_per_thread" must be 1 or 2. You set {num_nce}')
 
-        # Validate "is_object_tracker"
-        validate_attr_type("is_object_tracker", "bool_value", attribute_map)
-
         # Validate "yolo_cfg" and those nested fields
         validate_attr_type("yolo_config", "struct_value", attribute_map, True)
         yolo_cfg = attribute_map.get("yolo_config").struct_value.fields
 
         # Validate "blob_path"
         validate_attr_type("blob_path", "string_value", yolo_cfg, True)
-        if len(yolo_cfg.get("blob_path").string_value) == 0:
+        blob_path_value = yolo_cfg.get("blob_path").string_value
+        if len(blob_path_value) == 0:
             handle_err('"blob_path" cannot be empty string.')
+
+        # Convert to absolute path if relative
+        try:
+            blob_path_value = os.path.expanduser(blob_path_value)
+            blob_path_value = os.path.expandvars(blob_path_value)
+            if not os.path.isabs(blob_path_value):
+                blob_path_value = os.path.abspath(blob_path_value)
+        except Exception as e:
+            handle_err(f"Invalid blob_path: {blob_path_value}. Error: {str(e)}")
+        # Update the blob_path in yolo config
+        yolo_cfg["blob_path"].string_value = blob_path_value
 
         # Validate "labels"
         validate_attr_type("labels", "list_value", yolo_cfg, True)
@@ -469,7 +522,7 @@ class YDNConfig(BaseConfig):
         cam_name_container = attribute_map.get("cam_name", None)
         if cam_name_container is None:
             handle_err(
-                "Critical logic error: cam_name should not be None since we should've asserted it to not be."
+                "Critical logic error: cam_name should not be None since we should've asserted it to not be. This is likely a bug."
             )
         cam_name = cam_name_container.string_value
         if len(cam_name) == 0:
@@ -479,8 +532,6 @@ class YDNConfig(BaseConfig):
     def initialize_config(self):
         self.cam_name = self.attribute_map["cam_name"].string_value
         self.input_source = self.attribute_map["input_source"].string_value
-        self.width = int(self.attribute_map["width_px"].number_value)
-        self.height = int(self.attribute_map["height_px"].number_value)
         self.num_threads = (
             int(self.attribute_map["num_threads"].number_value) or self.num_threads
         )
@@ -488,13 +539,10 @@ class YDNConfig(BaseConfig):
             int(self.attribute_map["num_nce_per_thread"].number_value)
             or self.num_nce_per_thread
         )
-        self.is_object_tracker = (
-            self.attribute_map["is_object_tracker"].bool_value or self.is_object_tracker
-        )
 
         yolo_cfg = self.attribute_map["yolo_config"].struct_value.fields
         self.blob_path = yolo_cfg["blob_path"].string_value
-        self.label_map = [label for label in yolo_cfg["labels"].list_value]
+        self.labels = yolo_cfg["labels"].list_value
         self.confidence_threshold = (
             yolo_cfg["confidence_threshold"].number_value or self.confidence_threshold
         )

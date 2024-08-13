@@ -1,5 +1,6 @@
 import asyncio
 from collections import OrderedDict
+from logging import Logger
 import math
 from queue import Empty
 from threading import Lock
@@ -7,6 +8,7 @@ from typing import (
     Dict,
     List,
     Literal,
+    Mapping,
     Optional,
     OrderedDict,
     Tuple,
@@ -14,6 +16,7 @@ from typing import (
 )
 
 from viam.logging import getLogger
+from viam.errors import ViamError
 
 import cv2
 import depthai as dai
@@ -21,7 +24,7 @@ from numpy.typing import NDArray
 import numpy as np
 
 from src.components.helpers.shared import CapturedData, Sensor
-from src.config import OakConfig
+from src.config import OakConfig, YDNConfig
 
 DIMENSIONS_TO_MONO_RES = {
     (1280, 800): dai.MonoCameraProperties.SensorResolution.THE_800_P,
@@ -36,11 +39,10 @@ DIMENSIONS_TO_COLOR_RES = {
 }  # color camera component only accepts this subset of depthai_sdk.components.camera_helper.colorResolutions
 
 MAX_GRPC_MESSAGE_BYTE_COUNT = 4194304  # Update this if the gRPC config ever changes
-MAX_COLOR_DEPTH_QUEUE_SIZE = 30
+MAX_COLOR_DEPTH_QUEUE_SIZE = 5
 MAX_PC_QUEUE_SIZE = 5
+MAX_YDN_QUEUE_SIZE = 5
 MAX_MSG_SYCHRONIZER_MSGS_SIZE = 50
-
-LOGGER = getLogger("viam-oak-worker-logger")
 
 
 def get_closest_dai_resolution(
@@ -62,7 +64,7 @@ def get_closest_dai_resolution(
     supported resolution to the width and height from the config.
 
     Args:
-        resolutions (dict)
+        dimensions_to_resolution (dict)
     Returns:
         Union[dai.ColorCameraProperties.SensorResolution, dai.MonoCameraProperties.SensorResolution]
     """
@@ -72,11 +74,23 @@ def get_closest_dai_resolution(
         w2, h2 = width, height
         return math.sqrt((w1 - w2) ** 2 + (h1 - h2) ** 2)
 
+    # Filter for only dimensions that are larger or equal to the required width and height
+    valid_dimensions = {
+        dim: res
+        for dim, res in dimensions_to_resolution.items()
+        if dim[0] >= width and dim[1] >= height
+    }
+
+    if not valid_dimensions:
+        raise ViamError(
+            f"Received width x height: {width} x {height}, but no valid resolutions are larger or equal to the requested dimensions."
+        )
+
     closest = min(
-        dimensions_to_resolution.keys(),
+        valid_dimensions.keys(),
         key=euclidean_distance,
     )
-    return dimensions_to_resolution[closest]
+    return valid_dimensions[closest]
 
 
 class SensorAndQueue:
@@ -85,16 +99,29 @@ class SensorAndQueue:
         self.queue = q
 
 
+class YDNConfigAndQueue:
+    def __init__(self, ydn_config: YDNConfig, q: dai.DataOutputQueue):
+        self.ydn_config = ydn_config
+        self.queue = q
+
+
 class Worker:
     """
     oak.py <-> worker.py <-> DepthAI SDK <-> DepthAI API (C++ core) <-> actual camera
     """
 
+    logger: Logger
+
+    cfg: OakConfig
+    ydn_configs: Mapping[str, YDNConfig]
+    user_wants_pc: bool
+
     pipeline: Optional[dai.Pipeline]
     device: Optional[dai.Device]
     color_sensor_queues: Optional[List[SensorAndQueue]]
     depth_queue: Optional[dai.DataOutputQueue]
-    pcd_queue: Optional[dai.DataOutputQueue]
+    pc_queue: Optional[dai.DataOutputQueue]
+    ydn_config_queues: List[YDNConfigAndQueue]
 
     should_exec: bool
     configured: bool
@@ -106,17 +133,21 @@ class Worker:
     def __init__(
         self,
         oak_config: OakConfig,
+        ydn_configs: Mapping[str, YDNConfig],
         user_wants_pc: bool,
     ) -> None:
-        LOGGER.info("Initializing worker.")
+        self.logger = getLogger(oak_config.name)
+        self.logger.info("Initializing worker.")
         self.cfg = oak_config
+        self.ydn_configs = ydn_configs
         self.user_wants_pc = user_wants_pc
 
         self.device = None
         self.pipeline = None
         self.color_sensor_queues = None
         self.depth_queue = None
-        self.pcd_queue = None
+        self.pc_queue = None
+        self.ydn_config_queues = None
 
         # Flag for stopping execution and busy loops
         self.should_exec = True
@@ -125,20 +156,20 @@ class Worker:
         self.running = False
 
     def configure(self):
-        def configure_color() -> Optional[dai.node.ColorCamera]:
+        def configure_color() -> Optional[List[dai.node.ColorCamera]]:
             """
             Creates and configures color cameras or doesn't
             (based on the config).
             """
-            primary_color_cam = None
+            cams = []
             for sensor in self.cfg.sensors.color_sensors:
                 if sensor.sensor_type != "color":
                     continue
-                LOGGER.debug("Creating color camera component.")
+                self.logger.debug("Creating color camera component.")
                 resolution = get_closest_dai_resolution(
                     sensor.width, sensor.height, DIMENSIONS_TO_COLOR_RES
                 )
-                LOGGER.debug(
+                self.logger.debug(
                     f"Closest color resolution to inputted height & width is: {resolution}"
                 )
 
@@ -149,17 +180,21 @@ class Worker:
                 xout_color.setStreamName(sensor.get_unique_name())
 
                 # Properties
+                color_cam.setResolution(resolution)
                 color_cam.setPreviewSize(sensor.width, sensor.height)
                 color_cam.setInterleaved(sensor.interleaved)
                 color_cam.setBoardSocket(sensor.socket)
                 color_cam.setFps(sensor.frame_rate)
+                if sensor.color_order == "bgr":
+                    color_cam.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)
+                else:
+                    color_cam.setColorOrder(dai.ColorCameraProperties.ColorOrder.RGB)
 
                 # Linking
                 color_cam.preview.link(xout_color.input)
 
-                if primary_color_cam is None:
-                    primary_color_cam = color_cam
-            return primary_color_cam
+                cams.append(color_cam)
+            return cams
 
         def configure_stereo() -> Optional[dai.node.StereoDepth]:
             """
@@ -171,7 +206,7 @@ class Worker:
                 resolution = get_closest_dai_resolution(
                     sensor.width, sensor.height, DIMENSIONS_TO_MONO_RES
                 )
-                LOGGER.debug(
+                self.logger.debug(
                     f"Closest mono resolution: {resolution}. Inputted width & height: ({sensor.width}, {sensor.height})"
                 )
 
@@ -184,7 +219,7 @@ class Worker:
             stereo_pair = self.cfg.sensors.stereo_pair
             depth = None
             if stereo_pair:
-                LOGGER.debug("Creating stereo depth component.")
+                self.logger.debug("Creating stereo depth component.")
                 mono1, mono2 = stereo_pair
                 mono_cam_1 = make_mono_cam(mono1)
                 mono_cam_2 = make_mono_cam(mono2)
@@ -231,19 +266,68 @@ class Worker:
                 pointcloud.outputPointCloud.link(sync.inputs["pcl"])
                 sync.out.link(xOut.input)
 
+        def configure_ydn(color_nodes: List[dai.node.ColorCamera]):
+            """
+            Creates and configures yolo detection networks or doesn't
+            (based on the YDN configs)
+            """
+            for ydn_config in self.ydn_configs.values():
+                nn_out = self.pipeline.create(dai.node.XLinkOut)
+                nn_out.setStreamName(f"{ydn_config.service_name}_stream")
+
+                detection_net = self.pipeline.create(dai.node.YoloDetectionNetwork)
+                detection_net.setConfidenceThreshold(ydn_config.confidence_threshold)
+                detection_net.setNumClasses(len(ydn_config.labels))
+                detection_net.setCoordinateSize(ydn_config.coordinate_size)
+                detection_net.setAnchors(ydn_config.anchors)
+                detection_net.setAnchorMasks(anchorMasks=ydn_config.anchor_masks)
+                detection_net.setIouThreshold(ydn_config.iou_threshold)
+                detection_net.setNumInferenceThreads(ydn_config.num_threads)
+                detection_net.setNumNCEPerInferenceThread(ydn_config.num_nce_per_thread)
+                detection_net.setBlobPath(ydn_config.blob_path)
+                detection_net.input.setBlocking(False)
+
+                input_node = None
+                if ydn_config.input_source == "color":
+                    input_node = color_nodes[0]  # primary color cam
+                else:  # cam_{n}
+                    for color_node in color_nodes:
+                        if (
+                            color_node.getBoardSocket().name.lower()
+                            == ydn_config.input_source
+                        ):
+                            input_node = color_node
+                            break
+                if input_node is None:
+                    raise ViamError(
+                        f'"input_source" could not be matched to a socket or camera output type. Value: {ydn_config.input_source}'
+                    )
+
+                input_node.preview.link(detection_net.input)
+                detection_net.out.link(nn_out.input)
+
+        self.logger.info(
+            f"Num ydn_configs during configuration: {len(self.ydn_configs)}"
+        )
         self.pipeline = dai.Pipeline()
         try:
             stage = "color"
-            color_node = configure_color()
+            color_nodes = configure_color()
 
             stage = "stereo"
             depth_node = configure_stereo()
 
             stage = "point cloud"
+            color_node = None
+            if color_nodes:
+                color_node = color_nodes[0]
             configure_pc(color_node, depth_node)
 
-            LOGGER.info("Successfully configured pipeline.")
-        except Exception as e:
+            stage = "yolo detection network"
+            configure_ydn(color_nodes)
+
+            self.logger.info("Successfully configured pipeline.")
+        except ViamError as e:
             msg = f"Error configuring pipeline at stage '{stage}'. Note the error following this log"
             resolution_err_substr = "bigger than maximum at current sensor resolution"
             calibration_err_substr = "no Camera data available"
@@ -251,7 +335,7 @@ class Worker:
                 msg += ". Please adjust 'height_px' and 'width_px' in your config to an accepted resolution."
             elif calibration_err_substr in str(e):
                 msg += ". If using a non-integrated model, please check that the camera is calibrated properly."
-            LOGGER.error(msg)
+            self.logger.error(msg)
             raise e
 
         self.message_synchronizer = MessageSynchronizer()
@@ -262,9 +346,10 @@ class Worker:
         while not self.device and self.should_exec:
             try:
                 self.device = dai.Device(self.pipeline)
-                LOGGER.debug("Successfully initialized device.")
-            except Exception as e:
-                LOGGER.error(f"Error initializing device: {e}")
+                self.device.startPipeline()
+                self.logger.debug("Successfully initialized device.")
+            except ViamError as e:
+                self.logger.error(f"Error initializing device: {e}")
                 await asyncio.sleep(1)
 
         self.color_sensor_queues: List[SensorAndQueue] = []
@@ -279,7 +364,7 @@ class Worker:
                 self.depth_stream_name, MAX_COLOR_DEPTH_QUEUE_SIZE, blocking=False
             )
             if self.user_wants_pc:
-                self.pcd_queue = self.device.getOutputQueue(
+                self.pc_queue = self.device.getOutputQueue(
                     self.pc_stream_name, MAX_PC_QUEUE_SIZE, blocking=False
                 )
 
@@ -293,16 +378,23 @@ class Worker:
             self.depth_queue.addCallback(self.message_synchronizer.add_depth_msg)
             self.message_synchronizer.callbacks_set = True
 
+        self.ydn_config_queues: List[YDNConfigAndQueue] = []
+        for ydn_config in self.ydn_configs.values():
+            q = self.device.getOutputQueue(
+                f"{ydn_config.service_name}_stream", MAX_YDN_QUEUE_SIZE, blocking=False
+            )
+            self.ydn_config_queues.append(YDNConfigAndQueue(ydn_config, q))
+
         self.running = True
-        LOGGER.info("Successfully started camera worker.")
+        self.logger.info("Successfully started camera worker.")
 
     async def get_synced_color_depth_data(self) -> Tuple[CapturedData, CapturedData]:
         if not self.running:
-            raise Exception(
+            raise ViamError(
                 "Error getting camera output: Worker is not currently running."
             )
         if len(self.color_sensor_queues) != 1 or not self.depth_queue:
-            raise Exception(
+            raise ViamError(
                 "Precondition error: must have exactly 1 color sensor and 2 mono sensors for synced data"
             )
 
@@ -325,16 +417,16 @@ class Worker:
                 )
                 return color_data, depth_data
 
-            LOGGER.debug("Waiting for synced color and depth frames...")
+            self.logger.debug("Waiting for synced color and depth frames...")
             await asyncio.sleep(0.001)
 
-    def get_color_output(self, requested_sensor: Sensor):
+    async def get_color_output(self, requested_sensor: Sensor):
         if not self.running:
-            raise Exception(
+            raise ViamError(
                 "Error getting color frame: Worker is not currently running."
             )
         if requested_sensor.sensor_type != "color":
-            raise Exception(
+            raise ViamError(
                 "Error getting color frame: requested sensor is not a color sensor"
             )
 
@@ -344,69 +436,100 @@ class Worker:
                 continue
 
             q = sensor_and_queue.queue
-            try:
-                msg = q.get()
-                frame = msg.getCvFrame()
-            except Exception:
-                raise Empty("Error getting color frame: frame queue is empty.")
+            msg = None
+            while msg is None:
+                try:
+                    msg = q.tryGet()
+                except Empty:
+                    self.logger.debug("Couldn't get color frame: frame queue is empty.")
+                await asyncio.sleep(0.01)
+
+            frame = msg.getCvFrame()
             if this_sensor.color_order == "rgb":
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             timestamp = msg.getTimestamp().total_seconds()
             return CapturedData(frame, timestamp)
 
-        raise Exception(
+        raise ViamError(
             "Error getting color frame: requested sensor not registered in worker"
         )
 
-    def get_depth_output(self):
+    async def get_depth_output(self):
         if not self.running:
-            raise Exception(
+            raise ViamError(
                 "Error getting depth frame: Worker is not currently running."
             )
         if not self.depth_queue:
-            raise Exception(
+            raise ViamError(
                 "Error getting depth frame: stereo depth frame queue is not configured"
             )
 
-        try:
-            msg = self.depth_queue.get()
-        except Empty:
-            raise Empty("Error getting depth frame: frame queue is empty.")
+        msg = None
+        while msg is None:
+            try:
+                msg = self.depth_queue.tryGet()
+            except Empty:
+                self.logger.debug("Couldn't get depth frame: frame queue is empty.")
+            await asyncio.sleep(0.01)
+
         depth_output = self._process_depth_frame(
             self.cfg.sensors.stereo_pair[0], msg.getCvFrame()
         )
         timestamp = msg.getTimestamp().total_seconds()
         return CapturedData(depth_output, timestamp)
 
-    def get_pcd(self) -> CapturedData:
+    async def get_pcd(self) -> CapturedData:
         if not self.running:
-            raise Exception("Error getting PCD: Worker is not currently running.")
+            raise ViamError("Error getting PCD: Worker is not currently running.")
         if not self.user_wants_pc:
-            raise Exception(
-                "Critical dev logic error getting PCD: get_pcd() called without toggling user_wants_pc."
+            raise ViamError(
+                "Critical logic error getting PCD: get_pcd() called without toggling user_wants_pc. This is likely a bug."
             )
         if not self.depth_queue:
-            raise Exception(
+            raise ViamError(
                 "Error getting PCD: depth frame queue not configured for current OAK camera."
             )
-        try:
-            pc_msg = self.pcd_queue.get()
-            pc_obj = pc_msg["pcl"]
-            points = pc_obj.getPoints().astype(np.float64)
-            if points.nbytes > MAX_GRPC_MESSAGE_BYTE_COUNT:
-                pc_output = self._downsample_pcd(points, points.nbytes)
-            else:
-                pc_output = points
-            timestamp = pc_msg.getTimestamp().total_seconds()
-            return CapturedData(pc_output, timestamp)
-        except Empty:
-            raise Exception("Error getting PCD: timed out waiting for PCD from queue.")
+
+        msg = None
+        while msg is None:
+            try:
+                msg = self.pc_queue.tryGet()
+            except Empty:
+                self.logger.debug("Couldn't get color frame: frame queue is empty.")
+            await asyncio.sleep(0.01)
+
+        pc_obj = msg["pcl"]
+        points = pc_obj.getPoints().astype(np.float64)
+        if points.nbytes > MAX_GRPC_MESSAGE_BYTE_COUNT:
+            pc_output = self._downsample_pcd(points, points.nbytes)
+        else:
+            pc_output = points
+        timestamp = msg.getTimestamp().total_seconds()
+        return CapturedData(pc_output, timestamp)
+
+    def get_detections(
+        self, service_id: str, service_name: str
+    ) -> Optional[dai.ImgDetections]:
+        q: Optional[dai.DataOutputQueue] = None
+        for obj in self.ydn_config_queues:
+            if obj.ydn_config.service_id == service_id:
+                q = obj.queue
+                break
+        if q is None:
+            raise ViamError(
+                f'Could not find matching YDN config for YDN service id: "{service_id}" and name: "{service_name}"'
+            )
+
+        dets = q.tryGet()
+        if dets is not None and not isinstance(dets, dai.ImgDetections):
+            raise ViamError(f"Incorrect type received for detections: {type(dets)}")
+        return dets
 
     def stop(self) -> None:
         """
         Handles closing resources and exiting logic in worker.
         """
-        LOGGER.debug("Stopping worker.")
+        self.logger.debug("Stopping worker.")
         self.should_exec = False
         self.configured = False
         self.running = False
@@ -416,7 +539,7 @@ class Worker:
             self.pipeline = None
 
     def reset(self) -> None:
-        LOGGER.debug("Resetting worker.")
+        self.logger.debug("Resetting worker.")
         self.stop()
         self.should_exec = True
 
@@ -425,7 +548,7 @@ class Worker:
             arr = arr.astype(np.uint16)
 
         if arr.shape[0] > sensor.height and arr.shape[1] > sensor.width:
-            LOGGER.debug(
+            self.logger.debug(
                 f"Outputted depth map's shape is greater than specified in config: {arr.shape}; Manually resizing to {(sensor.height, sensor.width)}."
             )
             top_left_x = (arr.shape[1] - sensor.width) // 2
@@ -438,7 +561,7 @@ class Worker:
 
     def _downsample_pcd(self, arr: NDArray, byte_count: int) -> NDArray:
         factor = byte_count // MAX_GRPC_MESSAGE_BYTE_COUNT + 1
-        LOGGER.warn(
+        self.logger.warn(
             f"PCD bytes ({byte_count}) > max gRPC bytes count ({MAX_GRPC_MESSAGE_BYTE_COUNT}). Subsampling by 1/{factor}."
         )
         if arr.ndim == 2:
@@ -466,7 +589,7 @@ class MessageSynchronizer:
 
     def get_synced_msgs(self) -> Optional[Dict[str, dai.ADatatype]]:
         if not self.callbacks_set:
-            raise Exception(
+            raise ViamError(
                 "Data queue callbacks were not set. Cannot get synced messages."
             )
         for sync_msgs in self.msgs.values():

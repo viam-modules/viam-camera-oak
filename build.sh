@@ -17,6 +17,6 @@ python3 -m pip install --upgrade pip
 python3 -m pip install -r requirements.txt
 # Dynamically find the Python version directory inside .build-env/lib
 PYTHON_LIB_PATH=$(find .build-env/lib -type d -name "python3.*" -print -quit)
-AHRS_UTILS_PATH="$PYTHON_LIB_PATH/site-packages/ahrs/utils"
-python3 -m PyInstaller --add-data "$AHRS_UTILS_PATH:ahrs/utils" --onefile --hidden-import="googleapiclient" src/main.py
+CV2_UTILS_PATH="$PYTHON_LIB_PATH/site-packages/cv2"
+python3 -m PyInstaller --add-data "$CV2_UTILS_PATH:cv2" --onefile --hidden-import="googleapiclient" src/main.py
 tar -czvf dist/archive.tar.gz dist/main

@@ -5,6 +5,18 @@ from depthai import CameraBoardSocket
 
 
 def get_socket_from_str(s: str) -> CameraBoardSocket:
+    """
+    Socket str -> CameraBoardSocket object
+
+    Args:
+        s (str): socket str e.g. "cam_a", "cam_b" etc.
+
+    Raises:
+        Exception: if socket str is unrecognized or unsupported
+
+    Returns:
+        CameraBoardSocket: CameraBoardSocket DepthAI object
+    """
     if s == "cam_a":
         return CameraBoardSocket.CAM_A
     elif s == "cam_b":
@@ -16,6 +28,11 @@ def get_socket_from_str(s: str) -> CameraBoardSocket:
 
 
 class Sensor:
+    """
+    Sensor config. Corresponds to a socket and what camera should be configured
+    off of the specified socket.
+    """
+
     def get_unique_name(self) -> str:
         if self.sensor_type == "color":
             return f"{self.socket_str}_rgb"
@@ -43,6 +60,10 @@ class Sensor:
 
 
 class Sensors:
+    """
+    Sensors wraps a Sensor list and offers handy utility methods and fields.
+    """
+
     _mapping: Dict[str, Sensor]
     stereo_pair: Optional[Tuple[Sensor, Sensor]]
     color_sensors: Optional[List[Sensor]]
@@ -87,7 +108,14 @@ class CapturedData:
     """
     CapturedData is image data with the data as an np array,
     plus the timestamp it was captured at.
+
+    This class uses __slots__ to:
+        - Optimize memory usage by pre-defining attributes.
+        - Speed up attribute access slightly.
+        - Prevent unidiomatic additions of new attributes at runtime.
     """
+
+    __slots__ = ("np_array", "captured_at")
 
     def __init__(self, np_array: NDArray, captured_at: float) -> None:
         self.np_array = np_array
