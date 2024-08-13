@@ -57,6 +57,8 @@ Below is an example JSON of an `oak-d` component:
   }
 }
 ```
+> [!NOTE]  
+> If not directly configuring with the JSON editor, remember to only paste in the `attributes` value and not the full component configuration into the **Attributes** box on the Viam App.
 
 #### Attributes
 
@@ -117,6 +119,8 @@ Below is an example JSON of an `oak-ffc-3p` component:
   }
 }
 ```
+> [!NOTE]  
+> If not directly configuring with the JSON editor, remember to only paste in the `attributes` value and not the full component configuration into the **Attributes** box on the Viam App.
 
 #### Attributes
 
@@ -168,6 +172,8 @@ Below is an example JSON of a `yolo-detection-network` service:
   }
 }
 ```
+> [!NOTE]  
+> If not directly configuring with the JSON editor, remember to only paste in the `attributes` value and not the full component configuration into the **Attributes** box on the Viam App.
 
 #### Attributes
 
