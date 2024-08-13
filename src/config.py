@@ -1,3 +1,4 @@
+import os
 from typing import List, Literal, Mapping, Optional
 
 from google.protobuf.struct_pb2 import Value
@@ -423,8 +424,22 @@ class YDNConfig(BaseConfig):
 
         # Validate "blob_path"
         validate_attr_type("blob_path", "string_value", yolo_cfg, True)
-        if len(yolo_cfg.get("blob_path").string_value) == 0:
+        blob_path_value = yolo_cfg.get("blob_path").string_value
+        if len(blob_path_value) == 0:
             handle_err('"blob_path" cannot be empty string.')
+
+        # Ensure it is an actual path and convert to absolute path if relative
+        try:
+            blob_path_value = os.path.expanduser(blob_path_value)
+            blob_path_value = os.path.expandvars(blob_path_value)
+            if not os.path.isabs(blob_path_value):
+                blob_path_value = os.path.abspath(blob_path_value)
+            if not os.path.exists(blob_path_value):
+                handle_err(f'"blob_path" does not exist: {blob_path_value}')
+        except Exception as e:
+            handle_err(f"Invalid blob_path: {blob_path_value}. Error: {str(e)}")
+        # Update the blob_path in yolo config
+        yolo_cfg["blob_path"].string_value = blob_path_value
 
         # Validate "labels"
         validate_attr_type("labels", "list_value", yolo_cfg, True)
