@@ -125,7 +125,7 @@ The below attributes are nested inside each camera sensor struct inside `camera_
 
 ### Configuring the `yolo-detection-network` service model
 
-#### Example Configuration
+#### Example configuration
 Below is an example JSON of a `yolo-detection-network` service's attributes:
 ```json
 {
