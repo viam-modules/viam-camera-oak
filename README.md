@@ -162,13 +162,24 @@ Below is an example JSON of a `yolo-detection-network` service:
     "num_threads": 2,
     "num_nce_per_thread": 1,
     "yolo_config": {
+      "blob_path": "/path/to/a/model/blob/yolo-v4-tiny-tf_openvino_2021.4_6shave.blob",
       "labels": [
         "person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat", "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "sofa", "pottedplant", "bed", "diningtable", "toilet", "tvmonitor", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"
       ],
       "confidence_threshold": 0.5,
       "iou_threshold": 0.5,
+      "anchors": [
+        10, 14, 23, 27, 37, 58, 81, 82, 135, 169, 344, 319
+      ],
+      "anchor_masks": {
+        "side13": [
+          3, 4, 5
+        ],
+        "side26": [
+          1, 2, 3
+        ]
+      },
       "coordinate_size": 4,
-      "blob_path": "/path/to/some/model/like/yolov6n_coco_416x416.blob"
     }
   }
 }
