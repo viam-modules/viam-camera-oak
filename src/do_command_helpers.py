@@ -12,6 +12,7 @@ from viam.services.vision import CaptureAllResult
 
 from src.config import YDNConfig, Sensor
 
+# YDN = yolo detection network
 YDN_CONFIGURE = "ydn_configure"
 YDN_DECONFIGURE = "ydn_deconfigure"
 YDN_DETECTIONS = "ydn_detections"
