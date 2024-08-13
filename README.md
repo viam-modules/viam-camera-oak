@@ -1,4 +1,4 @@
-# OAK Module
+# [`oak` module](https://app.viam.com/module/viam/oak)
 
 This is a [Viam module](https://docs.viam.com/manage/configuration/#modules) for the [OAK](https://shop.luxonis.com/collections/oak-cameras-1) family of cameras. Registered at https://app.viam.com/module/viam/oak. The module supports getting color and stereo depth frames from OAK cameras using the `oak-d` and `oak-ffc-3p` component models, as well as setting up a YOLO detection network on the camera VPU using `yolo-detection-network` vision service model.
 
