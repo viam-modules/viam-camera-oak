@@ -23,7 +23,6 @@ Other OAK family cameras may work with the either component model, but are not o
 Navigate to the **CONFIGURE** tab of your machine's page in [the Viam app](https://app.viam.com/).
 
 [Add `camera` / `oak`,  `camera` / `oak-d` or `camera` / `oak-ffc-3p` to your machine](https://docs.viam.com/configure/#components).
-Select the `camera` type, then select the `oak-d` or `oak-ffc-3p` model.
 Enter a name for your camera and click **Create**.
 
 To configure the vision service, click on the **Services** subtab and click **Create service**.
