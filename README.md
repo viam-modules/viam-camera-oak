@@ -31,7 +31,7 @@ Navigate to the **CONFIGURE** tab of your machine's page in [the Viam app](https
 [Add `camera` / `oak-d` or `camera` / `oak-ffc-3p` to your machine](https://docs.viam.com/configure/#components).
 Enter a name for your camera and click **Create**.
 
-To configure the vision service, click on the **Services** subtab and click **Create service**.
+To configure the vision service, add [``](/configure/#services).
 
 On the new resource config panel, modify the attributes JSON in the **Attributes** box. If you are confused which attributes to supply, consult the per-model attribute configuration guides below.
 
