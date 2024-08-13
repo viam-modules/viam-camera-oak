@@ -171,7 +171,7 @@ The below attributes are nested inside the `yolo_config` struct:
 | `anchor_masks` | dict | Optional | A dictionary where keys are strings (e.g., "side26", "side13") representing different scales, and values are lists of integers representing the anchor indices used at each scale. Default: `{}` |
 | `coordinate_size` | int | Optional | The number of coordinates used for each bounding box. Typically, this is 4 for (x, y, width, height). Default `4`. |
 
-## Next Steps
+## Next steps
 
 ### Debugging
 
