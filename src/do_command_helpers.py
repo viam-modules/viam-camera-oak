@@ -12,6 +12,7 @@ from viam.services.vision import CaptureAllResult
 
 from src.config import YDNConfig, Sensor
 
+# YDN = yolo detection network
 YDN_CONFIGURE = "ydn_configure"
 YDN_DECONFIGURE = "ydn_deconfigure"
 YDN_DETECTIONS = "ydn_detections"
@@ -34,11 +35,8 @@ def encode_ydn_configure_command(
     """
     command_dict = {
         "input_source": cfg.input_source,
-        "width": cfg.width,
-        "height": cfg.height,
         "num_threads": cfg.num_threads,
         "num_nce_per_thread": cfg.num_nce_per_thread,
-        "is_object_tracker": cfg.is_object_tracker,
         "yolo_config": {
             "blob_path": cfg.blob_path,
             "labels": cfg.labels,
@@ -69,17 +67,14 @@ def decode_ydn_configure_command(command_dict: Mapping[str, ValueTypes]) -> YDNC
     yolo_config_dict = command_dict["yolo_config"]
     cfg = YDNConfig.from_kwargs(
         input_source=command_dict["input_source"],
-        width=int(command_dict["width"]),
-        height=int(command_dict["height"]),
         num_threads=int(command_dict["num_threads"]),
         num_nce_per_thread=int(command_dict["num_nce_per_thread"]),
-        is_object_tracker=command_dict["is_object_tracker"],
         blob_path=yolo_config_dict["blob_path"],
         labels=yolo_config_dict["labels"],
         confidence_threshold=yolo_config_dict["confidence_threshold"],
         iou_threshold=yolo_config_dict["iou_threshold"],
         anchors=yolo_config_dict["anchors"],
-        anchor_masks={k: v for k, v in yolo_config_dict["anchor_masks"].items()},
+        anchor_masks=yolo_config_dict["anchor_masks"],
         coordinate_size=int(yolo_config_dict["coordinate_size"]),
         service_name=command_dict["sender_name"],
         service_id=command_dict["sender_id"],

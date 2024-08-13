@@ -1,3 +1,4 @@
+import os
 from typing import List, Literal, Mapping, Optional
 
 from google.protobuf.struct_pb2 import Value
@@ -366,13 +367,10 @@ class YDNConfig(BaseConfig):
     def from_kwargs(cls, **kwargs):
         self = cls(dict(), kwargs["service_name"])
         self.input_source = kwargs["input_source"]
-        self.width = kwargs["width"]
-        self.height = kwargs["height"]
         self.num_threads = kwargs.get("num_threads", self.num_threads)
         self.num_nce_per_thread = kwargs.get(
             "num_nce_per_thread", self.num_nce_per_thread
         )
-        self.is_object_tracker = kwargs.get("is_object_tracker", self.is_object_tracker)
 
         self.blob_path = kwargs["blob_path"]
         self.labels = kwargs["labels"]
@@ -382,9 +380,10 @@ class YDNConfig(BaseConfig):
         self.iou_threshold = kwargs.get("iou_threshold", self.iou_threshold)
         self.anchors = kwargs.get("anchors", [])
         self.anchor_masks = kwargs.get("anchor_masks", dict())
-        for l in self.anchor_masks.values():
-            for i, num in enumerate(l):
-                l[i] = int(num)
+        self.anchor_masks = {
+            key: list(map(int, value))
+            for key, value in kwargs.get("anchor_masks", {}).items()
+        }
         self.coordinate_size = kwargs.get("coordinate_size", self.coordinate_size)
 
         self.service_name = kwargs["service_name"]
@@ -425,8 +424,20 @@ class YDNConfig(BaseConfig):
 
         # Validate "blob_path"
         validate_attr_type("blob_path", "string_value", yolo_cfg, True)
-        if len(yolo_cfg.get("blob_path").string_value) == 0:
+        blob_path_value = yolo_cfg.get("blob_path").string_value
+        if len(blob_path_value) == 0:
             handle_err('"blob_path" cannot be empty string.')
+
+        # Convert to absolute path if relative
+        try:
+            blob_path_value = os.path.expanduser(blob_path_value)
+            blob_path_value = os.path.expandvars(blob_path_value)
+            if not os.path.isabs(blob_path_value):
+                blob_path_value = os.path.abspath(blob_path_value)
+        except Exception as e:
+            handle_err(f"Invalid blob_path: {blob_path_value}. Error: {str(e)}")
+        # Update the blob_path in yolo config
+        yolo_cfg["blob_path"].string_value = blob_path_value
 
         # Validate "labels"
         validate_attr_type("labels", "list_value", yolo_cfg, True)
