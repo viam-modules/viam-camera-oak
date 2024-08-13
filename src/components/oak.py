@@ -485,7 +485,7 @@ class Oak(Camera, Reconfigurable):
     ):
         """
         Blocks on camera data methods that require the worker to be the desired status.
-        Unblocks once worker is in the desire status or max number of attempts to pass is reached.
+        Unblocks once worker is in the desired status or max number of attempts to pass is reached.
 
         Args:
             max_attempts (int, optional): Defaults to 5.
