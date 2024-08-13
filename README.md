@@ -123,7 +123,7 @@ The below attributes are nested inside each camera sensor struct inside `camera_
 > [!NOTE]  
 > Higher resolutions may cause out of memory errors. See Luxonis documentation [here](https://docs.luxonis.com/projects/api/en/latest/tutorials/ram_usage/.).
 
-### Configuring the `yolo-detection-network` service model
+### `yolo-detection-network` service model
 
 #### Example configuration
 Below is an example JSON of a `yolo-detection-network` service's attributes:
