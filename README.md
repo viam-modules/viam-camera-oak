@@ -20,7 +20,7 @@ Other OAK family cameras may work with the either component model, but are not o
 > [!NOTE]  
 > Before configuring your resource, you must create a new smart machine. See [here](https://docs.viam.com/use-cases/configure/#configure-a-machine) for how to do that and more on the setup and configuration process as a whole.
 
-Navigate to the **Config** tab of your machine's page in [the Viam app](https://app.viam.com/).
+Navigate to the **CONFIGURE** tab of your machine's page in [the Viam app](https://app.viam.com/).
 
 For camera components, click on the **Components** subtab and click **Create component**.
 Select the `camera` type, then select the `oak-d` or `oak-ffc-3p` model.
