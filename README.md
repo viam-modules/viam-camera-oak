@@ -5,6 +5,9 @@ This is a [Viam module](https://docs.viam.com/manage/configuration/#modules) for
 > [!NOTE]  
 > Learn about the difference between modules, models, components, and services in [our docs](https://docs.viam.com/appendix/glossary/).
 
+## Requirements
+The module executable is currently only supported on `linux/arm64` and `darwin/arm64`. Make sure your machine is running on one of these architectures to avoid exec format issues.
+
 ## Supported Models
 
 ### Components
@@ -29,7 +32,7 @@ To configure the vision service, click on the **Services** subtab and click **Cr
 
 On the new resource config panel, modify the attributes JSON in the **Attributes** box. If you are confused which attributes to supply, consult the per-model attribute configuration guides below.
 
-## Attribute Configurations Guide
+## Attribute Configuration Guides
 
 ### Configuring the `oak-d` component model
 
@@ -168,12 +171,14 @@ The below attributes are nested inside the `yolo_config` struct:
 | `anchor_masks` | dict | Optional | A dictionary where keys are strings (e.g., "side26", "side13") representing different scales, and values are lists of integers representing the anchor indices used at each scale. Default: `{}` |
 | `coordinate_size` | int | Optional | The number of coordinates used for each bounding box. Typically, this is 4 for (x, y, width, height). Default `4`. |
 
-## Debugging
+## Next Steps
+
+### Debugging
 
 Although not a config attribute, you can also configure the module to output debug logs.
 This is done by using the `-debug` flag when starting the Viam server in order for module debug logs to be piped through to stdout e.g. `viam-server -debug -config path/to/your/config.json`.
 
-## Set udev rules on Linux
+### Set udev rules on Linux
 
 - Failed to boot the device: 1.3-ma2480, err code 3
 - Failed to find device (ma2480), error message: X_LINK_DEVICE_NOT_FOUND
@@ -187,7 +192,7 @@ echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="03e7", MODE="0666"' | sudo tee /etc/ud
 sudo udevadm control --reload-rules && sudo udevadm trigger
 ```
 
-## Locally installing the module
+### Locally installing the module
 
 If you do not want to use the Viam registry, you can use the module from source [here](https://github.com/viamrobotics/viam-camera-oak).
 
@@ -210,7 +215,7 @@ git clone https://github.com/viamrobotics/viam-camera-oak.git
 
 Then modify your machine's config file as per the above instructions per model, and start the machine.
 
-## Integration Tests
+### Integration Tests
 
 The repo comes with a suite of integration tests that allows one to test if the module works with an actual OAK device on the machine of interest. You will need to compile the binary on the same machine you expect to run it on.
 
