@@ -410,7 +410,7 @@ class Oak(Camera, Reconfigurable):
         # Handle different commands conditionally
         if cmd == YDN_CONFIGURE:
             self.logger.debug(
-                f"Received CONFIGURE_YOLO_DETECTION_NETWORK_CMD with mapping: {command}"
+                f"Received YDN_CONFIGURE with mapping: {command}"
             )
             await self._wait_for_worker()
             ydn_config = decode_ydn_configure_command(command)
@@ -422,7 +422,7 @@ class Oak(Camera, Reconfigurable):
             return {}
         elif cmd == YDN_DECONFIGURE:
             self.logger.debug(
-                f"Received DECONFIGURE_YOLO_DETECTION_NETWORK_CMD with mapping: {command}"
+                f"Received YDN_DECONFIGURE with mapping: {command}"
             )
             id = command["sender_id"]
             if id in self.ydn_configs:
@@ -436,7 +436,7 @@ class Oak(Camera, Reconfigurable):
             service_name = command["sender_name"]
             try:
                 ydn_config = self.ydn_configs[service_id]
-            except KeyError as e:
+            except KeyError:
                 raise ViamError(
                     f'Could not find matching YDN config for YDN service id: "{service_id}" and name: "{service_name}"'
                 )
