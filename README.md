@@ -26,7 +26,7 @@ For camera components, click on the **Components** subtab and click **Create com
 Select the `camera` type, then select the `oak-d` or `oak-ffc-3p` model.
 Enter a name for your camera and click **Create**.
 
-For vision services, click on the **Services** subtab and click **Create service**.
+To configure the vision service, click on the **Services** subtab and click **Create service**.
 Select the `vision` type, then select the `yolo-detection-network` model.
 Enter a name for your vision service and click **Create**.
 
