@@ -156,8 +156,8 @@ The following attributes are available for the `yolo-detection-network` service:
 | ---- | ---- | --------- | ----------- |
 | `cam_name` | string | Required | The name of the Viam OAK camera component to set up the service on. |
 | `input_source` | string | Required | The socket name i.e. "cam_a", "cam_b", "cam_c" to get neural network input frames from. Can also be set as "color" to select the primary color sensor on the underlying OAK component. |
-| `num_threads` | int | Optional | How many threads should the DepthAI node use to run the network. |
-| `num_nce_per_thread` | int | Optional | How many Neural Compute Engines should a single thread use for inference. |
+| `num_threads` | int | Optional | How many threads should the DepthAI node use to run the network. Can be 0, 1, or 2, where 0 is auto. Default `1` |
+| `num_nce_per_thread` | int | Optional | How many Neural Compute Engines should a single thread use for inference. Default `1` |
 | `yolo_config` | struct | **Required** | A struct mapping of strings to values representing the sub-configuration for the YOLO model. |
 
 The below attributes are nested inside the `yolo_config` struct:
