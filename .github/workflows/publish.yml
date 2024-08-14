@@ -1,4 +1,4 @@
-name: Build & publish module to registry 
+name: Publish module to registry (arm64 builds only)
 
 on:
   release:

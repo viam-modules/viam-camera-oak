@@ -1,3 +1,5 @@
+name: Publish module to registry (darwin/amd64)
+
 on:
     push:
     release:
@@ -5,7 +7,7 @@ on:
   
 jobs:
     publish:
-      runs-on: macos-12
+      runs-on: macos-13
       steps:
         - uses: actions/checkout@v3
         - name: Build
