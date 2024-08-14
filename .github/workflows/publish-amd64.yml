@@ -1,0 +1,20 @@
+on:
+    push:
+    release:
+      types: [released]
+  
+jobs:
+    publish:
+      runs-on: macos-12
+      steps:
+        - uses: actions/checkout@v3
+        - name: Build
+          run: bash build.sh
+        - uses: viamrobotics/upload-module@v1
+        #   if: github.event_name == 'release'
+          with:
+            module-path: dist/archive.tar.gz
+            platform: linux/amd64
+            version: ${{ github.event_name == 'release' && github.ref_name || format('0.0.0-{0}.{1}', github.ref_name, github.run_number) }}
+            key-id: ${{ secrets.viam_key_id }}
+            key-value: ${{ secrets.viam_key_value }}
