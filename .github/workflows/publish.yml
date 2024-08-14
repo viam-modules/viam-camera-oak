@@ -1,4 +1,4 @@
-name: Build & publish module to registry 
+name: Publish module to registry
 
 on:
   release:
