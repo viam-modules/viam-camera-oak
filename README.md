@@ -1,6 +1,6 @@
 # [`oak` module](https://app.viam.com/module/viam/oak)
 
-This is a [Viam module](https://docs.viam.com/manage/configuration/#modules) that implements the [`rdk:component:camera` API](/components/camera/#api) in three models for the [OAK](https://shop.luxonis.com/collections/oak-cameras-1) family of cameras. 
+This is a [Viam module](https://docs.viam.com/manage/configuration/#modules) that implements the [`rdk:component:camera` API](https://docs.viam.com/components/camera/#api) in two models and [`rdk:service:vision` API](https://docs.viam.com/services/vision/#api) in one model for the [OAK](https://shop.luxonis.com/collections/oak-cameras-1) family of cameras. 
 The module supports:
 - getting color frames, stereo depth frames, and point cloud data from OAK cameras using the `oak-d` and `oak-ffc-3p` component models
 - setting up a YOLO detection network on the camera VPU using the `yolo-detection-network` vision service model.
