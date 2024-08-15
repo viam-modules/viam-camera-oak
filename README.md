@@ -9,7 +9,7 @@ The module supports:
 > Learn about the difference between modules, models, components, and services in [our docs](https://docs.viam.com/appendix/glossary/).
 
 ## Requirements
-The module executable is currently only supported on `linux/arm64` and `darwin/arm64`. Make sure your machine is running on one of these architectures to avoid exec format issues.
+The module executable is currently only supported on `linux/arm64`, `linux/amd64`, and `darwin/arm64`. Make sure your machine is running on one of these architectures to avoid exec format issues.
 
 ## Supported Models
 
