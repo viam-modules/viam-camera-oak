@@ -1,19 +1,14 @@
 package tests
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
 	"go.viam.com/rdk/components/camera"
-	"go.viam.com/rdk/config"
-	"go.viam.com/rdk/logging"
 	"go.viam.com/rdk/resource"
 	"go.viam.com/rdk/robot"
-	robotimpl "go.viam.com/rdk/robot/impl"
 	"go.viam.com/rdk/utils"
 	"go.viam.com/test"
 )
@@ -27,14 +22,44 @@ const (
 )
 
 func TestCameraServer(t *testing.T) {
-	timeoutCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
 	var myRobot robot.Robot
 	var cam camera.Camera
 	t.Run("Set up the robot", func(t *testing.T) {
 		var err error
-		myRobot, err = setUpViamServer(timeoutCtx, t)
+		configString := fmt.Sprintf(`
+			{
+			"network": {
+				"bind_address": "0.0.0.0:90831",
+				"insecure": true
+			},
+			"components": [
+				{
+				"name": "%v",
+				"model": "viam:luxonis:oak-d",
+				"type": "camera",
+				"namespace": "rdk",
+				"attributes": {
+					"sensors": [
+					"color",
+					"depth"
+					]
+				},
+				"depends_on": []
+				}
+			],
+			"modules": [
+				{
+				"type": "local",
+				"name": "viam_oak",
+				"executable_path": "%v"
+				}
+			]
+			}
+		`, componentName, absModulePath)
+		myRobot, err = setUpViamServer(timeoutCtx, configString, "oak_d_test", t)
 		test.That(t, err, test.ShouldBeNil)
 		cam, err = camera.FromRobot(myRobot, componentName)
 		test.That(t, err, test.ShouldBeNil)
@@ -55,14 +80,7 @@ func TestCameraServer(t *testing.T) {
 		test.That(t, metadata.CapturedAt, test.ShouldHappenBefore, time.Now())
 	})
 
-	t.Run("Get point cloud method", func(t *testing.T) {
-		pc, err := cam.NextPointCloud(timeoutCtx)
-		test.That(t, err, test.ShouldBeNil)
-		test.That(t, pc, test.ShouldNotBeNil)
-		test.That(t, pc.Size(), test.ShouldBeBetween, 0, maxGRPCMessageByteCount)
-	})
-
-	t.Run("Reconfigure module", func(t *testing.T) {
+	t.Run("Reconfigure camera", func(t *testing.T) {
 		cfg := resource.Config{
 			Attributes: utils.AttributeMap{
 				"sensors": []string{"depth"},
@@ -70,6 +88,13 @@ func TestCameraServer(t *testing.T) {
 		}
 		err := cam.Reconfigure(timeoutCtx, resource.Dependencies{}, cfg)
 		test.That(t, err, test.ShouldBeNil)
+	})
+
+	t.Run("Get point cloud method", func(t *testing.T) {
+		pc, err := cam.NextPointCloud(timeoutCtx)
+		test.That(t, err, test.ShouldBeNil)
+		test.That(t, pc, test.ShouldNotBeNil)
+		test.That(t, pc.Size(), test.ShouldBeBetween, 0, maxGRPCMessageByteCount)
 	})
 
 	t.Run("Shut down the camera", func(t *testing.T) {
@@ -81,51 +106,3 @@ func TestCameraServer(t *testing.T) {
 	})
 }
 
-func setUpViamServer(ctx context.Context, _ *testing.T) (robot.Robot, error) {
-	logger := logging.NewLogger("oak-integration-tests-logger")
-
-	moduleString := strings.TrimSpace(*modulePath)
-	logger.Info("testing module at %v", moduleString)
-	configString := fmt.Sprintf(`
-		{
-		"network": {
-			"bind_address": "0.0.0.0:90831",
-			"insecure": true
-		},
-		"components": [
-			{
-			"name": "%v",
-			"model": "viam:luxonis:oak-d",
-			"type": "camera",
-			"namespace": "rdk",
-			"attributes": {
-				"sensors": [
-				"color",
-				"depth"
-				]
-			},
-			"depends_on": []
-			}
-		],
-		"modules": [
-			{
-			"type": "local",
-			"name": "viam_oak",
-			"executable_path": "%v"
-			}
-		]
-		}
-	`, componentName, moduleString)
-
-	cfg, err := config.FromReader(ctx, "default.json", bytes.NewReader([]byte(configString)), logger)
-	if err != nil {
-		return nil, err
-	}
-
-	r, err := robotimpl.RobotFromConfig(ctx, cfg, logger)
-	if err != nil {
-		return nil, err
-	}
-
-	return r, nil
-}
