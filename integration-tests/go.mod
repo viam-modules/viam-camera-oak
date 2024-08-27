@@ -1,4 +1,4 @@
-module github.com/viamrobotics/viam-camera-realsense/integration
+module github.com/viam-modules/viam-camera-oak/integration
 
 go 1.22.1
 

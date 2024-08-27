@@ -239,7 +239,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger
 
 ### Locally installing the module
 
-If you do not want to use the Viam registry, you can use the module from source [here](https://github.com/viamrobotics/viam-camera-oak).
+If you do not want to use the Viam registry, you can use the module from source [here](https://github.com/viam-modules/viam-camera-oak).
 
 You must, however, verify that your system Python3 is compatible with Viam to run the module locally. Open a terminal on your machine, and run the following commands to check its Python and pip versions:
 
@@ -255,7 +255,7 @@ Similarly, make sure that `venv` and `pip3` are installed properly by making sur
 
 ```console
 cd <path-to-your-directory>
-git clone https://github.com/viamrobotics/viam-camera-oak.git
+git clone https://github.com/viam-modules/viam-camera-oak.git
 ```
 
 Then modify your machine's config file as per the above instructions per model, and start the machine.
@@ -264,5 +264,5 @@ Then modify your machine's config file as per the above instructions per model, 
 
 The repo comes with a suite of integration tests that allows one to test if the module works with an actual OAK device on the machine of interest. You will need to compile the binary on the same machine you expect to run it on.
 
-- Copy the repo to your local machine: `git clone https://github.com/viamrobotics/viam-camera-oak.git`
+- Copy the repo to your local machine: `git clone https://github.com/viam-modules/viam-camera-oak.git`
 - Run `make integration-tests`
