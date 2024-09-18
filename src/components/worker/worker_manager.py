@@ -2,7 +2,6 @@ import asyncio
 import threading
 
 from src.components.worker.worker import Worker
-from viam.logging import getLogger
 
 
 class AtomicBoolean:

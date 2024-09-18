@@ -327,7 +327,7 @@ class Worker:
             configure_ydn(color_nodes)
 
             self.logger.info("Successfully configured pipeline.")
-        except ViamError as e:
+        except Exception as e:
             msg = f"Error configuring pipeline at stage '{stage}'. Note the error following this log"
             resolution_err_substr = "bigger than maximum at current sensor resolution"
             calibration_err_substr = "no Camera data available"
@@ -348,7 +348,7 @@ class Worker:
                 self.device = dai.Device(self.pipeline)
                 self.device.startPipeline()
                 self.logger.debug("Successfully initialized device.")
-            except ViamError as e:
+            except Exception as e:
                 self.logger.error(f"Error initializing device: {e}")
                 await asyncio.sleep(1)
 
