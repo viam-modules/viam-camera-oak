@@ -1,11 +1,13 @@
 import os
-from typing import List, Literal, Mapping, Optional
+from typing import Dict, List, Literal, Mapping, Optional, Tuple
 
+from depthai import CameraBoardSocket
 from google.protobuf.struct_pb2 import Value
+from numpy.typing import NDArray
 
 from viam.errors import ValidationError
 from viam.logging import getLogger
-from src.components.helpers.shared import Sensor, Sensors
+from src.components.helpers.shared import get_socket_from_str
 
 
 # Be sure to update README.md if default attributes are changed
@@ -15,6 +17,85 @@ DEFAULT_HEIGHT = 720
 DEFAULT_COLOR_ORDER = "rgb"
 DEFAULT_INTERLEAVED = False
 LOGGER = getLogger("viam-luxonis-configuration")
+
+
+class Sensor:
+    """
+    Sensor config. Corresponds to a socket and what camera should be configured
+    off of the specified socket.
+    """
+
+    def get_unique_name(self) -> str:
+        if self.sensor_type == "color":
+            return f"{self.socket_str}_rgb"
+        else:
+            return f"{self.socket_str}_mono"
+
+    def __init__(
+        self,
+        socket_str: Literal["cam_a", "cam_b", "cam_c"],
+        sensor_type: Literal["color", "depth"],
+        width: int,
+        height: int,
+        frame_rate: int,
+        color_order: Literal["rgb", "bgr"] = "rgb",
+        interleaved: bool = False,
+        manual_focus: Optional[int] = None,
+    ):
+        self.socket_str = socket_str
+        self.socket = get_socket_from_str(socket_str)
+        self.sensor_type = sensor_type
+        self.width = width
+        self.height = height
+        self.frame_rate = frame_rate
+        self.color_order = color_order
+        self.interleaved = interleaved
+        self.manual_focus = manual_focus
+
+
+class Sensors:
+    """
+    Sensors wraps a Sensor list and offers handy utility methods and fields.
+    """
+
+    _mapping: Dict[str, Sensor]
+    stereo_pair: Optional[Tuple[Sensor, Sensor]]
+    color_sensors: Optional[List[Sensor]]
+    primary_sensor: Sensor
+
+    def __init__(self, sensors: List[Sensor]):
+        self._mapping = dict()
+        for sensor in sensors:
+            self._mapping[sensor.socket_str] = sensor
+
+        self.color_sensors = self._find_color_sensors()
+        self.stereo_pair = self._find_stereo_pair()
+        self.primary_sensor = sensors[0]
+
+    def get_cam_a(self) -> Sensor:
+        return self._mapping["cam_a"]
+
+    def get_cam_b(self) -> Sensor:
+        return self._mapping["cam_b"]
+
+    def get_cam_c(self) -> Sensor:
+        return self._mapping["cam_c"]
+
+    def _find_color_sensors(self) -> List[Sensor]:
+        l = []
+        for sensor in self._mapping.values():
+            if sensor.sensor_type == "color":
+                l.append(sensor)
+        return l
+
+    def _find_stereo_pair(self) -> Optional[Tuple[Sensor]]:
+        pair = []
+        for sensor in self._mapping.values():
+            if sensor.sensor_type == "depth":
+                pair.append(sensor)
+        if len(pair) == 0:
+            return None
+        return tuple(pair)
 
 
 def handle_err(err_msg: str) -> None:
@@ -142,18 +223,29 @@ class OakDConfig(OakConfig):
         height = int(self.attribute_map["height_px"].number_value) or DEFAULT_HEIGHT
         width = int(self.attribute_map["width_px"].number_value) or DEFAULT_WIDTH
         frame_rate = self.attribute_map["frame_rate"].number_value or DEFAULT_FRAME_RATE
+        manual_focus = int(self.attribute_map["manual_focus"].number_value) or None
 
         sensor_list = []
         for sensor_str in sensors_str_list:
             if sensor_str == "depth":
                 for cam_socket in ["cam_b", "cam_c"]:
                     depth_sensor = Sensor(
-                        cam_socket, "depth", width, height, frame_rate
+                        socket_str=cam_socket,
+                        sensor_type="depth",
+                        width=width,
+                        height=height,
+                        frame_rate=frame_rate,
                     )
                     sensor_list.append(depth_sensor)
             elif sensor_str == "color":
                 color_sensor = Sensor(
-                    "cam_a", "color", width, height, frame_rate, "rgb"
+                    socket_str="cam_a",
+                    sensor_type="color",
+                    width=width,
+                    height=height,
+                    frame_rate=frame_rate,
+                    color_order="rgb",
+                    manual_focus=manual_focus,
                 )
                 sensor_list.append(color_sensor)
         self.sensors = Sensors(sensor_list)
@@ -168,6 +260,7 @@ class OakDConfig(OakConfig):
             "sensors",
             "frame_rate",
             "device_info",
+            "manual_focus",
         ]
         # Check config keys are valid
         for attribute in attribute_map.keys():
@@ -227,6 +320,19 @@ class OakDConfig(OakConfig):
             handle_err(
                 'received only one dimension attribute. Please supply both "height_px" and "width_px", or neither.'
             )
+
+        # Validate manual focus
+        validate_attr_type("manual_focus", "number_value", attribute_map)
+        manual_focus = attribute_map.get(key="manual_focus", default=None)
+        if manual_focus:
+            if "color" not in sensor_list:
+                handle_err('"manual_focus" can be set only for the color sensor')
+
+            focus_value = manual_focus.number_value
+            if focus_value < 0 or focus_value > 255:
+                handle_err('"manual_focus" must be a value in range 0...255 inclusive')
+            if int(focus_value) != focus_value:
+                handle_err('"manual_focus" must be an integer')
 
         return []  # no deps
 
