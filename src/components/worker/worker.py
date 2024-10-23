@@ -23,8 +23,8 @@ import depthai as dai
 from numpy.typing import NDArray
 import numpy as np
 
-from src.components.helpers.shared import CapturedData, Sensor
-from src.config import OakConfig, YDNConfig
+from src.components.helpers.shared import CapturedData
+from src.config import OakConfig, YDNConfig, Sensor
 
 DIMENSIONS_TO_MONO_RES = {
     (1280, 800): dai.MonoCameraProperties.SensorResolution.THE_800_P,
@@ -189,6 +189,8 @@ class Worker:
                     color_cam.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)
                 else:
                     color_cam.setColorOrder(dai.ColorCameraProperties.ColorOrder.RGB)
+                if sensor.manual_focus is not None:
+                    color_cam.initialControl.setManualFocus(sensor.manual_focus)
 
                 # Linking
                 color_cam.preview.link(xout_color.input)

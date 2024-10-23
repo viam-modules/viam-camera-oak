@@ -152,6 +152,30 @@ wrong_device_info_type = (
     "attribute must be a string_value"
 )
 
+manual_focus_set_for_non_color = (
+    make_component_config({
+        "sensors": ["depth"],
+        "manual_focus": 255
+    }, "viam:luxonis:oak-d"),
+    '"manual_focus" can be set only for the color sensor'
+)
+
+manual_focus_out_of_range = (
+    make_component_config({
+        "sensors": ["color", "depth"],
+        "manual_focus": 256
+    }, "viam:luxonis:oak-d"),
+    '"manual_focus" must be a value in range 0...255 inclusive'
+)
+
+manual_focus_not_integer = (
+    make_component_config({
+        "sensors": ["color"],
+        "manual_focus": 1.5
+    }, "viam:luxonis:oak-d"),
+    '"manual_focus" must be an integer'
+)
+
 configs_and_msgs = [
     invalid_attribute_name,
     sensors_not_present,
@@ -170,7 +194,11 @@ configs_and_msgs = [
     width_is_zero,
     width_is_negative,
     only_received_height,
-    only_received_width
+    only_received_width,
+    wrong_device_info_type,
+    manual_focus_set_for_non_color,
+    manual_focus_out_of_range,
+    manual_focus_not_integer
 ]
 
 full_correct_config = make_component_config({
