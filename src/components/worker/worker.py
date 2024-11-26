@@ -348,8 +348,8 @@ class Worker:
         while not self.device and self.should_exec:
             try:
                 self.device = dai.Device(
-                    pipeline=self.pipeline, 
-                    devInfo=dai.DeviceInfo(mxidOrName=self.cfg.device_info)
+                    pipeline=self.pipeline,
+                    devInfo=dai.DeviceInfo(mxidOrName=self.cfg.device_info),
                 )
                 self.device.startPipeline()
                 self.logger.debug("Successfully initialized device.")
