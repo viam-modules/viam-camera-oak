@@ -347,12 +347,24 @@ class Worker:
         self.device = None
         while not self.device and self.should_exec:
             try:
-                self.device = dai.Device(
-                    pipeline=self.pipeline,
-                    devInfo=dai.DeviceInfo(mxidOrName=self.cfg.device_info),
-                )
+                device_info_str = self.cfg.device_info
+                if device_info_str is None:
+                    self.device = dai.Device(pipeline=self.pipeline)
+                else:
+                    self.device = dai.Device(
+                        pipeline=self.pipeline,
+                        devInfo=dai.DeviceInfo(mxidOrName=device_info_str),
+                    )
                 self.device.startPipeline()
-                self.logger.debug("Successfully initialized device.")
+                self.logger.info("Successfully initialized device.")
+                try:
+                    device_info = self.device.getDeviceInfo()
+                    self.logger.info(
+                        f"Connected device info - Name: {device_info.name}, MxId: {device_info.getMxId()}"
+                    )
+                except Exception as e:
+                    self.logger.error(f"Error getting device info: {e}")
+
             except Exception as e:
                 self.logger.error(f"Error initializing device: {e}")
                 await asyncio.sleep(1)
@@ -540,6 +552,7 @@ class Worker:
         self.running = False
         if self.device:
             self.device.close()
+            self.device = None
         if self.pipeline:
             self.pipeline = None
 

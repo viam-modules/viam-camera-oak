@@ -197,7 +197,7 @@ class OakConfig(BaseConfig):
     Base config class for OAK component models.
     """
 
-    device_info: str
+    device_info: Optional[str]
     sensors: Sensors
 
     @classmethod

@@ -40,7 +40,7 @@ class WorkerManager(threading.Thread):
         self.worker = worker
         self.loop = None
         self.restart_atomic_bool = AtomicBoolean()
-        self._stop_event = asyncio.Event()
+        self.stop_event = asyncio.Event()
 
     def run(self):
         """
@@ -65,7 +65,7 @@ class WorkerManager(threading.Thread):
         self.worker.configure()
         await self.worker.start()
 
-        while not self._stop_event.is_set():
+        while not self.stop_event.is_set():
             self.logger.debug("Checking if worker must be restarted.")
             if self.worker.device and self.worker.device.isClosed():
                 with self.restart_atomic_bool.lock:
@@ -87,7 +87,7 @@ class WorkerManager(threading.Thread):
         """
         Thread-safe stop method to set the event to stop the singular health checking task.
         """
-        self.loop.call_soon_threadsafe(self._stop_event.set)
+        self.loop.call_soon_threadsafe(self.stop_event.set)
         self.loop.call_soon_threadsafe(self.loop.stop)
 
     async def shutdown(self):

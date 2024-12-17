@@ -1,5 +1,7 @@
+# Standard library
 import asyncio
 from logging import Logger
+from threading import Lock, Thread
 from typing import (
     Any,
     ClassVar,
@@ -13,7 +15,7 @@ from typing import (
 )
 from typing_extensions import Self
 
-# Viam module
+# Viam SDK
 from viam.errors import NotSupportedError, ViamError
 from viam.logging import getLogger
 from viam.module.types import Reconfigurable
@@ -22,8 +24,6 @@ from viam.proto.common import ResourceName, ResponseMetadata
 from viam.resource.base import ResourceBase
 from viam.resource.types import Model, ModelFamily
 from viam.utils import ValueTypes
-
-# Viam camera
 from viam.components.camera import (
     Camera,
     DistortionParameters,
@@ -31,7 +31,7 @@ from viam.components.camera import (
 )
 from viam.media.video import CameraMimeType, NamedImage, ViamImage
 
-# src
+# Local
 from src.components.worker.worker import Worker
 from src.components.helpers.shared import CapturedData
 from src.components.helpers.encoders import (
@@ -95,6 +95,14 @@ class Oak(Camera, Reconfigurable):
     ALL_MODELS: ClassVar[Tuple[Model]] = DEPRECATED_MODELS + SUPPORTED_MODELS
     logger: ClassVar[Logger]
     """Class scoped logger"""
+    init_reconfig_manager_lock: ClassVar[Lock] = Lock()
+    """Lock for thread-safe access to initializingreconfig_manager"""
+    # The 'OakInstanceManager' is put in quotes because it is a forward reference.
+    # This is necessary bc OakInstanceManager is not yet defined at the point of its usage.
+    # Using quotes allows Python to understand that this is a type hint for a class
+    # that will be defined later in the code.
+    reconfig_manager: ClassVar[Optional["OakInstanceManager"]] = None  # type: ignore
+    """Handler for reconfiguring the camera"""
 
     logger: Logger
     """Instance scoped logger"""
@@ -104,23 +112,41 @@ class Oak(Camera, Reconfigurable):
     """Native config"""
     ydn_configs: Mapping[str, YDNConfig]
     """Configs populated by ydn service"""
+    ydn_configs_lock: Lock
+    """Lock for thread-safe access to ydn_configs"""
     worker: Optional[Worker] = None
     """`Worker` handles camera logic in a separate thread"""
     worker_manager: Optional[WorkerManager] = None
     """`WorkerManager` managing the lifecycle of `worker`"""
     get_point_cloud_was_invoked: bool = False
+    """Flag to indicate if get_point_cloud was invoked"""
     camera_properties: Camera.Properties
+    """Camera properties as per Viam SDK"""
+    is_closed: bool = False
+    """Flag to indicate if the camera has been closed by Close()"""
 
     @classmethod
     def new(
         cls, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]
     ) -> Self:
+        """
+        SDK calls this method to create a new camera instance.
+        """
         self = cls(config.name)
         cls.validate(config)
-        self.ydn_configs = dict()  # YDN configs have to survive reconfigures
+        self.ydn_configs = dict()  # YDN configs have to persist across reconfigures
+        self.ydn_configs_lock = Lock()
         cls.logger = getLogger("viam-oak")
         self.logger = getLogger(config.name)
-        self.reconfigure(config, dependencies)
+
+        with cls.init_reconfig_manager_lock:
+            if cls.reconfig_manager is None or cls.reconfig_manager.stop_event.is_set():
+                cls.reconfig_manager = OakInstanceManager(
+                    [(self, config, dependencies)]
+                )
+                cls.reconfig_manager.start()
+            else:
+                cls.reconfig_manager.add_reconfigure_request(self, config, dependencies)
         return self
 
     @classmethod
@@ -163,12 +189,21 @@ class Oak(Camera, Reconfigurable):
         self, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]
     ) -> None:
         """
-        A procedure both the RDK and module invokes to (re)configure and (re)boot the module—
-        serving as an initializer and restart method.
+        SDK calls this method to reconfigure the camera without losing connection to the driver.
+        This method is used to add the request to the OakInstanceManager's queue.
 
         Args:
             config (ComponentConfig)
             dependencies (Mapping[ResourceName, ResourceBase])
+        """
+        cls = type(self)
+        cls.reconfig_manager.add_reconfigure_request(self, config, dependencies)
+
+    def do_reconfigure(
+        self, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]
+    ) -> None:
+        """
+        This method is called by the OakInstanceManager to actually reconfigure the camera.
         """
         self._close()
 
@@ -189,25 +224,27 @@ class Oak(Camera, Reconfigurable):
             intrinsic_parameters=None,
         )
 
-        self.worker = Worker(
-            oak_config=self.oak_cfg,
-            ydn_configs=self.ydn_configs,
-            user_wants_pc=self.get_point_cloud_was_invoked,
-        )
+        with self.ydn_configs_lock:
+            self.worker = Worker(
+                oak_config=self.oak_cfg,
+                ydn_configs=self.ydn_configs,
+                user_wants_pc=self.get_point_cloud_was_invoked,
+            )
 
         self.worker_manager = WorkerManager(self.worker)
         self.worker_manager.start()
 
     async def close(self) -> None:
         """
-        Implements `close` to free resources on shutdown.
+        Implements `close` camera method to free resources on shutdown.
         """
         self.logger.info("Closing OAK component.")
         self._close()
-        self.logger.debug("Closed OAK component.")
+        self.is_closed = True
+        self.logger.info("Closed OAK component.")
 
     def _close(self) -> None:
-        if self.worker_manager:
+        if self.worker_manager and not self.worker_manager.stop_event.is_set():
             self.worker_manager.stop()
             self.worker_manager.join()
         if self.worker:
@@ -413,7 +450,8 @@ class Oak(Camera, Reconfigurable):
             self.logger.debug(f"Received YDN_CONFIGURE with mapping: {command}")
             await self._wait_for_worker()
             ydn_config = decode_ydn_configure_command(command)
-            self.ydn_configs[ydn_config.service_id] = ydn_config
+            with self.ydn_configs_lock:
+                self.ydn_configs[ydn_config.service_id] = ydn_config
             self.logger.info(
                 "Closing camera to reconfigure pipeline with yolo detection network."
             )
@@ -422,8 +460,9 @@ class Oak(Camera, Reconfigurable):
         elif cmd == YDN_DECONFIGURE:
             self.logger.debug(f"Received YDN_DECONFIGURE with mapping: {command}")
             id = command["sender_id"]
-            if id in self.ydn_configs:
-                del self.ydn_configs[id]
+            with self.ydn_configs_lock:
+                if id in self.ydn_configs:
+                    del self.ydn_configs[id]
             self.worker.reset()
             return {}
         elif cmd == YDN_CAPTURE_ALL:
@@ -431,12 +470,13 @@ class Oak(Camera, Reconfigurable):
             resp = dict()
             service_id = command["sender_id"]
             service_name = command["sender_name"]
-            try:
-                ydn_config = self.ydn_configs[service_id]
-            except KeyError:
-                raise ViamError(
-                    f'Could not find matching YDN config for YDN service id: "{service_id}" and name: "{service_name}"'
-                )
+            with self.ydn_configs_lock:
+                try:
+                    ydn_config = self.ydn_configs[service_id]
+                except KeyError:
+                    raise ViamError(
+                        f'Could not find matching YDN config for YDN service id: "{service_id}" and name: "{service_name}"'
+                    )
 
             # Find respective Sensor to the YDN config
             sensor = None
@@ -562,3 +602,102 @@ class MethodNotAllowed(ViamError):
             f'Cannot invoke method "{method_name}" with current config. {details}'
         )
         super().__init__(self.message)
+
+
+class OakInstanceManager(Thread):
+    """
+    OakInstanceManager is a thread that manages every Oak instance.
+    It is responsible for orchestrating each Oak instance when one or more reconfigure requests are made.
+    """
+
+    def __init__(
+        self,
+        reqs: List[Tuple[Oak, ComponentConfig, Mapping[ResourceName, ResourceBase]]],
+    ) -> None:
+        super().__init__()
+        self.reconfig_reqs: List[
+            Tuple[Oak, ComponentConfig, Mapping[ResourceName, ResourceBase]]
+        ] = reqs
+        self.lock: Lock = Lock()
+        self.requests_waited: bool = False
+        self.oak_instances: List[Oak] = []
+        self.stop_event: asyncio.Event = asyncio.Event()
+        self.logger: Logger = getLogger("oak_manager")
+
+        self.logger.info("OakInstanceManager initialized with requests: %s", reqs)
+
+        self.loop = asyncio.new_event_loop()
+        self.loop.create_task(self.handle_reconfigures())
+
+    async def handle_reconfigures(self) -> None:
+        self.logger.info("Starting reconfiguration handler loop.")
+        while not self.stop_event.is_set():
+            await asyncio.sleep(0.1)
+
+            # Check for reconfiguration requests
+            reqs_to_process = None
+            with self.lock:
+                if not self.reconfig_reqs:
+                    continue
+                    
+                if not self.requests_waited:
+                    self.requests_waited = True
+                    self.logger.debug("Waiting one time for more reconfiguration requests.")
+                    continue
+                
+                # Process requests after waiting one iteration
+                reqs_to_process = self.reconfig_reqs
+                self.reconfig_reqs = []
+                self.requests_waited = False
+                self.logger.debug(
+                    "Processing reconfiguration requests: %s", reqs_to_process
+                )
+
+            # Process reconfiguration requests
+            if reqs_to_process:
+                has_device_info = False
+                # Check if device_info is specified in any of the reconfiguration requests
+                for _, config, _ in reqs_to_process:
+                    if config.attributes.fields["device_info"].string_value is not None:
+                        has_device_info = True
+                        break
+                if has_device_info:
+                    # If device_info is specified, close all existing Oak instances before reconfiguring
+                    # This is to ensure that when swapping device_infos, the old device is closed before
+                    # the new device is opened. If we don't do this, we may encounter a race condition where
+                    # the new device is opened before the old device is closed, causing the new device to fail to open.
+                    for oak, _, _ in reqs_to_process:
+                        oak._close()
+
+                for oak, config, dependencies in reqs_to_process:
+                    self.logger.debug(
+                        "Reconfiguring Oak instance: %s with config: %s", oak, config
+                    )
+                    oak.do_reconfigure(config, dependencies)
+                    if oak not in self.oak_instances:
+                        self.oak_instances.append(oak)
+                        self.logger.debug("Added Oak instance to active list: %s", oak)
+
+            self.oak_instances = [
+                oak for oak in self.oak_instances if not oak.is_closed
+            ]
+            if len(self.oak_instances) == 0:
+                self.logger.info(
+                    "No active Oak instances. Stopping reconfiguration loop."
+                )
+                self.stop_event.set()
+
+    def add_reconfigure_request(
+        self,
+        oak: Oak,
+        config: ComponentConfig,
+        dependencies: Mapping[ResourceName, ResourceBase],
+    ) -> None:
+        with self.lock:
+            self.reconfig_reqs.append((oak, config, dependencies))
+            self.logger.debug("Added reconfigure request for Oak instance: %s", oak)
+            self.logger.debug("New reconfigure requests list: %s", self.reconfig_reqs)
+
+    def run(self):
+        self.logger.debug("Starting OakInstanceManager event loop.")
+        self.loop.run_forever()
