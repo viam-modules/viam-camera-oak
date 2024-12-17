@@ -639,12 +639,14 @@ class OakInstanceManager(Thread):
             with self.lock:
                 if not self.reconfig_reqs:
                     continue
-                    
+
                 if not self.requests_waited:
                     self.requests_waited = True
-                    self.logger.debug("Waiting one time for more reconfiguration requests.")
+                    self.logger.debug(
+                        "Waiting one time for more reconfiguration requests."
+                    )
                     continue
-                
+
                 # Process requests after waiting one iteration
                 reqs_to_process = self.reconfig_reqs
                 self.reconfig_reqs = []
