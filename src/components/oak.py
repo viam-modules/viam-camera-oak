@@ -96,7 +96,7 @@ class Oak(Camera, Reconfigurable):
     logger: ClassVar[Logger]
     """Class scoped logger"""
     init_reconfig_manager_lock: ClassVar[Lock] = Lock()
-    """Lock for thread-safe access to initializingreconfig_manager"""
+    """Lock for thread-safe access to initializing reconfig_manager"""
     # The 'OakInstanceManager' is put in quotes because it is a forward reference.
     # This is necessary bc OakInstanceManager is not yet defined at the point of its usage.
     # Using quotes allows Python to understand that this is a type hint for a class
@@ -668,8 +668,7 @@ class OakInstanceManager(Thread):
                     # This is to ensure that when swapping device_infos, the old device is closed before
                     # the new device is opened. If we don't do this, we may encounter a race condition where
                     # the new device is opened before the old device is closed, causing the new device to fail to open.
-                    for oak, _, _ in reqs_to_process:
-                        oak._close()
+                    [oak._close() for oak, _, _ in reqs_to_process]
 
                 for oak, config, dependencies in reqs_to_process:
                     self.logger.debug(
