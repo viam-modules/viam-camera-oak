@@ -542,10 +542,11 @@ class Oak(Camera, Reconfigurable):
 
         attempts = 0
         while attempts < max_attempts:
-            if self.worker.running and desired_status == "running":
-                return
-            if self.worker.configured and desired_status == "configured":
-                return
+            if self.worker:
+                if self.worker.running and desired_status == "running":
+                    return
+                if self.worker.configured and desired_status == "configured":
+                    return
             attempts += 1
             await asyncio.sleep(timeout_seconds)
         raise ViamError(
