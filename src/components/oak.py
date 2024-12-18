@@ -54,6 +54,7 @@ from src.do_command_helpers import (
 )
 
 DEFAULT_IMAGE_MIMETYPE = CameraMimeType.JPEG
+RECONFIGURE_TIMEOUT_SECONDS = 0.1
 
 
 class Oak(Camera, Reconfigurable):
@@ -632,7 +633,7 @@ class OakInstanceManager(Thread):
     async def handle_reconfigures(self) -> None:
         self.logger.info("Starting reconfiguration handler loop.")
         while not self.stop_event.is_set():
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(RECONFIGURE_TIMEOUT_SECONDS)
 
             # Check for reconfiguration requests
             reqs_to_process = None
