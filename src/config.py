@@ -197,7 +197,7 @@ class OakConfig(BaseConfig):
     Base config class for OAK component models.
     """
 
-    device_info: str
+    device_info: Optional[str]
     sensors: Sensors
 
     @classmethod
@@ -346,9 +346,13 @@ class OakFfc3PConfig(OakConfig):
     def validate(cls, attribute_map: Mapping[str, Value]) -> List[str]:
         super().validate(attribute_map)
 
+        VALID_ATTRIBUTES = [
+            "device_info",
+            "camera_sensors",
+        ]
         # Validate outermost keys
         for k in attribute_map.keys():
-            if k != "camera_sensors":
+            if k not in VALID_ATTRIBUTES:
                 handle_err(f'unrecognized attribute "{k}". Please fix or remove.')
         validate_attr_type("camera_sensors", "list_value", attribute_map, True)
         cam_sensors_list = attribute_map.get("camera_sensors").list_value
