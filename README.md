@@ -40,7 +40,7 @@ On the new resource config panel, modify the attributes JSON in the **Attributes
 
 ### `oak-d` component model
 
-Copy and paste the following required attrbutes to your json
+Copy and paste the following attributes into your JSON configuration:
 
 ```json
 {
@@ -64,7 +64,7 @@ The following attributes are available for the `oak-d` camera component:
 Note that higher resolutions may cause out of memory errors. See Luxonis documentation [here](https://docs.luxonis.com/projects/api/en/latest/tutorials/ram_usage/.).
 
 #### Example Full Configuration
-Below is an example JSON of an `oak-d` component:
+Copy and paste the following attributes into your arm’s JSON configuration:
 ```json
 {
     "sensors": ["color", "depth"],
@@ -76,7 +76,7 @@ Below is an example JSON of an `oak-d` component:
 ```
 
 ### `oak-ffc-3p` component model
-Copy and paste this minimal configuration for an `oak-ffc-3p` component:
+Copy and paste the following attributes into your JSON configuration:
 ```json
 {
   "camera_sensors": [
@@ -156,7 +156,7 @@ Below is an example of a full JSON of an `oak-ffc-3p` component:
 
 ### `yolo-detection-network` service model
 
-Below is an example configuration of a `yolo-detection-network` service with the required attributes filled out:
+Copy and paste the following attributes into your JSON configuration:
 ```json
 {
   "cam_name": "my-oak",
