@@ -7,17 +7,20 @@
     {
       "api": "rdk:component:camera",
       "model": "viam:luxonis:oak-ffc-3p",
-      "markdown_link": "README.md#oak-ffc-3p-component-model"
+      "markdown_link": "README.md#oak-ffc-3p-component-model",
+      "short_description": "driver for luxonis oak ffc 3p hardware"
     },
     {
       "api": "rdk:component:camera",
       "model": "viam:luxonis:oak-d",
-      "markdown_link": "README.md#oak-d-component-model"
+      "markdown_link": "README.md#oak-d-component-model",
+      "short_description": "driver for luxonis general oak-d hardware"
     },
     {
       "api": "rdk:service:vision",
       "model": "viam:luxonis:yolo-detection-network",
-      "markdown_link": "README.md#yolo-detection-network-service-model"
+      "markdown_link": "README.md#yolo-detection-network-service-model",
+      "short_description": "driver for running YOLO object detection on the OAK-D"
     }
   ],
   "build": {

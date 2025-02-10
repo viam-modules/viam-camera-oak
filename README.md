@@ -40,26 +40,13 @@ On the new resource config panel, modify the attributes JSON in the **Attributes
 
 ### `oak-d` component model
 
-#### Example configuration
+Copy and paste the following required attrbutes to your json
 
-Below is an example JSON of an `oak-d` component:
 ```json
 {
-  "name": "my-oak",
-  "namespace": "rdk",
-  "type": "camera",
-  "model": "viam:luxonis:oak-d",
-  "attributes": {
     "sensors": ["color", "depth"],
-    "width_px": 416,
-    "height_px": 416,
-    "frame_rate": 30,
-    "device_info": "<mxid-or-ip-address-or-usb-port-name>"
-  }
 }
 ```
-> [!NOTE]  
-> If you are not directly configuring with the JSON editor, remember to only paste in the `attributes` struct and not the full component configuration above into the **Attributes** box on the Viam App.
 
 #### Attributes
 
@@ -74,55 +61,40 @@ The following attributes are available for the `oak-d` camera component:
 | `device_info` | string | Optional | Physical device identifier to connect to a specific OAK camera connected to your machine. If not specified, the module will pick the first device it detects. `device_info` can be a MXID, usb port path, or IP address. [See DepthAI documentation for more details](https://docs.luxonis.com/software/depthai/examples/device_information#Device%20information). |
 | `manual_focus` | int | Optional | The manual focus value to apply to the color sensor. Sets the camera to fixed focus mode at the specified lens position. Must be between 0..255 inclusive. Default: auto focus |
 
-> [!NOTE]  
-> Higher resolutions may cause out of memory errors. See Luxonis documentation [here](https://docs.luxonis.com/projects/api/en/latest/tutorials/ram_usage/.).
+Note that higher resolutions may cause out of memory errors. See Luxonis documentation [here](https://docs.luxonis.com/projects/api/en/latest/tutorials/ram_usage/.).
 
-### `oak-ffc-3p` component model
-
-#### Example configuration
-Below is an example JSON of an `oak-ffc-3p` component:
+#### Example Full Configuration
+Below is an example JSON of an `oak-d` component:
 ```json
 {
-  "name": "my-oak",
-  "namespace": "rdk",
-  "type": "camera",
-  "model": "viam:luxonis:oak-ffc-3p",
-  "attributes": {
-      "device_info": "<mxid-or-ip-address-or-usb-port-name>",
-      "camera_sensors": [
-          {
-              "socket": "cam_a",
-              "type": "color",
-              "width_px": 416,
-              "height_px": 416,
-              "frame_rate": 30,
-              "color_order": "rgb",
-              "interleaved": false
-          },
-          {
-              "socket": "cam_b",
-              "type": "color",
-              "width_px": 416,
-              "height_px": 416,
-              "frame_rate": 30,
-              "color_order": "rgb",
-              "interleaved": false
-          },
-          {
-              "socket": "cam_c",
-              "type": "color",
-              "width_px": 416,
-              "height_px": 416,
-              "frame_rate": 30,
-              "color_order": "rgb",
-              "interleaved": false
-          }
-      ]
-  }
+    "sensors": ["color", "depth"],
+    "width_px": 416,
+    "height_px": 416,
+    "frame_rate": 30,
+    "device_info": "<mxid-or-ip-address-or-usb-port-name>"
 }
 ```
-> [!NOTE]  
-> If you are not directly configuring with the JSON editor, remember to only paste in the `attributes` struct and not the full component configuration above into the **Attributes** box on the Viam App.
+
+### `oak-ffc-3p` component model
+Copy and paste this minimal configuration for an `oak-ffc-3p` component:
+```json
+{
+  "camera_sensors": [
+      {
+          "socket": "cam_a",
+          "type": "color",
+      },
+      {
+          "socket": "cam_b",
+          "type": "depth",
+      },
+      {
+          "socket": "cam_c",
+          "type": "color",
+      }
+  ]
+}
+```
 
 #### Attributes
 
@@ -130,63 +102,75 @@ The following attributes are available for the `oak-ffc-3p` component:
 
 | Name | Type | Inclusion | Description |
 | ---- | ---- | --------- | ----------- |
-| `device_info` | string | Optional | Physical device identifier to connect to a specific OAK camera connected to your machine. If not specified, the module will pick the first device it detects. `device_info` can be a MXID, usb port path, or IP address. [See DepthAI documentation for more details](https://docs.luxonis.com/software/depthai/examples/device_information#Device%20information). |
 | `camera_sensors` | list[struct] | **Required** | A list of struct mappings of strings to values representing the sub-configuration per camera sensor on the device. The first element of this list will be considered the primary sensor. |
+| `device_info` | string | Optional | Physical device identifier to connect to a specific OAK camera connected to your machine. If not specified, the module will pick the first device it detects. `device_info` can be a MXID, usb port path, or IP address. [See DepthAI documentation for more details](https://docs.luxonis.com/software/depthai/examples/device_information#Device%20information). |
 
 The below attributes are nested inside each camera sensor struct inside `camera_sensors`:
 | Name | Type | Inclusion | Description |
 | ---- | ---- | --------- | ----------- |
-| `socket` | str | Required | The socket the sensor is connected to: "cam_a", "cam_b", or "cam_c", corresponding to the three available sensor sockets on the OAK-FFC-3P. Read more about DepthAI camera sockets on [their docs](https://docs.luxonis.com/software/api/python/#depthai.CameraBoardSocket). |
-| `type` | str | Required | The type of the sensor: "color" or "depth", corresponding to whether the sensor on the respective socket is a color or mono depth camera. |
+| `type` | str | **Required** | The type of the sensor: "color" or "depth", corresponding to whether the sensor on the respective socket is a color or mono depth camera. |
+| `socket` | str | **Required** | The socket the sensor is connected to: "cam_a", "cam_b", or "cam_c", corresponding to the three available sensor sockets on the OAK-FFC-3P. Read more about DepthAI camera sockets on [their docs](https://docs.luxonis.com/software/api/python/#depthai.CameraBoardSocket). |
 | `width_px` | int | Optional | Width in pixels of the images output by this camera. Default: `1280` |
 | `height_px` | int | Optional | Height in pixels of the images output by this camera. Default: `720` |
 | `frame_rate` | int | Optional | The frame rate the camera will capture images at. Default: `30` |
 | `color_order` | str | Optional | The color order of the output frames (used for color sensor type only): "rgb" or "bgr". Default: `rgb` |
 | `interleaved` | bool | Optional | Whether or not output frames should be stored in an interleaved format. Default: `false` |
 
-> [!NOTE]  
-> Higher resolutions may cause out of memory errors. See Luxonis documentation [here](https://docs.luxonis.com/projects/api/en/latest/tutorials/ram_usage/.).
+Note that higher resolutions may cause out of memory errors. See Luxonis documentation [here](https://docs.luxonis.com/projects/api/en/latest/tutorials/ram_usage/.).
+
+Below is an example of a full JSON of an `oak-ffc-3p` component:
+```json
+{
+  "device_info": "<mxid-or-ip-address-or-usb-port-name>",
+  "camera_sensors": [
+      {
+          "socket": "cam_a",
+          "type": "color",
+          "width_px": 416,
+          "height_px": 416,
+          "frame_rate": 30,
+          "color_order": "rgb",
+          "interleaved": false
+      },
+      {
+          "socket": "cam_b",
+          "type": "color",
+          "width_px": 416,
+          "height_px": 416,
+          "frame_rate": 30,
+          "color_order": "rgb",
+          "interleaved": false
+      },
+      {
+          "socket": "cam_c",
+          "type": "color",
+          "width_px": 416,
+          "height_px": 416,
+          "frame_rate": 30,
+          "color_order": "rgb",
+          "interleaved": false
+      }
+  ]
+}
+```
 
 ### `yolo-detection-network` service model
 
-#### Example configuration
-Below is an example JSON of a `yolo-detection-network` service:
+Below is an example configuration of a `yolo-detection-network` service with the required attributes filled out:
 ```json
 {
-  "name": "my-yolo-detection-network",
-  "namespace": "rdk",
-  "type": "vision",
-  "model": "viam:luxonis:yolo-detection-network",
-  "attributes": {
-    "cam_name": "my-oak",
-    "input_source": "cam_a",
-    "num_threads": 2,
-    "num_nce_per_thread": 1,
-    "yolo_config": {
-      "blob_path": "/path/to/a/model/blob/yolo-v4-tiny-tf_openvino_2021.4_6shave.blob",
-      "labels": [
-        "person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat", "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "sofa", "pottedplant", "bed", "diningtable", "toilet", "tvmonitor", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"
-      ],
-      "confidence_threshold": 0.5,
-      "iou_threshold": 0.5,
-      "anchors": [
-        10, 14, 23, 27, 37, 58, 81, 82, 135, 169, 344, 319
-      ],
-      "anchor_masks": {
-        "side13": [
-          3, 4, 5
-        ],
-        "side26": [
-          1, 2, 3
-        ]
-      },
-      "coordinate_size": 4,
-    }
+  "cam_name": "my-oak",
+  "input_source": "cam_a",
+  "yolo_config": {
+    "blob_path": "/path/to/a/model/blob/yolo-v4-tiny-tf_openvino_2021.4_6shave.blob",
+    "labels": [
+      "person", "bicycle", "car", "motorbike"
+    ],
+    "confidence_threshold": 0.5,
+    "iou_threshold": 0.5,
   }
 }
 ```
-> [!NOTE]  
-> If you are not directly configuring with the JSON editor, remember to only paste in the `attributes` struct and not the full component configuration above into the **Attributes** box on the Viam App.
 
 #### Attributes
 
@@ -194,22 +178,53 @@ The following attributes are available for the `yolo-detection-network` service:
 
 | Name | Type | Inclusion | Description |
 | ---- | ---- | --------- | ----------- |
-| `cam_name` | string | Required | The name of the Viam OAK camera component to set up the service on. |
-| `input_source` | string | Required | The socket name i.e. "cam_a", "cam_b", "cam_c" to get neural network input frames from. Can also be set as "color" to select the primary color sensor on the underlying OAK component. |
-| `num_threads` | int | Optional | How many threads should the DepthAI node use to run the network. Can be 0, 1, or 2, where 0 is auto. Default `1` |
-| `num_nce_per_thread` | int | Optional | How many Neural Compute Engines should a single thread use for inference. Default `1` |
+| `cam_name` | string | **Required** | The name of the Viam OAK camera component to set up the service on. |
+| `input_source` | string | **Required** | The socket name i.e. "cam_a", "cam_b", "cam_c" to get neural network input frames from. Can also be set as "color" to select the primary color sensor on the underlying OAK component. |
 | `yolo_config` | struct | **Required** | A struct mapping of strings to values representing the sub-configuration for the YOLO model. |
+| `num_nce_per_thread` | int | Optional | How many Neural Compute Engines should a single thread use for inference. Default `1` |
+| `num_threads` | int | Optional | How many threads should the DepthAI node use to run the network. Can be 0, 1, or 2, where 0 is auto. Default `1` |
 
 The below attributes are nested inside the `yolo_config` struct:
 | Name | Type | Inclusion | Description |
 | ---- | ---- | --------- | ----------- |
-| `blob_path` | string | Required | The local path to the YOLO model blob. The model must be in the .blob format compatible with Luxonis VPUs. See [here](https://docs.luxonis.com/software/ai-inference/conversion/) for more information. You can find many .blob formatted models to use in the [DepthAI Model Zoo](https://blobconverter.luxonis.com/), or use the converter to make your own. |
-| `labels` | list[string] | Required | A list of strings representing each label the YOLO model can output. Order matters here as YOLO models use label index mapping to retrieve string labels. |
-| `confidence_threshold` | float | Required | The minimum confidence level required for a detection to be considered valid. Default `0.5`. |
-| `iou_threshold` | float | Required | The Intersection Over Union (IOU) threshold used for non-max suppression to filter out overlapping bounding boxes. Default `0.5`. |
+| `blob_path` | string | **Required** | The local path to the YOLO model blob. The model must be in the .blob format compatible with Luxonis VPUs. See [here](https://docs.luxonis.com/software/ai-inference/conversion/) for more information. You can find many .blob formatted models to use in the [DepthAI Model Zoo](https://blobconverter.luxonis.com/), or use the converter to make your own. |
+| `labels` | list[string] | **Required** | A list of strings representing each label the YOLO model can output. Order matters here as YOLO models use label index mapping to retrieve string labels. |
+| `confidence_threshold` | float | **Required** | The minimum confidence level required for a detection to be considered valid. Default `0.5`. |
+| `iou_threshold` | float | **Required** | The Intersection Over Union (IOU) threshold used for non-max suppression to filter out overlapping bounding boxes. Default `0.5`. |
 | `anchors` | list[float] | Optional | A list of floats representing the anchor boxes used by the YOLO model. The values should be in pairs representing width and height. Default: `[]` |
 | `anchor_masks` | dict | Optional | A dictionary where keys are strings (e.g., "side26", "side13") representing different scales, and values are lists of integers representing the anchor indices used at each scale. Default: `{}` |
 | `coordinate_size` | int | Optional | The number of coordinates used for each bounding box. Typically, this is 4 for (x, y, width, height). Default `4`. |
+
+Below is an example full configuration of a `yolo-detection-network` service:
+```json
+{
+  "cam_name": "my-oak",
+  "input_source": "cam_a",
+  "num_threads": 2,
+  "num_nce_per_thread": 1,
+  "yolo_config": {
+    "blob_path": "/path/to/a/model/blob/yolo-v4-tiny-tf_openvino_2021.4_6shave.blob",
+    "labels": [
+      "person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat", "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "sofa", "pottedplant", "bed", "diningtable", "toilet", "tvmonitor", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"
+    ],
+    "confidence_threshold": 0.5,
+    "iou_threshold": 0.5,
+    "anchors": [
+      10, 14, 23, 27, 37, 58, 81, 82, 135, 169, 344, 319
+    ],
+    "anchor_masks": {
+      "side13": [
+        3, 4, 5
+      ],
+      "side26": [
+        1, 2, 3
+      ]
+    },
+    "coordinate_size": 4,
+  }
+}
+```
+
 
 ## Next steps
 
