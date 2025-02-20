@@ -96,30 +96,68 @@ def encode_jpeg_bytes(arr: NDArray, is_depth: bool = False) -> bytes:
 def encode_pcd(arr: NDArray):
     """
     Encodes numpy points data into bytes decodable in the PCD format.
+    If color information is available (6 columns: x, y, z, r, g, b), it packs the color into a single float field.
 
     Args:
-        arr (NDArray): points data
-
+        arr (NDArray): points data (shape Nx3 for uncolored or Nx6 for colored)
     Returns:
-        bytes: PCD bytes
+        Tuple[bytes, CameraMimeType]: PCD bytes and associated mime type
     """
-    # DepthAI examples indicate that we need to normalize data by / 1000
-    # https://github.com/luxonis/depthai/blob/f4a0d3d4364565faacf3ce9f131a42b2b951ec1b/depthai_sdk/src/depthai_sdk/visualize/visualizers/viewer_visualizer.py#L72
-    flat_array = arr.reshape(-1, arr.shape[-1]) / 1000.0
-    version = "VERSION .7\n"
-    fields = "FIELDS x y z\n"
-    size = "SIZE 4 4 4\n"
-    type_of = "TYPE F F F\n"
-    count = "COUNT 1 1 1\n"
-    height = "HEIGHT 1\n"
-    viewpoint = "VIEWPOINT 0 0 0 1 0 0 0\n"
-    data = "DATA binary\n"
-    width = f"WIDTH {len(flat_array)}\n"
-    points = f"POINTS {len(flat_array)}\n"
-    header = f"{version}{fields}{size}{type_of}{count}{width}{height}{viewpoint}{points}{data}"
-    header_bytes = bytes(header, "UTF-8")
-    float_array = np.array(flat_array, dtype="f")
-    return (header_bytes + float_array.tobytes(), CameraMimeType.PCD)
+    if arr.shape[1] == 3:
+        # Uncolored pointcloud: convert coordinates from mm to m
+        points_xyz = arr[:, :3] / 1000.0
+        version = "VERSION .7\n"
+        fields = "FIELDS x y z\n"
+        size = "SIZE 4 4 4\n"
+        type_of = "TYPE F F F\n"
+        count = "COUNT 1 1 1\n"
+        height = "HEIGHT 1\n"
+        viewpoint = "VIEWPOINT 0 0 0 1 0 0 0\n"
+        width = f"WIDTH {points_xyz.shape[0]}\n"
+        points_count = f"POINTS {points_xyz.shape[0]}\n"
+        data = "DATA binary\n"
+        header = f"{version}{fields}{size}{type_of}{count}{width}{height}{viewpoint}{points_count}{data}"
+        header_bytes = bytes(header, "UTF-8")
+        float_array = np.array(points_xyz, dtype="f")
+        return (header_bytes + float_array.tobytes(), CameraMimeType.PCD)
+    elif arr.shape[1] == 6:
+        # Colored pointcloud: first three columns are coordinates (in mm), last three are color (assumed in [0,255])
+        points_xyz = arr[:, :3] / 1000.0  # convert to meters
+        colors = arr[:, 3:6]
+
+        # Convert colors to uint8 if not already
+        colors_uint8 = colors.astype(np.uint8)
+
+        # Pack the RGB values into a single 32-bit integer: (r << 16 | g << 8 | b)
+        r = colors_uint8[:, 0].astype(np.uint32)
+        g = colors_uint8[:, 1].astype(np.uint32)
+        b = colors_uint8[:, 2].astype(np.uint32)
+        rgb_int = (r << 16) | (g << 8) | b
+
+        # Reinterpret the 32-bit integer as a float32
+        rgb_float = rgb_int.view(np.float32)
+
+        # Concatenate the xyz coordinates with the packed rgb value
+        colored_points = np.column_stack((points_xyz.astype(np.float32), rgb_float))
+
+        version = "VERSION .7\n"
+        fields = "FIELDS x y z rgb\n"
+        size = "SIZE 4 4 4 4\n"
+        type_of = "TYPE F F F F\n"
+        count = "COUNT 1 1 1 1\n"
+        height = "HEIGHT 1\n"
+        viewpoint = "VIEWPOINT 0 0 0 1 0 0 0\n"
+        width = f"WIDTH {colored_points.shape[0]}\n"
+        points_count = f"POINTS {colored_points.shape[0]}\n"
+        data = "DATA binary\n"
+        header = f"{version}{fields}{size}{type_of}{count}{width}{height}{viewpoint}{points_count}{data}"
+        header_bytes = bytes(header, "UTF-8")
+
+        return (header_bytes + colored_points.tobytes(), CameraMimeType.PCD)
+    else:
+        raise ValueError(
+            f"Unexpected point cloud array shape with {arr.shape[1]} columns"
+        )
 
 
 def convert_seconds_float_to_metadata(seconds_float: float) -> ResponseMetadata:

@@ -38,7 +38,7 @@ DIMENSIONS_TO_COLOR_RES = {
     (1920, 1080): dai.ColorCameraProperties.SensorResolution.THE_1080_P,
 }  # color camera component only accepts this subset of depthai_sdk.components.camera_helper.colorResolutions
 
-MAX_GRPC_MESSAGE_BYTE_COUNT = 4194304  # Update this if the gRPC config ever changes
+MAX_GRPC_MESSAGE_BYTE_COUNT = 33554432  # 32MB gRPC message size limit
 MAX_COLOR_DEPTH_QUEUE_SIZE = 5
 MAX_PC_QUEUE_SIZE = 5
 MAX_YDN_QUEUE_SIZE = 5
@@ -227,17 +227,23 @@ class Worker:
                 mono_cam_2 = make_mono_cam(mono2)
 
                 depth = self.pipeline.create(dai.node.StereoDepth)
-                depth.setDefaultProfilePreset(
-                    dai.node.StereoDepth.PresetMode.HIGH_DENSITY
-                )
-                depth.initialConfig.setMedianFilter(dai.MedianFilter.KERNEL_7x7)
-
                 mono_cam_1.out.link(depth.left)
                 mono_cam_2.out.link(depth.right)
 
+                # Configuration settings
+                depth.setDefaultProfilePreset(
+                    dai.node.StereoDepth.PresetMode.HIGH_DENSITY
+                )
+                depth.setExtendedDisparity(True)
+                depth.initialConfig.setMedianFilter(dai.MedianFilter.KERNEL_7x7)
+                depth.initialConfig.setConfidenceThreshold(220)
+                depth.initialConfig.setDepthUnit(
+                    dai.RawStereoDepthConfig.AlgorithmControl.DepthUnit.MILLIMETER
+                )
+
                 xout_depth = self.pipeline.create(dai.node.XLinkOut)
                 xout_depth.setStreamName(self.depth_stream_name)
-                depth.disparity.link(xout_depth.input)
+                depth.depth.link(xout_depth.input)
 
                 color_sensors = self.cfg.sensors.color_sensors
                 if color_sensors and len(color_sensors) > 0:
@@ -507,22 +513,38 @@ class Worker:
                 "Error getting PCD: depth frame queue not configured for current OAK camera."
             )
 
-        msg = None
+        msg: Optional[dai.MessageGroup] = None
         while msg is None:
             try:
                 msg = self.pc_queue.tryGet()
             except Empty:
-                self.logger.debug("Couldn't get color frame: frame queue is empty.")
+                self.logger.debug("Couldn't get point cloud: queue is empty.")
             await asyncio.sleep(0.01)
 
+        message_names = msg.getMessageNames()
+        if not ("rgb" in message_names and "pcl" in message_names):
+            points = msg["pcl"].getPoints().astype(np.float64)
+            timestamp = msg["pcl"].getTimestamp().total_seconds()
+            downsampled_points = self._downsample_pcd(
+                points, MAX_GRPC_MESSAGE_BYTE_COUNT
+            )
+            return CapturedData(downsampled_points, timestamp)
+
         pc_obj = msg["pcl"]
+        color_frame = msg["rgb"].getCvFrame()
         points = pc_obj.getPoints().astype(np.float64)
-        if points.nbytes > MAX_GRPC_MESSAGE_BYTE_COUNT:
-            pc_output = self._downsample_pcd(points, points.nbytes)
-        else:
-            pc_output = points
-        timestamp = msg.getTimestamp().total_seconds()
-        return CapturedData(pc_output, timestamp)
+
+        # Convert BGR to RGB and reshape color data to match points
+        rgb_frame = cv2.cvtColor(color_frame, cv2.COLOR_BGR2RGB)
+        colors = (rgb_frame.reshape(-1, 3) / 255.0).astype(np.float64)
+
+        # Convert back to 0-255 range before stacking
+        colors_255 = (colors * 255).astype(np.float64)
+        points = np.column_stack((points, colors_255))
+
+        timestamp = msg["rgb"].getTimestamp().total_seconds()
+        downsampled_points = self._downsample_pcd(points, MAX_GRPC_MESSAGE_BYTE_COUNT)
+        return CapturedData(downsampled_points, timestamp)
 
     def get_detections(
         self, service_id: str, service_name: str
@@ -578,14 +600,24 @@ class Worker:
         return arr
 
     def _downsample_pcd(self, arr: NDArray, byte_count: int) -> NDArray:
-        factor = byte_count // MAX_GRPC_MESSAGE_BYTE_COUNT + 1
+        if byte_count <= MAX_GRPC_MESSAGE_BYTE_COUNT:
+            return arr
+
+        # Number of points that can fit within the 32mb limit
+        point_size = arr.shape[1] * arr.itemsize
+        max_points = MAX_GRPC_MESSAGE_BYTE_COUNT // point_size
+
         self.logger.warn(
-            f"PCD bytes ({byte_count}) > max gRPC bytes count ({MAX_GRPC_MESSAGE_BYTE_COUNT}). Subsampling by 1/{factor}."
+            f"PCD bytes ({byte_count}) > max gRPC bytes count ({MAX_GRPC_MESSAGE_BYTE_COUNT}). Randomly sampling to {max_points} points."
         )
+
+        # Randomly sample max_points from the array
         if arr.ndim == 2:
-            arr = arr[::factor, :]
+            indices = np.random.choice(arr.shape[0], max_points, replace=False)
+            arr = arr[indices, :]
         else:
             raise ValueError(f"Unexpected point cloud array dimensions: {arr.ndim}")
+
         return arr
 
 
