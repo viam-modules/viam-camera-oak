@@ -24,7 +24,7 @@ from numpy.typing import NDArray
 import numpy as np
 
 from src.components.helpers.shared import CapturedData
-from src.config import OakConfig, YDNConfig, Sensor
+from src.config import OakConfig, OakDConfig, YDNConfig, Sensor
 
 DIMENSIONS_TO_MONO_RES = {
     (1280, 800): dai.MonoCameraProperties.SensorResolution.THE_800_P,
@@ -517,6 +517,11 @@ class Worker:
 
         pc_obj = msg["pcl"]
         points = pc_obj.getPoints().astype(np.float64)
+
+        # Convert to right-handed system by negating z if configured
+        if isinstance(self.cfg, OakDConfig) and self.cfg.right_handed_system:
+            points[:, 2] = -points[:, 2]
+
         if points.nbytes > MAX_GRPC_MESSAGE_BYTE_COUNT:
             pc_output = self._downsample_pcd(points, points.nbytes)
         else:

@@ -176,6 +176,14 @@ manual_focus_not_integer = (
     '"manual_focus" must be an integer'
 )
 
+right_handed_system_not_bool = (
+    make_component_config({
+        "sensors": ["color", "depth"],
+        "right_handed_system": "true"
+    }, "viam:luxonis:oak-d"),
+    "attribute must be a bool_value"
+)
+
 configs_and_msgs = [
     invalid_attribute_name,
     sensors_not_present,
@@ -198,7 +206,8 @@ configs_and_msgs = [
     wrong_device_info_type,
     manual_focus_set_for_non_color,
     manual_focus_out_of_range,
-    manual_focus_not_integer
+    manual_focus_not_integer,
+    right_handed_system_not_bool
 ]
 
 full_correct_config = make_component_config({
@@ -217,7 +226,7 @@ minimal_correct_config = make_component_config({
 def test_validate_errors_parameterized(config, msg):
     with pytest.raises(ValidationError) as exc_info:
         Oak.validate(config)
-        assert exc_info.type == ValidationError
+    assert exc_info.type == ValidationError
     assert msg in str(exc_info.value)
 
 def test_validate_no_errors():
@@ -225,5 +234,5 @@ def test_validate_no_errors():
         Oak.validate(full_correct_config)
         Oak.validate(minimal_correct_config)
     except Exception as e:
-        s = (f"Expected a correct config to not raise {type(e)} during validation, yet it did :,)")
+        s = (f"Expected a correct config to not raise {type(e)} during validation, yet it did: {e}")
         pytest.fail(reason=s)

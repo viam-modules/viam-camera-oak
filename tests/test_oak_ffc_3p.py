@@ -72,7 +72,7 @@ camera_sensors_wrong_type_config = (
     "each cam_sensor must be a Struct mapping"
 )
 
-unrecognized_outer_attr_config = (
+invalid_outer_attr_config = (
     make_component_config({
         "camera_sensors": [
             {
@@ -84,9 +84,9 @@ unrecognized_outer_attr_config = (
                 "interleaved": False,
             },
         ],
-        "unrecognized_attribute": True
+        "invalid_attribute": True
     }, "viam:luxonis:oak-ffc-3p"),
-    "unrecognized attribute"
+    "is not a valid attribute"
 )
 
 two_cams_one_socket_config = (
@@ -413,7 +413,7 @@ incorrect_configs_and_errs = [
     empty_sensors_config,
     over_three_sensors_config,
     camera_sensors_wrong_type_config,
-    unrecognized_outer_attr_config,
+    invalid_outer_attr_config,
     two_cams_one_socket_config,
     one_mono_config,
     three_mono_config,
@@ -438,7 +438,7 @@ incorrect_configs_and_errs = [
 def test_invalid_configs(invalid_config, msg):
     with pytest.raises(ValidationError) as exc_info:
         Oak.validate(invalid_config)
-        assert exc_info.type == ValidationError
+    assert exc_info.type == ValidationError
     assert msg in str(exc_info.value)
 
 ### TEST VALID CONFIGS

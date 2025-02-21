@@ -281,7 +281,7 @@ minimal_correct_config = make_service_config({
 def test_validate_errors_parameterized(config, msg):
     with pytest.raises(ValidationError) as exc_info:
         YoloDetectionNetwork.validate(config)
-        assert exc_info.type == ValidationError
+    assert exc_info.type == ValidationError
     assert msg in str(exc_info.value)
 
 def test_validate_no_errors():
@@ -298,5 +298,5 @@ def test_validate_no_errors():
         deps2 = YoloDetectionNetwork.validate(minimal_correct_config)
         check_deps(deps2)
     except Exception as e:
-        s = (f"Expected a correct config to not raise {type(e)} during validation/reconfiguration, yet it did :,)")
+        s = (f"Expected a correct config to not raise {type(e)} during validation/reconfiguration, yet it did: {e}")
         pytest.fail(reason=s)
