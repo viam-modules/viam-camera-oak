@@ -82,7 +82,7 @@ func TestMain(m *testing.M) {
 func setUpViamServer(ctx context.Context, configString string, loggerName string, _ *testing.T) (robot.Robot, error) {
 	logger := logging.NewLogger(loggerName)
 
-	cfg, err := config.FromReader(ctx, "default.json", bytes.NewReader([]byte(configString)), logger)
+	cfg, err := config.FromReader(ctx, "default.json", bytes.NewReader([]byte(configString)), logger, nil)
 	if err != nil {
 		return nil, err
 	}
