@@ -398,7 +398,7 @@ class Oak(Camera, Reconfigurable):
         """
         # Validation
         if not self.oak_cfg.sensors.stereo_pair:
-            details = "Cannot process PCD. OAK camera not configured for stereo depth outputs. See README for details"
+            details = "Cannot process PCD. OAK camera not configured for stereo depth outputs. Please see module docs in app configuration card."
             raise MethodNotAllowed(method_name="get_point_cloud", details=details)
 
         await self._wait_for_worker()

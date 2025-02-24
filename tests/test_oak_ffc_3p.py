@@ -229,7 +229,7 @@ missing_width_config = (
             },
         ],
     }, "viam:luxonis:oak-ffc-3p"),
-   '"width_px" is a required field, but was not detected. Please see README for details.'
+   '"width_px" is a required field, but was not detected. Please see module docs in app configuration card.'
 )
 
 missing_height_config = (
@@ -244,7 +244,7 @@ missing_height_config = (
             },
         ],
     }, "viam:luxonis:oak-ffc-3p"),
-   '"height_px" is a required field, but was not detected. Please see README for details.'
+   '"height_px" is a required field, but was not detected. Please see module docs in app configuration card.'
 )
 
 dimension_not_num_type_config = (

@@ -128,7 +128,7 @@ def validate_attr_type(
     if value is None:
         if is_required_attr:
             handle_err(
-                f'"{attribute}" is a required field, but was not detected. Please see README for details.'
+                f'"{attribute}" is a required field, but was not detected. Please see module docs in app configuration card.'
             )
         else:
             return
@@ -275,7 +275,7 @@ class OakDConfig(OakConfig):
         for attribute in attribute_map.keys():
             if attribute not in cls.VALID_ATTRIBUTES:
                 handle_err(
-                    f'"{attribute}" is not a valid attribute i.e. not in {cls.VALID_ATTRIBUTES}. Please see README for details.'
+                    f'"{attribute}" is not a valid attribute i.e. not in {cls.VALID_ATTRIBUTES}. Please see module docs in app configuration card.'
                 )
 
         # Check sensors is valid
@@ -364,7 +364,7 @@ class OakFfc3PConfig(OakConfig):
         for k in attribute_map.keys():
             if k not in cls.VALID_ATTRIBUTES:
                 handle_err(
-                    f'"{k}" is not a valid attribute i.e. not in {cls.VALID_ATTRIBUTES}. Please see README for details.'
+                    f'"{k}" is not a valid attribute i.e. not in {cls.VALID_ATTRIBUTES}. Please see module docs in app configuration card.'
                 )
 
         # Validate "camera_sensors"
@@ -530,7 +530,7 @@ class YDNConfig(BaseConfig):
         for k in attribute_map.keys():
             if not k in cls.VALID_ATTRIBUTES:
                 handle_err(
-                    f'"{k}" is not a valid attribute i.e. not in {cls.VALID_ATTRIBUTES}. Please see README for details.'
+                    f'"{k}" is not a valid attribute i.e. not in {cls.VALID_ATTRIBUTES}. Please see module docs in app configuration card.'
                 )
 
         # Validate "input_source"
