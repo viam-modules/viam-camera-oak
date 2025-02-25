@@ -350,6 +350,12 @@ class Worker:
         self.configured = True
 
     async def start(self):
+        if self.pipeline is None:
+            self.logger.error(
+                "Cannot start worker: pipeline is None. Did configure() fail?"
+            )
+            raise ViamError("Cannot start worker: pipeline is None")
+
         self.device = None
         while not self.device and self.should_exec:
             try:

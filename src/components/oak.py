@@ -401,25 +401,47 @@ class Oak(Camera, Reconfigurable):
             details = "Cannot process PCD. OAK camera not configured for stereo depth outputs. See README for details"
             raise MethodNotAllowed(method_name="get_point_cloud", details=details)
 
+        self.get_point_cloud_was_invoked = True
+
         await self._wait_for_worker()
 
         # By default, we do not get point clouds even when color and depth are both requested
         # We have to reinitialize the worker/pipeline+device to start making point clouds
         if not self.worker.user_wants_pc:
-            self.worker.user_wants_pc = True
-            self.worker.reset()
-            self.worker.configure()
-            await self.worker.start()
+            try:
+                self.logger.info("Configuring worker for getting point clouds")
+                self.worker.user_wants_pc = True
 
-        while not self.worker.running:
-            self.logger.info("Waiting for worker to restart with pcd configured...")
-            await asyncio.sleep(0.5)
+                # Use the worker manager to properly restart the worker
+                # This avoids race conditions with the worker's pipeline
+                self.worker_manager.restart_atomic_bool.set(True)
 
-        # Get actual PCD data from camera worker
-        pcd_obj = await self.worker.get_pcd()
-        arr = pcd_obj.np_array
+                max_wait_attempts = 20  # 10 seconds (20 * 0.5s)
+                for i in range(max_wait_attempts):
+                    if self.worker.running and self.worker.user_wants_pc:
+                        self.logger.info(
+                            "Worker successfully restarted with point cloud enabled"
+                        )
+                        break
+                    await asyncio.sleep(0.5)
+                    self.logger.info(
+                        f"Waiting for worker restart with PCD ({i+1}/{max_wait_attempts})..."
+                    )
+                else:
+                    raise ViamError(
+                        "Timed out waiting for worker to restart with point cloud enabled"
+                    )
 
-        return encode_pcd(arr)
+            except Exception as e:
+                self.worker.user_wants_pc = False
+                raise ViamError(f"Failed to enable point cloud functionality: {e}")
+
+        try:
+            pcd_obj = await self.worker.get_pcd()
+            arr = pcd_obj.np_array
+            return encode_pcd(arr)
+        except Exception as e:
+            raise ViamError(f"Error getting point cloud data: {e}")
 
     async def get_properties(
         self, *, timeout: Optional[float] = None, **kwargs
@@ -550,7 +572,7 @@ class Oak(Camera, Reconfigurable):
             attempts += 1
             await asyncio.sleep(timeout_seconds)
         raise ViamError(
-            "Camera data requested before camera worker was ready. Please ensure the camera is properly "
+            f"Camera data requested before camera worker was {desired_status}. Please ensure the camera is properly "
             "connected and configured, especially for non-integrated models such as the OAK-FFC."
         )
 
@@ -617,6 +639,7 @@ class OakInstanceManager(Thread):
         reqs: List[Tuple[Oak, ComponentConfig, Mapping[ResourceName, ResourceBase]]],
     ) -> None:
         super().__init__()
+        self.daemon = True  # mark as daemon thread so it doesn't prevent program exit
         self.reconfig_reqs: List[
             Tuple[Oak, ComponentConfig, Mapping[ResourceName, ResourceBase]]
         ] = reqs
@@ -703,4 +726,26 @@ class OakInstanceManager(Thread):
 
     def run(self):
         self.logger.debug("Starting OakInstanceManager event loop.")
-        self.loop.run_forever()
+        try:
+            self.loop.run_forever()
+        except Exception as e:
+            self.logger.error(f"Error in OakInstanceManager loop: {e}")
+        finally:
+            self.logger.info("Cleaning up OakInstanceManager resources")
+            pending_tasks = asyncio.all_tasks(self.loop)
+            for task in pending_tasks:
+                task.cancel()
+
+            # Close all oak instances
+            for oak in self.oak_instances:
+                if not oak.is_closed:
+                    try:
+                        oak._close()
+                    except Exception as e:
+                        self.logger.error(f"Error closing Oak instance: {e}")
+
+            # Close the loop properly
+            try:
+                self.loop.close()
+            except Exception as e:
+                self.logger.error(f"Error closing event loop: {e}")
