@@ -403,8 +403,6 @@ class Oak(Camera, Reconfigurable):
 
         self.get_point_cloud_was_invoked = True
 
-        await self._wait_for_worker()
-
         # By default, we do not get point clouds even when color and depth are both requested
         # We have to reinitialize the worker/pipeline+device to start making point clouds
         if not self.worker.user_wants_pc:
@@ -435,6 +433,8 @@ class Oak(Camera, Reconfigurable):
             except Exception as e:
                 self.worker.user_wants_pc = False
                 raise ViamError(f"Failed to enable point cloud functionality: {e}")
+        else:
+            await self._wait_for_worker()
 
         try:
             pcd_obj = await self.worker.get_pcd()
