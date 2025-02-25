@@ -518,9 +518,9 @@ class Worker:
         pc_obj = msg["pcl"]
         points = pc_obj.getPoints().astype(np.float64)
 
-        # Convert to right-handed system by negating z if configured
+        # Convert to right-handed system by negating y if configured
         if isinstance(self.cfg, OakDConfig) and self.cfg.right_handed_system:
-            points[:, 2] = -points[:, 2]
+            points[:, 1] = -points[:, 1]
 
         if points.nbytes > MAX_GRPC_MESSAGE_BYTE_COUNT:
             pc_output = self._downsample_pcd(points, points.nbytes)
