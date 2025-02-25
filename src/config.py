@@ -1,4 +1,5 @@
 import os
+from logging import Logger
 from typing import ClassVar, Dict, List, Literal, Mapping, Optional, Tuple
 
 from google.protobuf.struct_pb2 import Value
@@ -167,7 +168,7 @@ class BaseConfig:
         self.name = name
 
     @classmethod
-    def validate(cls, attribute_map: Mapping[str, Value]) -> List[str]:
+    def validate(cls, attribute_map: Mapping[str, Value], logger: Logger) -> List[str]:
         """
         Equivalent to the module validate() method but specific to a model's specific config.
 
@@ -199,7 +200,7 @@ class OakConfig(BaseConfig):
     sensors: Sensors
 
     @classmethod
-    def validate(cls, attribute_map: Mapping[str, Value]) -> List[str]:
+    def validate(cls, attribute_map: Mapping[str, Value], logger: Logger) -> List[str]:
         # Validate shared OAK attributes such as "device_info"
         validate_attr_type("device_info", "string_value", attribute_map)
         device_info = attribute_map.get(key="device_info", default=None)
@@ -268,14 +269,14 @@ class OakDConfig(OakConfig):
         self.sensors = Sensors(sensor_list)
 
     @classmethod
-    def validate(cls, attribute_map: Mapping[str, Value]) -> List[str]:
-        super().validate(attribute_map)
+    def validate(cls, attribute_map: Mapping[str, Value], logger: Logger) -> List[str]:
+        super().validate(attribute_map, logger)
 
         # Validate outermost keys
-        for attribute in attribute_map.keys():
-            if attribute not in cls.VALID_ATTRIBUTES:
-                handle_err(
-                    f'"{attribute}" is not a valid attribute i.e. not in {cls.VALID_ATTRIBUTES}. Please see module docs in app configuration card.'
+        for k in attribute_map.keys():
+            if k not in cls.VALID_ATTRIBUTES:
+                logger.warning(
+                    f'"{k}" is not a valid attribute i.e. not in {cls.VALID_ATTRIBUTES}. Please see module docs in app configuration card.'
                 )
 
         # Check sensors is valid
@@ -357,13 +358,13 @@ class OakFfc3PConfig(OakConfig):
     VALID_ATTRIBUTES: ClassVar[List[str]] = ["device_info", "camera_sensors"]
 
     @classmethod
-    def validate(cls, attribute_map: Mapping[str, Value]) -> List[str]:
-        super().validate(attribute_map)
+    def validate(cls, attribute_map: Mapping[str, Value], logger: Logger) -> List[str]:
+        super().validate(attribute_map, logger)
 
         # Validate outermost keys
         for k in attribute_map.keys():
             if k not in cls.VALID_ATTRIBUTES:
-                handle_err(
+                logger.warning(
                     f'"{k}" is not a valid attribute i.e. not in {cls.VALID_ATTRIBUTES}. Please see module docs in app configuration card.'
                 )
 
@@ -523,13 +524,13 @@ class YDNConfig(BaseConfig):
         return self
 
     @classmethod
-    def validate(cls, attribute_map: Mapping[str, Value]) -> List[str]:
-        super().validate(attribute_map)
+    def validate(cls, attribute_map: Mapping[str, Value], logger: Logger) -> List[str]:
+        super().validate(attribute_map, logger)
 
         # Validate outermost keys
         for k in attribute_map.keys():
-            if not k in cls.VALID_ATTRIBUTES:
-                handle_err(
+            if k not in cls.VALID_ATTRIBUTES:
+                logger.warning(
                     f'"{k}" is not a valid attribute i.e. not in {cls.VALID_ATTRIBUTES}. Please see module docs in app configuration card.'
                 )
 

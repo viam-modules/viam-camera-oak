@@ -6,14 +6,6 @@ from src.components.oak import Oak
 from tests.helpers import make_component_config
 
 
-invalid_attribute_name = (
-    make_component_config({
-        "sensors": ["color"],
-        "foo": "bar"
-    }, "viam:luxonis:oak-d"),
-    "is not a valid attribute"
-)
-
 sensors_not_present = (
     make_component_config(dict(), "viam:luxonis:oak-d"),
     'a "sensors" attribute of a list of sensor(s)'
@@ -185,7 +177,6 @@ right_handed_system_not_bool = (
 )
 
 configs_and_msgs = [
-    invalid_attribute_name,
     sensors_not_present,
     sensors_is_not_list,
     sensors_is_empty_list,

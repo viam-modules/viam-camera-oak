@@ -61,7 +61,8 @@ class YoloDetectionNetwork(Vision, Reconfigurable):
 
     @classmethod
     def validate(cls, config: ServiceConfig) -> Sequence[str]:
-        return YDNConfig.validate(config.attributes.fields)
+        logger = getLogger("viam-ydn-validation")
+        return YDNConfig.validate(config.attributes.fields, logger)
 
     def reconfigure(
         self, config: ServiceConfig, dependencies: Mapping[ResourceName, ResourceBase]

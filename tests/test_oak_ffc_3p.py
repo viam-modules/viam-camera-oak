@@ -72,23 +72,6 @@ camera_sensors_wrong_type_config = (
     "each cam_sensor must be a Struct mapping"
 )
 
-invalid_outer_attr_config = (
-    make_component_config({
-        "camera_sensors": [
-            {
-                "socket": "cam_a",
-                "type": "depth",
-                "width_px": 512,
-                "height_px": 512,
-                "frame_rate": 30,
-                "interleaved": False,
-            },
-        ],
-        "invalid_attribute": True
-    }, "viam:luxonis:oak-ffc-3p"),
-    "is not a valid attribute"
-)
-
 two_cams_one_socket_config = (
     make_component_config({
         "camera_sensors": [
@@ -413,7 +396,6 @@ incorrect_configs_and_errs = [
     empty_sensors_config,
     over_three_sensors_config,
     camera_sensors_wrong_type_config,
-    invalid_outer_attr_config,
     two_cams_one_socket_config,
     one_mono_config,
     three_mono_config,

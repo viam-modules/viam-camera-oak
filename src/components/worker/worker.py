@@ -137,7 +137,7 @@ class Worker:
         user_wants_pc: bool,
     ) -> None:
         self.logger = getLogger(oak_config.name)
-        self.logger.info("Initializing worker.")
+        self.logger.warning("Initializing worker.")
         self.cfg = oak_config
         self.ydn_configs = ydn_configs
         self.user_wants_pc = user_wants_pc
@@ -584,7 +584,7 @@ class Worker:
 
     def _downsample_pcd(self, arr: NDArray, byte_count: int) -> NDArray:
         factor = byte_count // MAX_GRPC_MESSAGE_BYTE_COUNT + 1
-        self.logger.warn(
+        self.logger.warning(
             f"PCD bytes ({byte_count}) > max gRPC bytes count ({MAX_GRPC_MESSAGE_BYTE_COUNT}). Subsampling by 1/{factor}."
         )
         if arr.ndim == 2:
