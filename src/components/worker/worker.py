@@ -24,7 +24,7 @@ from numpy.typing import NDArray
 import numpy as np
 
 from src.components.helpers.shared import CapturedData
-from src.config import OakConfig, YDNConfig, Sensor
+from src.config import OakConfig, OakDConfig, YDNConfig, Sensor
 
 DIMENSIONS_TO_MONO_RES = {
     (1280, 800): dai.MonoCameraProperties.SensorResolution.THE_800_P,
@@ -137,7 +137,7 @@ class Worker:
         user_wants_pc: bool,
     ) -> None:
         self.logger = getLogger(oak_config.name)
-        self.logger.info("Initializing worker.")
+        self.logger.warning("Initializing worker.")
         self.cfg = oak_config
         self.ydn_configs = ydn_configs
         self.user_wants_pc = user_wants_pc
@@ -517,6 +517,11 @@ class Worker:
 
         pc_obj = msg["pcl"]
         points = pc_obj.getPoints().astype(np.float64)
+
+        # Convert to right-handed system by negating y if configured
+        if isinstance(self.cfg, OakDConfig) and self.cfg.right_handed_system:
+            points[:, 1] = -points[:, 1]
+
         if points.nbytes > MAX_GRPC_MESSAGE_BYTE_COUNT:
             pc_output = self._downsample_pcd(points, points.nbytes)
         else:
@@ -579,7 +584,7 @@ class Worker:
 
     def _downsample_pcd(self, arr: NDArray, byte_count: int) -> NDArray:
         factor = byte_count // MAX_GRPC_MESSAGE_BYTE_COUNT + 1
-        self.logger.warn(
+        self.logger.warning(
             f"PCD bytes ({byte_count}) > max gRPC bytes count ({MAX_GRPC_MESSAGE_BYTE_COUNT}). Subsampling by 1/{factor}."
         )
         if arr.ndim == 2:
