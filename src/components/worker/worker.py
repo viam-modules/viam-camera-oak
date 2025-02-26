@@ -528,12 +528,13 @@ class Worker:
             await asyncio.sleep(0.01)
 
         message_names = msg.getMessageNames()
-        if not ("rgb" in message_names and "pcl" in message_names):
+
+        if "pcl" not in message_names:
+            raise ViamError("Point cloud data not found in message")
+        if "rgb" not in message_names:  # only points, no rgb
             points = msg["pcl"].getPoints().astype(np.float64)
             timestamp = msg["pcl"].getTimestamp().total_seconds()
-            downsampled_points = self._downsample_pcd(
-                points, MAX_GRPC_MESSAGE_BYTE_COUNT
-            )
+            downsampled_points = self._downsample_pcd(points, points.nbytes)
             return CapturedData(downsampled_points, timestamp)
 
         pc_obj = msg["pcl"]
@@ -617,7 +618,6 @@ class Worker:
             f"PCD bytes ({byte_count}) > max gRPC bytes count ({MAX_GRPC_MESSAGE_BYTE_COUNT}). Randomly sampling to {max_points} points."
         )
 
-        # Randomly sample max_points from the array
         if arr.ndim == 2:
             indices = np.random.choice(arr.shape[0], max_points, replace=False)
             arr = arr[indices, :]
