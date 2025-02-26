@@ -745,7 +745,6 @@ class OakInstanceManager(Thread):
                     except Exception as e:
                         self.logger.error(f"Error closing Oak instance: {e}")
 
-            # Close the loop properly
             try:
                 self.loop.close()
             except Exception as e:

@@ -616,7 +616,7 @@ class Worker:
         if byte_count <= MAX_GRPC_MESSAGE_BYTE_COUNT:
             return arr
 
-        # Number of points that can fit within the 32mb limit
+        # Get max number of points that can fit within the gRPC message limit using the num bytes per point
         point_size = arr.shape[1] * arr.itemsize
         max_points = MAX_GRPC_MESSAGE_BYTE_COUNT // point_size
 
