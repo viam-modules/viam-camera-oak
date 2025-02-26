@@ -103,9 +103,9 @@ def encode_pcd(arr: NDArray):
     Returns:
         Tuple[bytes, CameraMimeType]: PCD bytes and associated mime type
     """
+    # Convert to meters and to float32
+    points_xyz = (arr[:, :3] / 1000.0).astype(np.float32)
     if arr.shape[1] == 3:
-        # Uncolored pointcloud: convert coordinates from mm to m
-        points_xyz = arr[:, :3] / 1000.0
         version = "VERSION .7\n"
         fields = "FIELDS x y z\n"
         size = "SIZE 4 4 4\n"
@@ -121,24 +121,12 @@ def encode_pcd(arr: NDArray):
         float_array = np.array(points_xyz, dtype="f")
         return (header_bytes + float_array.tobytes(), CameraMimeType.PCD)
     elif arr.shape[1] == 6:
-        # Colored pointcloud: first three columns are coordinates (in mm), last three are color (assumed in [0,255])
-        points_xyz = arr[:, :3] / 1000.0  # convert to meters
-        colors = arr[:, 3:6]
-
-        # Convert colors to uint8 if not already
-        colors_uint8 = colors.astype(np.uint8)
-
-        # Pack the RGB values into a single 32-bit integer: (r << 16 | g << 8 | b)
-        r = colors_uint8[:, 0].astype(np.uint32)
-        g = colors_uint8[:, 1].astype(np.uint32)
-        b = colors_uint8[:, 2].astype(np.uint32)
-        rgb_int = (r << 16) | (g << 8) | b
-
-        # Reinterpret the 32-bit integer as a float32
+        colors = arr[:, 3:6].astype(np.uint8).astype(np.uint32)
+        rgb_int = (colors[:, 0] << 16) | (colors[:, 1] << 8) | colors[:, 2]
         rgb_float = rgb_int.view(np.float32)
 
         # Concatenate the xyz coordinates with the packed rgb value
-        colored_points = np.column_stack((points_xyz.astype(np.float32), rgb_float))
+        colored_points = np.column_stack((points_xyz, rgb_float))
 
         version = "VERSION .7\n"
         fields = "FIELDS x y z rgb\n"
