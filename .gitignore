@@ -4,6 +4,7 @@
 .pytest_cache
 .venv
 build
+dist
 module.tar.gz
 oak-integration-tests
 
