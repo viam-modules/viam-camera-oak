@@ -104,6 +104,8 @@ def encode_pcd(arr: NDArray):
         Tuple[bytes, CameraMimeType]: PCD bytes and associated mime type
     """
     # Convert to meters and to float32
+    # DepthAI examples indicate that we need such a normalization for the points data
+    # https://github.com/luxonis/depthai/blob/f4a0d3d4364565faacf3ce9f131a42b2b951ec1b/depthai_sdk/src/depthai_sdk/visualize/visualizers/viewer_visualizer.py#L72
     points_xyz = (arr[:, :3] / 1000.0).astype(np.float32)
     if arr.shape[1] == 3:
         version = "VERSION .7\n"
