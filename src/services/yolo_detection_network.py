@@ -61,7 +61,8 @@ class YoloDetectionNetwork(Vision, Reconfigurable):
 
     @classmethod
     def validate(cls, config: ServiceConfig) -> Sequence[str]:
-        return YDNConfig.validate(config.attributes.fields)
+        logger = getLogger("viam-ydn-validation")
+        return YDNConfig.validate(config.attributes.fields, logger)
 
     def reconfigure(
         self, config: ServiceConfig, dependencies: Mapping[ResourceName, ResourceBase]
@@ -105,7 +106,7 @@ class YoloDetectionNetwork(Vision, Reconfigurable):
                     await self.cam.do_command(command=configure_cmd)
                     self.pipeline_configured = True
                 except Exception as e:
-                    self.logger.warn(
+                    self.logger.warning(
                         f"Error in do_command: {e}. Trying to configure via do_command again..."
                     )
                     attempts += 1
@@ -129,7 +130,7 @@ class YoloDetectionNetwork(Vision, Reconfigurable):
         timeout: Optional[float] = None,
     ) -> CaptureAllResult:
         if camera_name == "" or camera_name is None:
-            self.logger.warn(
+            self.logger.warning(
                 f"camera_name arg was unspecified. Defaulting to '{self.cam_name}'"
             )
         elif camera_name != self.cam_name:
@@ -166,7 +167,7 @@ class YoloDetectionNetwork(Vision, Reconfigurable):
         extra: Mapping[str, Any],
         timeout: float,
     ) -> List[Detection]:
-        self.logger.warn(
+        self.logger.warning(
             "WARNING! get_detections calls get_detections_from_camera under the hood. Use only for debugging purposes. Your image will be ignored."
         )
         return await self.get_detections_from_camera("", extra=None, timeout=None)
@@ -175,7 +176,7 @@ class YoloDetectionNetwork(Vision, Reconfigurable):
         self, camera_name: str, *, extra: Mapping[str, Any], timeout: float
     ) -> List[Detection]:
         if camera_name == "" or camera_name is None:
-            self.logger.warn(
+            self.logger.warning(
                 f"camera_name arg was unspecified. Defaulting to '{self.cam_name}'"
             )
         elif camera_name != self.cam_name:

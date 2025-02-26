@@ -165,12 +165,12 @@ class Oak(Camera, Reconfigurable):
             List[str]: of dep names
         """
         if config.model == str(cls._depr_oak_agnostic_model):
-            cls.logger.warn(
+            cls.logger.warning(
                 f"The '{cls._depr_oak_agnostic_model}' is deprecated. Please switch to '{cls._oak_d_model}' or '{cls._oak_ffc_3p_model}'"
             )
             cls.model = cls._oak_d_model
         elif config.model == str(cls._depr_oak_d_model):
-            cls.logger.warn(
+            cls.logger.warning(
                 f"The '{cls._depr_oak_d_model}' is deprecated. Please switch to '{cls._oak_d_model}'"
             )
             cls.model = cls._oak_d_model
@@ -181,10 +181,11 @@ class Oak(Camera, Reconfigurable):
         else:
             raise ViamError(f"Cannot validate unrecognized model: {cls.model}")
 
+        logger = getLogger("viam-oak-validation")
         if cls.model == cls._oak_d_model:
-            return OakDConfig.validate(config.attributes.fields)
+            return OakDConfig.validate(config.attributes.fields, logger)
         else:
-            return OakFfc3PConfig.validate(config.attributes.fields)
+            return OakFfc3PConfig.validate(config.attributes.fields, logger)
 
     def reconfigure(
         self, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]
@@ -398,7 +399,7 @@ class Oak(Camera, Reconfigurable):
         """
         # Validation
         if not self.oak_cfg.sensors.stereo_pair:
-            details = "Cannot process PCD. OAK camera not configured for stereo depth outputs. See README for details"
+            details = "Cannot process PCD. OAK camera not configured for stereo depth outputs. Please see module docs in app configuration card."
             raise MethodNotAllowed(method_name="get_point_cloud", details=details)
 
         self.get_point_cloud_was_invoked = True

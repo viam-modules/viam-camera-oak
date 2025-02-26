@@ -1,9 +1,8 @@
 import os
-from typing import Dict, List, Literal, Mapping, Optional, Tuple
+from logging import Logger
+from typing import ClassVar, Dict, List, Literal, Mapping, Optional, Tuple
 
-from depthai import CameraBoardSocket
 from google.protobuf.struct_pb2 import Value
-from numpy.typing import NDArray
 
 from viam.errors import ValidationError
 from viam.logging import getLogger
@@ -55,7 +54,7 @@ class Sensor:
 
 class Sensors:
     """
-    Sensors wraps a Sensor list and offers handy utility methods and fields.
+    Sensors wraps a Sensor mapping and offers handy utility methods and fields.
     """
 
     _mapping: Dict[str, Sensor]
@@ -130,7 +129,7 @@ def validate_attr_type(
     if value is None:
         if is_required_attr:
             handle_err(
-                f'"{attribute}" is a required field, but was not detected. Please see README for details.'
+                f'"{attribute}" is a required field, but was not detected. Please see module docs in app configuration card.'
             )
         else:
             return
@@ -169,7 +168,7 @@ class BaseConfig:
         self.name = name
 
     @classmethod
-    def validate(cls, attribute_map: Mapping[str, Value]) -> List[str]:
+    def validate(cls, attribute_map: Mapping[str, Value], logger: Logger) -> List[str]:
         """
         Equivalent to the module validate() method but specific to a model's specific config.
 
@@ -201,7 +200,7 @@ class OakConfig(BaseConfig):
     sensors: Sensors
 
     @classmethod
-    def validate(cls, attribute_map: Mapping[str, Value]) -> List[str]:
+    def validate(cls, attribute_map: Mapping[str, Value], logger: Logger) -> List[str]:
         # Validate shared OAK attributes such as "device_info"
         validate_attr_type("device_info", "string_value", attribute_map)
         device_info = attribute_map.get(key="device_info", default=None)
@@ -216,6 +215,22 @@ class OakDConfig(OakConfig):
     OAK-D component model native config
     """
 
+    VALID_ATTRIBUTES: ClassVar[List[str]] = [
+        "device_info",
+        "sensors",
+        "height_px",
+        "width_px",
+        "frame_rate",
+        "manual_focus",
+        "right_handed_system",
+    ]
+
+    height_px: int
+    width_px: int
+    frame_rate: int
+    manual_focus: Optional[int]
+    right_handed_system: bool
+
     def initialize_config(self):
         self.device_info = self.attribute_map["device_info"].string_value or None
         sensors_str_list = list(self.attribute_map["sensors"].list_value)
@@ -224,6 +239,9 @@ class OakDConfig(OakConfig):
         width = int(self.attribute_map["width_px"].number_value) or DEFAULT_WIDTH
         frame_rate = self.attribute_map["frame_rate"].number_value or DEFAULT_FRAME_RATE
         manual_focus = int(self.attribute_map["manual_focus"].number_value) or None
+        self.right_handed_system = (
+            self.attribute_map["right_handed_system"].bool_value or False
+        )
 
         sensor_list = []
         for sensor_str in sensors_str_list:
@@ -251,22 +269,14 @@ class OakDConfig(OakConfig):
         self.sensors = Sensors(sensor_list)
 
     @classmethod
-    def validate(cls, attribute_map: Mapping[str, Value]) -> List[str]:
-        super().validate(attribute_map)
+    def validate(cls, attribute_map: Mapping[str, Value], logger: Logger) -> List[str]:
+        super().validate(attribute_map, logger)
 
-        VALID_ATTRIBUTES = [
-            "height_px",
-            "width_px",
-            "sensors",
-            "frame_rate",
-            "device_info",
-            "manual_focus",
-        ]
-        # Check config keys are valid
-        for attribute in attribute_map.keys():
-            if attribute not in VALID_ATTRIBUTES:
-                handle_err(
-                    f'"{attribute}" is not a valid attribute i.e. {VALID_ATTRIBUTES}'
+        # Validate outermost keys
+        for k in attribute_map.keys():
+            if k not in cls.VALID_ATTRIBUTES:
+                logger.warning(
+                    f'"{k}" is not a valid attribute i.e. not in {cls.VALID_ATTRIBUTES}. Please see module docs in app configuration card.'
                 )
 
         # Check sensors is valid
@@ -321,7 +331,7 @@ class OakDConfig(OakConfig):
                 'received only one dimension attribute. Please supply both "height_px" and "width_px", or neither.'
             )
 
-        # Validate manual focus
+        # Validate manual_focus
         validate_attr_type("manual_focus", "number_value", attribute_map)
         manual_focus = attribute_map.get(key="manual_focus", default=None)
         if manual_focus:
@@ -334,6 +344,9 @@ class OakDConfig(OakConfig):
             if int(focus_value) != focus_value:
                 handle_err('"manual_focus" must be an integer')
 
+        # Validate right_handed_system
+        validate_attr_type("right_handed_system", "bool_value", attribute_map, False)
+
         return []  # no deps
 
 
@@ -342,18 +355,20 @@ class OakFfc3PConfig(OakConfig):
     Native config for OAK-FFC-3P component model.
     """
 
-    @classmethod
-    def validate(cls, attribute_map: Mapping[str, Value]) -> List[str]:
-        super().validate(attribute_map)
+    VALID_ATTRIBUTES: ClassVar[List[str]] = ["device_info", "camera_sensors"]
 
-        VALID_ATTRIBUTES = [
-            "device_info",
-            "camera_sensors",
-        ]
+    @classmethod
+    def validate(cls, attribute_map: Mapping[str, Value], logger: Logger) -> List[str]:
+        super().validate(attribute_map, logger)
+
         # Validate outermost keys
         for k in attribute_map.keys():
-            if k not in VALID_ATTRIBUTES:
-                handle_err(f'unrecognized attribute "{k}". Please fix or remove.')
+            if k not in cls.VALID_ATTRIBUTES:
+                logger.warning(
+                    f'"{k}" is not a valid attribute i.e. not in {cls.VALID_ATTRIBUTES}. Please see module docs in app configuration card.'
+                )
+
+        # Validate "camera_sensors"
         validate_attr_type("camera_sensors", "list_value", attribute_map, True)
         cam_sensors_list = attribute_map.get("camera_sensors").list_value
 
@@ -455,6 +470,14 @@ class YDNConfig(BaseConfig):
     Native config for configuring a yolo detection network in the DepthAI pipeline.
     """
 
+    VALID_ATTRIBUTES: ClassVar[List[str]] = [
+        "cam_name",
+        "input_source",
+        "yolo_config",
+        "num_nce_per_thread",
+        "num_threads",
+    ]
+
     # Default values for non-required attributes are set here
     cam_name: str
     input_source: str
@@ -501,7 +524,16 @@ class YDNConfig(BaseConfig):
         return self
 
     @classmethod
-    def validate(self, attribute_map: Mapping[str, Value]) -> List[str]:
+    def validate(cls, attribute_map: Mapping[str, Value], logger: Logger) -> List[str]:
+        super().validate(attribute_map, logger)
+
+        # Validate outermost keys
+        for k in attribute_map.keys():
+            if k not in cls.VALID_ATTRIBUTES:
+                logger.warning(
+                    f'"{k}" is not a valid attribute i.e. not in {cls.VALID_ATTRIBUTES}. Please see module docs in app configuration card.'
+                )
+
         # Validate "input_source"
         validate_attr_type("input_source", "string_value", attribute_map, True)
         input_source = attribute_map.get("input_source", default=None).string_value

@@ -24,7 +24,7 @@ from numpy.typing import NDArray
 import numpy as np
 
 from src.components.helpers.shared import CapturedData
-from src.config import OakConfig, YDNConfig, Sensor
+from src.config import OakConfig, OakDConfig, YDNConfig, Sensor
 
 DIMENSIONS_TO_MONO_RES = {
     (1280, 800): dai.MonoCameraProperties.SensorResolution.THE_800_P,
@@ -137,7 +137,7 @@ class Worker:
         user_wants_pc: bool,
     ) -> None:
         self.logger = getLogger(oak_config.name)
-        self.logger.info("Initializing worker.")
+        self.logger.warning("Initializing worker.")
         self.cfg = oak_config
         self.ydn_configs = ydn_configs
         self.user_wants_pc = user_wants_pc
@@ -466,7 +466,7 @@ class Worker:
 
             q = sensor_and_queue.queue
             msg = None
-            while msg is None:
+            while msg is None and self.should_exec:
                 try:
                     msg = q.tryGet()
                 except Empty:
@@ -494,7 +494,7 @@ class Worker:
             )
 
         msg = None
-        while msg is None:
+        while msg is None and self.should_exec:
             try:
                 msg = self.depth_queue.tryGet()
             except Empty:
@@ -520,7 +520,7 @@ class Worker:
             )
 
         msg: Optional[dai.MessageGroup] = None
-        while msg is None:
+        while msg is None and self.should_exec:
             try:
                 msg = self.pc_queue.tryGet()
             except Empty:
@@ -531,27 +531,33 @@ class Worker:
 
         if "pcl" not in message_names:
             raise ViamError("Point cloud data not found in message")
-        if "rgb" not in message_names:  # only points, no rgb
-            points = msg["pcl"].getPoints().astype(np.float64)
-            timestamp = msg["pcl"].getTimestamp().total_seconds()
-            downsampled_points = self._downsample_pcd(points, points.nbytes)
-            return CapturedData(downsampled_points, timestamp)
 
-        pc_obj = msg["pcl"]
-        color_frame = msg["rgb"].getCvFrame()
-        points = pc_obj.getPoints().astype(np.float64)
+        def process_points_and_rgb(
+            points: NDArray, color_frame: Optional[NDArray], timestamp: float
+        ) -> CapturedData:
+            # Apply right-handed conversion if specified in config
+            if isinstance(self.cfg, OakDConfig) and self.cfg.right_handed_system:
+                points[:, 1] = -points[:, 1]
 
-        # Convert BGR to RGB and reshape color data to match points
-        rgb_frame = cv2.cvtColor(color_frame, cv2.COLOR_BGR2RGB)
-        colors = (rgb_frame.reshape(-1, 3) / 255.0).astype(np.float64)
+            if color_frame is not None:
+                # Convert BGR to RGB and reshape color data to match points
+                rgb_frame = cv2.cvtColor(color_frame, cv2.COLOR_BGR2RGB)
+                colors = (rgb_frame.reshape(-1, 3) / 255.0).astype(np.float64)
+                # Convert from 0-1 range to 0-255 range before stacking
+                colors_255 = (colors * 255).astype(np.float64)
+                points = np.column_stack((points, colors_255))
 
-        # Convert back to 0-255 range before stacking
-        colors_255 = (colors * 255).astype(np.float64)
-        points = np.column_stack((points, colors_255))
+            return CapturedData(
+                self._downsample_pcd(points, MAX_GRPC_MESSAGE_BYTE_COUNT), timestamp
+            )
 
-        timestamp = msg["rgb"].getTimestamp().total_seconds()
-        downsampled_points = self._downsample_pcd(points, MAX_GRPC_MESSAGE_BYTE_COUNT)
-        return CapturedData(downsampled_points, timestamp)
+        points = msg["pcl"].getPoints().astype(np.float64)
+        timestamp = msg["pcl"].getTimestamp().total_seconds()
+        if "rgb" not in message_names:
+            color_frame = None
+        else:
+            color_frame = msg["rgb"].getCvFrame()
+        return process_points_and_rgb(points, color_frame, timestamp)
 
     def get_detections(
         self, service_id: str, service_name: str
