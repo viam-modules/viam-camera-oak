@@ -434,8 +434,8 @@ class Oak(Camera, Reconfigurable):
             except Exception as e:
                 self.worker.user_wants_pc = False
                 raise ViamError(f"Failed to enable point cloud functionality: {e}")
-        else:
-            await self._wait_for_worker()
+
+        await self._wait_for_worker()
 
         try:
             pcd_obj = await self.worker.get_pcd()
