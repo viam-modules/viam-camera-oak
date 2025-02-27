@@ -61,6 +61,7 @@ The following attributes are available for the `oak-d` camera component:
 | `device_info` | string | Optional | Physical device identifier to connect to a specific OAK camera connected to your machine. If not specified, the module will pick the first device it detects. `device_info` can be a MXID, usb port path, or IP address. [See DepthAI documentation for more details](https://docs.luxonis.com/software/depthai/examples/device_information#Device%20information). |
 | `manual_focus` | int | Optional | The manual focus value to apply to the color sensor. Sets the camera to fixed focus mode at the specified lens position. Must be between 0..255 inclusive. Default: auto focus |
 | `right_handed_system` | bool | Optional | The OAK outputs point clouds in a left-handed coordinate system by default. Viam's frame system uses right-handed coordinates. By setting to `true` all outputted PCD will have their y values negated to be compatible with right-handed systems. Default: `false` |
+| `point_cloud_enabled` | bool | Optional | Whether or not to enable point cloud functionality. Note that this is CPU intensive and should only be used when PCD is necessary. Default: `false` |
 
 Note that higher resolutions may cause out of memory errors. See Luxonis documentation [here](https://docs.luxonis.com/projects/api/en/latest/tutorials/ram_usage/.).
 
@@ -72,6 +73,8 @@ Copy and paste the following attributes into your camera's JSON configuration:
     "width_px": 416,
     "height_px": 416,
     "frame_rate": 30,
+    "right_handed_system": true,
+    "point_cloud_enabled": false,
     "device_info": "<mxid-or-ip-address-or-usb-port-name>"
 }
 ```

@@ -176,6 +176,14 @@ right_handed_system_not_bool = (
     "attribute must be a bool_value"
 )
 
+point_cloud_enabled_not_bool = (
+    make_component_config({
+        "sensors": ["color", "depth"],
+        "point_cloud_enabled": "true"
+    }, "viam:luxonis:oak-d"),
+    "attribute must be a bool_value"
+)
+
 configs_and_msgs = [
     sensors_not_present,
     sensors_is_not_list,
@@ -198,7 +206,8 @@ configs_and_msgs = [
     manual_focus_set_for_non_color,
     manual_focus_out_of_range,
     manual_focus_not_integer,
-    right_handed_system_not_bool
+    right_handed_system_not_bool,
+    point_cloud_enabled_not_bool
 ]
 
 full_correct_config = make_component_config({

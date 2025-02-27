@@ -114,7 +114,6 @@ class Worker:
 
     cfg: OakConfig
     ydn_configs: Mapping[str, YDNConfig]
-    user_wants_pc: bool
 
     pipeline: Optional[dai.Pipeline]
     device: Optional[dai.Device]
@@ -134,13 +133,11 @@ class Worker:
         self,
         oak_config: OakConfig,
         ydn_configs: Mapping[str, YDNConfig],
-        user_wants_pc: bool,
     ) -> None:
         self.logger = getLogger(oak_config.name)
         self.logger.warning("Initializing worker.")
         self.cfg = oak_config
         self.ydn_configs = ydn_configs
-        self.user_wants_pc = user_wants_pc
 
         self.device = None
         self.pipeline = None
@@ -259,7 +256,11 @@ class Worker:
             Creates and configures point clouds— or doesn't
             (based on the config)
             """
-            if depth_node and self.user_wants_pc:
+            if (
+                depth_node
+                and type(self.cfg) == OakDConfig
+                and self.cfg.point_cloud_enabled
+            ):
                 pointcloud = self.pipeline.create(dai.node.PointCloud)
                 sync = self.pipeline.create(dai.node.Sync)
                 xOut = self.pipeline.create(dai.node.XLinkOut)
@@ -392,7 +393,7 @@ class Worker:
             self.depth_queue = self.device.getOutputQueue(
                 self.depth_stream_name, MAX_COLOR_DEPTH_QUEUE_SIZE, blocking=False
             )
-            if self.user_wants_pc:
+            if type(self.cfg) == OakDConfig and self.cfg.point_cloud_enabled:
                 self.pc_queue = self.device.getOutputQueue(
                     self.pc_stream_name, MAX_PC_QUEUE_SIZE, blocking=False
                 )
@@ -510,9 +511,9 @@ class Worker:
     async def get_pcd(self) -> CapturedData:
         if not self.running:
             raise ViamError("Error getting PCD: Worker is not currently running.")
-        if not self.user_wants_pc:
+        if type(self.cfg) == OakDConfig and not self.cfg.point_cloud_enabled:
             raise ViamError(
-                "Critical logic error getting PCD: get_pcd() called without toggling user_wants_pc. This is likely a bug."
+                "Error getting PCD: point_cloud_enabled is not enabled for current OAK camera."
             )
         if not self.depth_queue:
             raise ViamError(

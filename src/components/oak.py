@@ -119,8 +119,6 @@ class Oak(Camera, Reconfigurable):
     """`Worker` handles camera logic in a separate thread"""
     worker_manager: Optional[WorkerManager] = None
     """`WorkerManager` managing the lifecycle of `worker`"""
-    get_point_cloud_was_invoked: bool = False
-    """Flag to indicate if get_point_cloud was invoked"""
     camera_properties: Camera.Properties
     """Camera properties as per Viam SDK"""
     is_closed: bool = False
@@ -230,7 +228,6 @@ class Oak(Camera, Reconfigurable):
             self.worker = Worker(
                 oak_config=self.oak_cfg,
                 ydn_configs=self.ydn_configs,
-                user_wants_pc=self.get_point_cloud_was_invoked,
             )
 
         self.worker_manager = WorkerManager(self.worker)
@@ -401,41 +398,11 @@ class Oak(Camera, Reconfigurable):
         if not self.oak_cfg.sensors.stereo_pair:
             details = "Cannot process PCD. OAK camera not configured for stereo depth outputs. Please see module docs in app configuration card."
             raise MethodNotAllowed(method_name="get_point_cloud", details=details)
-
-        self.get_point_cloud_was_invoked = True
-
-        # By default, we do not get point clouds even when color and depth are both requested
-        # We have to reinitialize the worker/pipeline+device to start making point clouds
-        if not self.worker.user_wants_pc:
-            try:
-                self.logger.info("Configuring worker for getting point clouds")
-                self.worker.user_wants_pc = True
-
-                # Use the worker manager to properly restart the worker
-                # This avoids race conditions with the worker's pipeline
-                self.worker_manager.restart_atomic_bool.set(True)
-
-                max_wait_attempts = 20  # 10 seconds (20 * 0.5s)
-                for i in range(max_wait_attempts):
-                    if self.worker.running and self.worker.user_wants_pc:
-                        self.logger.info(
-                            "Worker successfully restarted with point cloud enabled"
-                        )
-                        break
-                    await asyncio.sleep(0.5)
-                    self.logger.info(
-                        f"Waiting for worker restart with PCD ({i+1}/{max_wait_attempts})..."
-                    )
-                else:
-                    raise ViamError(
-                        "Timed out waiting for worker to restart with point cloud enabled"
-                    )
-
-            except Exception as e:
-                self.worker.user_wants_pc = False
-                raise ViamError(f"Failed to enable point cloud functionality: {e}")
-
-        await self._wait_for_worker()
+        if type(self.oak_cfg) == OakDConfig and not self.oak_cfg.point_cloud_enabled:
+            raise MethodNotAllowed(
+                method_name="get_point_cloud",
+                details="attribute 'point_cloud_enabled' is unspecified or set to false. Please set to true in app configuration card.",
+            )
 
         try:
             pcd_obj = await self.worker.get_pcd()
