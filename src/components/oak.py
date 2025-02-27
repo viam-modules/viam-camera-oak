@@ -404,6 +404,8 @@ class Oak(Camera, Reconfigurable):
                 details="attribute 'point_cloud_enabled' is unspecified or set to false. Please set to true in app configuration card.",
             )
 
+        await self._wait_for_worker()
+
         try:
             pcd_obj = await self.worker.get_pcd()
             arr = pcd_obj.np_array
