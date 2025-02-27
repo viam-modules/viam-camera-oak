@@ -508,15 +508,21 @@ class Worker:
         return CapturedData(depth_output, timestamp)
 
     async def get_pcd(self) -> CapturedData:
-        if not self.running:
-            raise ViamError("Error getting PCD: Worker is not currently running.")
         if not self.user_wants_pc:
             raise ViamError(
                 "Critical logic error getting PCD: get_pcd() called without toggling user_wants_pc. This is likely a bug."
             )
-        if not self.depth_queue:
+
+        attempts = 0
+        while (not self.pc_queue or not self.running) and attempts < 10:
+            attempts += 1
+            self.logger.debug(
+                f"Waiting for PCD queue to be initialized. pc_queue: {self.pc_queue}, running: {self.running}, attempts: {attempts}/10"
+            )
+            await asyncio.sleep(1)
+        if not self.pc_queue or not self.running:
             raise ViamError(
-                "Error getting PCD: depth frame queue not configured for current OAK camera."
+                "Error getting PCD: waited, but worker was not ready to get PCD."
             )
 
         msg: Optional[dai.MessageGroup] = None
