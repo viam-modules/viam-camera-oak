@@ -515,10 +515,6 @@ class Worker:
             raise ViamError(
                 "Error getting PCD: point_cloud_enabled is not enabled for current OAK camera."
             )
-        if not self.depth_queue:
-            raise ViamError(
-                "Error getting PCD: depth frame queue not configured for current OAK camera."
-            )
 
         msg: Optional[dai.MessageGroup] = None
         while msg is None and self.should_exec:
