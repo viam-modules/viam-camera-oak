@@ -223,6 +223,7 @@ class OakDConfig(OakConfig):
         "frame_rate",
         "manual_focus",
         "right_handed_system",
+        "point_cloud_enabled",
     ]
 
     height_px: int
@@ -241,6 +242,9 @@ class OakDConfig(OakConfig):
         manual_focus = int(self.attribute_map["manual_focus"].number_value) or None
         self.right_handed_system = (
             self.attribute_map["right_handed_system"].bool_value or False
+        )
+        self.point_cloud_enabled = (
+            self.attribute_map["point_cloud_enabled"].bool_value or False
         )
 
         sensor_list = []
@@ -347,6 +351,8 @@ class OakDConfig(OakConfig):
         # Validate right_handed_system
         validate_attr_type("right_handed_system", "bool_value", attribute_map, False)
 
+        # Validate point_cloud_enabled
+        validate_attr_type("point_cloud_enabled", "bool_value", attribute_map, False)
         return []  # no deps
 
 
