@@ -221,6 +221,8 @@ class OakDConfig(OakConfig):
         "height_px",
         "width_px",
         "frame_rate",
+        "exposure_time_us",
+        "iso",
         "manual_focus",
         "right_handed_system",
         "point_cloud_enabled",
@@ -229,6 +231,8 @@ class OakDConfig(OakConfig):
     height_px: int
     width_px: int
     frame_rate: int
+    exposure_time_us: Optional[int]
+    iso: Optional[int]
     manual_focus: Optional[int]
     right_handed_system: bool
 
@@ -239,6 +243,11 @@ class OakDConfig(OakConfig):
         height = int(self.attribute_map["height_px"].number_value) or DEFAULT_HEIGHT
         width = int(self.attribute_map["width_px"].number_value) or DEFAULT_WIDTH
         frame_rate = self.attribute_map["frame_rate"].number_value or DEFAULT_FRAME_RATE
+        if self.attribute_map["exposure_time_us"].number_value:
+            self.exposure_time_us = self.attribute_map["exposure_time_us"].number_value
+        if self.attribute_map["iso"].number_value:
+            self.iso = self.attribute_map["iso"].number_value
+
         manual_focus = int(self.attribute_map["manual_focus"].number_value) or None
         self.right_handed_system = (
             self.attribute_map["right_handed_system"].bool_value or False

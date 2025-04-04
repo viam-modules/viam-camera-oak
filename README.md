@@ -58,6 +58,8 @@ The following attributes are available for the `oak-d` camera component:
 | `width_px` | int | Optional | Width in pixels of the images output by this camera. Default: `1280` |
 | `height_px` | int | Optional | Height in pixels of the images output by this camera. Default: `720` |
 | `frame_rate` | int | Optional | The frame rate the camera will capture images at. Default: `30` |
+| `exposure_time_us` | int | Optional | If specified, auto-exposure will be disabled and this will be the exposure time in microseconds.  If specified, *iso* must also be set. Valid values between 1 and 33000 |
+| `iso` | int | Optional | If specified, auto-exposure will be disabled and this will be the camera ISO set.  If specified, *exposure_time_us* must also be set. Valid values between 100 and 1600. |
 | `device_info` | string | Optional | Physical device identifier to connect to a specific OAK camera connected to your machine. If not specified, the module will pick the first device it detects. `device_info` can be a MXID, usb port path, or IP address. [See DepthAI documentation for more details](https://docs.luxonis.com/software/depthai/examples/device_information#Device%20information). |
 | `manual_focus` | int | Optional | The manual focus value to apply to the color sensor. Sets the camera to fixed focus mode at the specified lens position. Must be between 0..255 inclusive. Default: auto focus |
 | `right_handed_system` | bool | Optional | The OAK outputs point clouds in a left-handed coordinate system by default. Viam's frame system uses right-handed coordinates. By setting to `true` all outputted PCD will have their y values negated to be compatible with right-handed systems. Default: `false` |
