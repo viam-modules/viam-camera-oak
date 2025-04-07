@@ -331,18 +331,24 @@ class OakDConfig(OakConfig):
         validate_attr_type("exposure_time_us", "number_value", attribute_map)
         exposure_time_us = attribute_map.get(key="exposure_time_us", default=None)
         if exposure_time_us:
-            if (exposure_time_us.number_value > 33000) or (exposure_time_us.number_value <= 0):
-                handle_err(f'"exposure_time_us" must be a integer between 1 and 33000 inclusive.')
+            if (exposure_time_us.number_value > 33000) or (
+                exposure_time_us.number_value <= 0
+            ):
+                handle_err(
+                    f'"exposure_time_us" must be a integer between 1 and 33000 inclusive.'
+                )
 
         # Validate iso
         validate_attr_type("iso", "number_value", attribute_map)
         iso = attribute_map.get(key="iso", default=None)
         if iso:
-            if (exposure_time_us.number_value > 1600) or (exposure_time_us.number_value < 100):
+            if (exposure_time_us.number_value > 1600) or (
+                exposure_time_us.number_value < 100
+            ):
                 handle_err(f'"iso" must be a integer between 100 and 1600 inclusive.')
 
         if (exposure_time_us and not iso) or (iso and not exposure_time_us):
-             handle_err(f'"exposure_time_us" and "iso" must be specified together')
+            handle_err(f'"exposure_time_us" and "iso" must be specified together')
 
         # Check height_px value
         validate_dimension("height_px", attribute_map)

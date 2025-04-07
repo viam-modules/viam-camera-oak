@@ -121,7 +121,7 @@ class Worker:
     depth_queue: Optional[dai.DataOutputQueue]
     pc_queue: Optional[dai.DataOutputQueue]
     ydn_config_queues: List[YDNConfigAndQueue]
-    
+
     should_exec: bool
     configured: bool
     running: bool
@@ -356,7 +356,7 @@ class Worker:
                 "Cannot start worker: pipeline is None. Did configure() fail?"
             )
             raise ViamError("Cannot start worker: pipeline is None")
-        
+
         self.device = None
         while not self.device and self.should_exec:
             try:
@@ -368,9 +368,13 @@ class Worker:
                         pipeline=self.pipeline,
                         devInfo=dai.DeviceInfo(mxidOrName=device_info_str),
                     )
-                
+
                 # Exposure settings
-                if type(self.cfg) == OakDConfig and self.cfg.exposure_time_us and self.cfg.iso:       
+                if (
+                    type(self.cfg) == OakDConfig
+                    and self.cfg.exposure_time_us
+                    and self.cfg.iso
+                ):
                     controlIn = self.pipeline.create(dai.node.XLinkIn)
                     controlQueue = self.device.getInputQueue(controlIn.getStreamName())
                     ctrl = dai.CameraControl()
