@@ -342,9 +342,7 @@ class OakDConfig(OakConfig):
         validate_attr_type("iso", "number_value", attribute_map)
         iso = attribute_map.get(key="iso", default=None)
         if iso:
-            if (iso.number_value > 1600) or (
-                iso.number_value < 100
-            ):
+            if (iso.number_value > 1600) or (iso.number_value < 100):
                 handle_err(f'"iso" must be a integer between 100 and 1600 inclusive.')
 
         if (exposure_time_us and not iso) or (iso and not exposure_time_us):
