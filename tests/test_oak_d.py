@@ -70,6 +70,32 @@ frame_rate_is_negative = (
     f"must be a float > 0"
 )
 
+exposure_time_us_invalid = (
+    make_component_config({
+        "sensors": ["color", "depth"],
+        "exposure_time_us": 100000,
+        "iso": 100,
+    }, "viam:luxonis:oak-d"),
+    f"must be a integer between 1 and 33000"
+)
+
+iso_invalid = (
+    make_component_config({
+        "sensors": ["color", "depth"],
+        "exposure_time_us": 1000,
+        "iso": 10,
+    }, "viam:luxonis:oak-d"),
+    f"must be a integer between 100 and 1600"
+)
+
+iso_missing_exposure_time_us = (
+    make_component_config({
+        "sensors": ["color", "depth"],
+        "iso": 100,
+    }, "viam:luxonis:oak-d"),
+    f"must be specified together"
+)
+
 dimension_not_number_value = (
     make_component_config({
         "sensors": ["color", "depth"],
@@ -194,6 +220,9 @@ configs_and_msgs = [
     frame_rate_not_number_value,
     frame_rate_is_zero,
     frame_rate_is_negative,
+    exposure_time_us_invalid,
+    iso_invalid,
+    iso_missing_exposure_time_us,
     dimension_not_number_value,
     dimension_not_whole_number,
     height_is_zero,
