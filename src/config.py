@@ -221,6 +221,8 @@ class OakDConfig(OakConfig):
         "height_px",
         "width_px",
         "frame_rate",
+        "exposure_time_us",
+        "iso",
         "manual_focus",
         "right_handed_system",
         "point_cloud_enabled",
@@ -229,6 +231,8 @@ class OakDConfig(OakConfig):
     height_px: int
     width_px: int
     frame_rate: int
+    exposure_time_us: Optional[int]
+    iso: Optional[int]
     manual_focus: Optional[int]
     right_handed_system: bool
 
@@ -239,6 +243,13 @@ class OakDConfig(OakConfig):
         height = int(self.attribute_map["height_px"].number_value) or DEFAULT_HEIGHT
         width = int(self.attribute_map["width_px"].number_value) or DEFAULT_WIDTH
         frame_rate = self.attribute_map["frame_rate"].number_value or DEFAULT_FRAME_RATE
+        if self.attribute_map["exposure_time_us"].number_value:
+            self.exposure_time_us = int(
+                self.attribute_map["exposure_time_us"].number_value
+            )
+        if self.attribute_map["iso"].number_value:
+            self.iso = int(self.attribute_map["iso"].number_value)
+
         manual_focus = int(self.attribute_map["manual_focus"].number_value) or None
         self.right_handed_system = (
             self.attribute_map["right_handed_system"].bool_value or False
@@ -318,6 +329,27 @@ class OakDConfig(OakConfig):
             if frame_rate.number_value <= 0:
                 handle_err(f'"frame_rate" must be a float > 0.')
 
+        # Validate exposure_time_us
+        validate_attr_type("exposure_time_us", "number_value", attribute_map)
+        exposure_time_us = attribute_map.get(key="exposure_time_us", default=None)
+        if exposure_time_us:
+            if (exposure_time_us.number_value > 33000) or (
+                exposure_time_us.number_value <= 0
+            ):
+                handle_err(
+                    f'"exposure_time_us" must be a integer between 1 and 33000 inclusive.'
+                )
+
+        # Validate iso
+        validate_attr_type("iso", "number_value", attribute_map)
+        iso = attribute_map.get(key="iso", default=None)
+        if iso:
+            if (iso.number_value > 1600) or (iso.number_value < 100):
+                handle_err(f'"iso" must be a integer between 100 and 1600 inclusive.')
+
+        if (exposure_time_us and not iso) or (iso and not exposure_time_us):
+            handle_err(f'"exposure_time_us" and "iso" must be specified together')
+
         # Check height_px value
         validate_dimension("height_px", attribute_map)
 
@@ -361,7 +393,15 @@ class OakFfc3PConfig(OakConfig):
     Native config for OAK-FFC-3P component model.
     """
 
-    VALID_ATTRIBUTES: ClassVar[List[str]] = ["device_info", "camera_sensors"]
+    VALID_ATTRIBUTES: ClassVar[List[str]] = [
+        "device_info",
+        "camera_sensors",
+        "exposure_time_us",
+        "iso",
+    ]
+
+    exposure_time_us: Optional[int]
+    iso: Optional[int]
 
     @classmethod
     def validate(cls, attribute_map: Mapping[str, Value], logger: Logger) -> List[str]:
@@ -385,6 +425,27 @@ class OakFfc3PConfig(OakConfig):
             handle_err(
                 '"camera_sensors" list cannot have >3 elements for the OAK-FFC-3P model.'
             )
+
+        # Validate exposure_time_us
+        validate_attr_type("exposure_time_us", "number_value", attribute_map)
+        exposure_time_us = attribute_map.get(key="exposure_time_us", default=None)
+        if exposure_time_us:
+            if (exposure_time_us.number_value > 33000) or (
+                exposure_time_us.number_value <= 0
+            ):
+                handle_err(
+                    f'"exposure_time_us" must be a integer between 1 and 33000 inclusive.'
+                )
+
+        # Validate iso
+        validate_attr_type("iso", "number_value", attribute_map)
+        iso = attribute_map.get(key="iso", default=None)
+        if iso:
+            if (iso.number_value > 1600) or (iso.number_value < 100):
+                handle_err(f'"iso" must be a integer between 100 and 1600 inclusive.')
+
+        if (exposure_time_us and not iso) or (iso and not exposure_time_us):
+            handle_err(f'"exposure_time_us" and "iso" must be specified together')
 
         # Validate "type" attr. Check that there are either 0 or 2 depth sensors overall
         depth_sensor_count = 0
@@ -469,6 +530,13 @@ class OakFfc3PConfig(OakConfig):
             )
             sensor_list.append(sensor)
         self.sensors = Sensors(sensor_list)
+
+        if self.attribute_map["exposure_time_us"].number_value:
+            self.exposure_time_us = int(
+                self.attribute_map["exposure_time_us"].number_value
+            )
+        if self.attribute_map["iso"].number_value:
+            self.iso = int(self.attribute_map["iso"].number_value)
 
 
 class YDNConfig(BaseConfig):

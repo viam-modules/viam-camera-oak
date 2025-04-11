@@ -151,6 +151,7 @@ class Worker:
         # Execution status
         self.configured = False
         self.running = False
+        self.cam_node = None  # will hold primary ColorCamera node
 
     def configure(self):
         def configure_color() -> Optional[List[dai.node.ColorCamera]]:
@@ -322,6 +323,8 @@ class Worker:
         try:
             stage = "color"
             color_nodes = configure_color()
+            if color_nodes:
+                self.cam_node = color_nodes[0]
 
             stage = "stereo"
             depth_node = configure_stereo()
@@ -357,6 +360,19 @@ class Worker:
             )
             raise ViamError("Cannot start worker: pipeline is None")
 
+        # Exposure: create control input stream and attach to camera (before starting the device)
+        controlIn = None
+        if hasattr(self.cfg, "exposure_time_us") and hasattr(self.cfg, "iso"):
+            controlIn = self.pipeline.create(dai.node.XLinkIn)
+            controlIn.setStreamName("control")
+
+            if self.cam_node:
+                controlIn.out.link(self.cam_node.inputControl)
+            else:
+                self.logger.warning(
+                    "Exposure settings provided, but no ColorCamera node found."
+                )
+
         self.device = None
         while not self.device and self.should_exec:
             try:
@@ -368,8 +384,17 @@ class Worker:
                         pipeline=self.pipeline,
                         devInfo=dai.DeviceInfo(mxidOrName=device_info_str),
                     )
+
                 self.device.startPipeline()
                 self.logger.info("Successfully initialized device.")
+
+                # Only now can we access the input queue and send the manual control
+                if controlIn:
+                    controlQueue = self.device.getInputQueue("control")
+                    ctrl = dai.CameraControl()
+                    ctrl.setManualExposure(self.cfg.exposure_time_us, self.cfg.iso)
+                    controlQueue.send(ctrl)
+
                 try:
                     device_info = self.device.getDeviceInfo()
                     self.logger.info(
@@ -393,7 +418,7 @@ class Worker:
             self.depth_queue = self.device.getOutputQueue(
                 self.depth_stream_name, MAX_COLOR_DEPTH_QUEUE_SIZE, blocking=False
             )
-            if type(self.cfg) == OakDConfig and self.cfg.point_cloud_enabled:
+            if isinstance(self.cfg, OakDConfig) and self.cfg.point_cloud_enabled:
                 self.pc_queue = self.device.getOutputQueue(
                     self.pc_stream_name, MAX_PC_QUEUE_SIZE, blocking=False
                 )
