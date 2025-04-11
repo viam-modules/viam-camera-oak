@@ -355,19 +355,23 @@ class Worker:
 
     async def start(self):
         if self.pipeline is None:
-            self.logger.error("Cannot start worker: pipeline is None. Did configure() fail?")
+            self.logger.error(
+                "Cannot start worker: pipeline is None. Did configure() fail?"
+            )
             raise ViamError("Cannot start worker: pipeline is None")
 
         # Exposure: create control input stream and attach to camera (before starting the device)
         controlIn = None
-        if hasattr(self.cfg, 'exposure_time_us') and hasattr(self.cfg, 'iso'):
+        if hasattr(self.cfg, "exposure_time_us") and hasattr(self.cfg, "iso"):
             controlIn = self.pipeline.create(dai.node.XLinkIn)
             controlIn.setStreamName("control")
 
             if self.cam_node:
                 controlIn.out.link(self.cam_node.inputControl)
             else:
-                self.logger.warning("Exposure settings provided, but no ColorCamera node found.")
+                self.logger.warning(
+                    "Exposure settings provided, but no ColorCamera node found."
+                )
 
         self.device = None
         while not self.device and self.should_exec:
@@ -438,7 +442,6 @@ class Worker:
 
         self.running = True
         self.logger.info("Successfully started camera worker.")
-
 
     async def get_synced_color_depth_data(self) -> Tuple[CapturedData, CapturedData]:
         if not self.running:

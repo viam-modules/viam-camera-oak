@@ -244,7 +244,9 @@ class OakDConfig(OakConfig):
         width = int(self.attribute_map["width_px"].number_value) or DEFAULT_WIDTH
         frame_rate = self.attribute_map["frame_rate"].number_value or DEFAULT_FRAME_RATE
         if self.attribute_map["exposure_time_us"].number_value:
-            self.exposure_time_us = int(self.attribute_map["exposure_time_us"].number_value)
+            self.exposure_time_us = int(
+                self.attribute_map["exposure_time_us"].number_value
+            )
         if self.attribute_map["iso"].number_value:
             self.iso = int(self.attribute_map["iso"].number_value)
 
@@ -391,7 +393,12 @@ class OakFfc3PConfig(OakConfig):
     Native config for OAK-FFC-3P component model.
     """
 
-    VALID_ATTRIBUTES: ClassVar[List[str]] = ["device_info", "camera_sensors", "exposure_time_us", "iso"]
+    VALID_ATTRIBUTES: ClassVar[List[str]] = [
+        "device_info",
+        "camera_sensors",
+        "exposure_time_us",
+        "iso",
+    ]
 
     exposure_time_us: Optional[int]
     iso: Optional[int]
@@ -525,9 +532,12 @@ class OakFfc3PConfig(OakConfig):
         self.sensors = Sensors(sensor_list)
 
         if self.attribute_map["exposure_time_us"].number_value:
-            self.exposure_time_us = int(self.attribute_map["exposure_time_us"].number_value)
+            self.exposure_time_us = int(
+                self.attribute_map["exposure_time_us"].number_value
+            )
         if self.attribute_map["iso"].number_value:
             self.iso = int(self.attribute_map["iso"].number_value)
+
 
 class YDNConfig(BaseConfig):
     """
