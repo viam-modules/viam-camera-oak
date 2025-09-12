@@ -339,14 +339,23 @@ class Oak(Camera, Reconfigurable):
         has_depth_filter = False
         for source_name in filter_source_names:
             if f"color_" not in source_name and source_name != "depth":
-                raise ViamError(f'Invalid source name in filter_source_names: {source_name}. Must be "color_<socket>" or "depth".')
+                raise ViamError(
+                    f'Invalid source name in filter_source_names: {source_name}. Must be "color_<socket>" or "depth".'
+                )
             if f"color_{OakDConfig.OAK_D_COLOR_SOCKET_STR}" in source_name:
                 has_oak_d_color_socket_filter = True
             if source_name == "depth":
                 has_depth_filter = True
-        should_use_synced_output = (has_oak_d_color_socket_filter and has_depth_filter) or not filter_source_names
+        should_use_synced_output = (
+            has_oak_d_color_socket_filter and has_depth_filter
+        ) or not filter_source_names
         # Use MessageSynchronizer for color/depth sync when available for OAK-D
-        if self.model.name == self._oak_d_model.name and should_use_synced_output and self.oak_cfg.sensors.color_sensors and self.oak_cfg.sensors.stereo_pair:
+        if (
+            self.model.name == self._oak_d_model.name
+            and should_use_synced_output
+            and self.oak_cfg.sensors.color_sensors
+            and self.oak_cfg.sensors.stereo_pair
+        ):
             color_data, depth_data = await self.worker.get_synced_color_depth_data()
             return handle_synced_color_and_depth(color_data, depth_data)
 
@@ -362,11 +371,15 @@ class Oak(Camera, Reconfigurable):
                 color_data: CapturedData = await self.worker.get_color_output(cs)
                 arr, captured_at = color_data.np_array, color_data.captured_at
                 jpeg_encoded_bytes = encode_jpeg_bytes(arr)
-                img = NamedImage(cs_source_name, jpeg_encoded_bytes, CameraMimeType.JPEG)
+                img = NamedImage(
+                    cs_source_name, jpeg_encoded_bytes, CameraMimeType.JPEG
+                )
                 seconds_float = captured_at
                 images.append(img)
 
-        if self.oak_cfg.sensors.stereo_pair and ("depth" in filter_source_names or not filter_source_names):
+        if self.oak_cfg.sensors.stereo_pair and (
+            "depth" in filter_source_names or not filter_source_names
+        ):
             depth_data: CapturedData = await self.worker.get_depth_output()
             arr, captured_at = depth_data.np_array, depth_data.captured_at
             depth_encoded_bytes = encode_depth_raw(arr.tobytes(), arr.shape)

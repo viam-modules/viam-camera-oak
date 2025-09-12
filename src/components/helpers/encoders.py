@@ -188,7 +188,11 @@ def handle_synced_color_and_depth(
     images = []
     arr, captured_at = color_data.np_array, color_data.captured_at
     jpeg_encoded_bytes = encode_jpeg_bytes(arr)
-    img = NamedImage(f"color_{OakDConfig.OAK_D_COLOR_SOCKET_STR}", jpeg_encoded_bytes, CameraMimeType.JPEG)
+    img = NamedImage(
+        f"color_{OakDConfig.OAK_D_COLOR_SOCKET_STR}",
+        jpeg_encoded_bytes,
+        CameraMimeType.JPEG,
+    )
     images.append(img)
 
     arr, captured_at = depth_data.np_array, depth_data.captured_at
