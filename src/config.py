@@ -215,6 +215,8 @@ class OakDConfig(OakConfig):
     OAK-D component model native config
     """
 
+    OAK_D_COLOR_SOCKET_STR: ClassVar[str] = "cam_a"
+
     VALID_ATTRIBUTES: ClassVar[List[str]] = [
         "device_info",
         "sensors",

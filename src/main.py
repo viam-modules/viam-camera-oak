@@ -17,23 +17,23 @@ LOGGER = getLogger("viam-luxonis-module")
 def register_oak(module: Module) -> None:
     for model in Oak.ALL_MODELS:
         Registry.register_resource_creator(
-            Camera.SUBTYPE,
+            Camera.API,
             model,
             ResourceCreatorRegistration(Oak.new, Oak.validate),
         )
-        module.add_model_from_registry(Camera.SUBTYPE, model)
+        module.add_model_from_registry(Camera.API, model)
 
 
 def register_yolo(module: Module) -> None:
     model = YoloDetectionNetwork.MODEL
     Registry.register_resource_creator(
-        Vision.SUBTYPE,
+        Vision.API,
         model,
         ResourceCreatorRegistration(
             YoloDetectionNetwork.new, YoloDetectionNetwork.validate
         ),
     )
-    module.add_model_from_registry(Vision.SUBTYPE, model)
+    module.add_model_from_registry(Vision.API, model)
 
 
 async def main():
