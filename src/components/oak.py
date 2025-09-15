@@ -328,38 +328,36 @@ class Oak(Camera, Reconfigurable):
                 - ResponseMetadata:
                   The metadata associated with this response
         """
-        self.logger.info("get_images called. waiting for worker...")
+        self.logger.debug("get_images called")
 
         await self._wait_for_worker()
 
-        self.logger.info(f"filter_source_names: {filter_source_names}")
-        self.logger.info(f"extra: {extra}")
+        # OAK-D: Figure out if we should use the synced output
+        if self.model == self._oak_d_model:
+            has_oak_d_color_socket_filter = False
+            has_depth_filter = False
+            for source_name in filter_source_names:
+                if f"color_" not in source_name and source_name != "depth":
+                    raise ViamError(
+                        f'Invalid source name in filter_source_names: {source_name}. Must be "color_<socket>" or "depth".'
+                    )
+                if f"color_{OakDConfig.OAK_D_COLOR_SOCKET_STR}" in source_name:
+                    has_oak_d_color_socket_filter = True
+                if source_name == "depth":
+                    has_depth_filter = True
+            should_use_synced_output = (
+                has_oak_d_color_socket_filter and has_depth_filter
+            ) or not filter_source_names
+            # Use MessageSynchronizer for color/depth sync when available for OAK-D
+            if (
+                should_use_synced_output
+                and self.oak_cfg.sensors.color_sensors
+                and self.oak_cfg.sensors.stereo_pair
+            ):
+                color_data, depth_data = await self.worker.get_synced_color_depth_data()
+                return handle_synced_color_and_depth(color_data, depth_data)
 
-        has_oak_d_color_socket_filter = False
-        has_depth_filter = False
-        for source_name in filter_source_names:
-            if f"color_" not in source_name and source_name != "depth":
-                raise ViamError(
-                    f'Invalid source name in filter_source_names: {source_name}. Must be "color_<socket>" or "depth".'
-                )
-            if f"color_{OakDConfig.OAK_D_COLOR_SOCKET_STR}" in source_name:
-                has_oak_d_color_socket_filter = True
-            if source_name == "depth":
-                has_depth_filter = True
-        should_use_synced_output = (
-            has_oak_d_color_socket_filter and has_depth_filter
-        ) or not filter_source_names
-        # Use MessageSynchronizer for color/depth sync when available for OAK-D
-        if (
-            self.model.name == self._oak_d_model.name
-            and should_use_synced_output
-            and self.oak_cfg.sensors.color_sensors
-            and self.oak_cfg.sensors.stereo_pair
-        ):
-            color_data, depth_data = await self.worker.get_synced_color_depth_data()
-            return handle_synced_color_and_depth(color_data, depth_data)
-
-        # Use normal output for color/depth when not available
+        # Use normal output for color/depth when not OAK-D, or synced output is not available
         images: List[NamedImage] = []
         # For timestamp calculation later
         seconds_float: Optional[float] = None
