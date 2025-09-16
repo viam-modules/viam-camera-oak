@@ -285,6 +285,28 @@ class OakDConfig(OakConfig):
                 sensor_list.append(color_sensor)
         self.sensors = Sensors(sensor_list)
 
+    def should_use_synced_output(self, filter_source_names: List[str]) -> bool:
+        """
+        Helper to determine whether to use synced color/depth output based on
+        the camera's get_images `filter_source_names` parameter.
+        """
+        from viam.errors import ViamError
+
+        has_oak_d_color_socket_filter = False
+        has_depth_filter = False
+        for source_name in filter_source_names:
+            if f"color_" not in source_name and source_name != "depth":
+                raise ViamError(
+                    f'Invalid source name in filter_source_names: {source_name}. Must be "color_<socket>" or "depth".'
+                )
+            if f"color_{self.OAK_D_COLOR_SOCKET_STR}" in source_name:
+                has_oak_d_color_socket_filter = True
+            if source_name == "depth":
+                has_depth_filter = True
+        return (
+            has_oak_d_color_socket_filter and has_depth_filter
+        ) or not filter_source_names
+
     @classmethod
     def validate(cls, attribute_map: Mapping[str, Value], logger: Logger) -> List[str]:
         super().validate(attribute_map, logger)
