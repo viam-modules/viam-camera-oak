@@ -162,13 +162,15 @@ class Oak(Camera, Reconfigurable):
         Returns:
             List[str]: of dep names
         """
+        # Validate can be called before the constructor, so we need to get the logger here
+        logger = getLogger("viam-oak-validation")
         if config.model == str(cls._depr_oak_agnostic_model):
-            cls.logger.warning(
+            logger.warning(
                 f"The '{cls._depr_oak_agnostic_model}' is deprecated. Please switch to '{cls._oak_d_model}' or '{cls._oak_ffc_3p_model}'"
             )
             cls.model = cls._oak_d_model
         elif config.model == str(cls._depr_oak_d_model):
-            cls.logger.warning(
+            logger.warning(
                 f"The '{cls._depr_oak_d_model}' is deprecated. Please switch to '{cls._oak_d_model}'"
             )
             cls.model = cls._oak_d_model
@@ -327,9 +329,12 @@ class Oak(Camera, Reconfigurable):
                 - ResponseMetadata:
                   The metadata associated with this response
         """
-        self.logger.debug("get_images called")
+        if filter_source_names is None:
+            filter_source_names = []
 
         await self._wait_for_worker()
+
+        self._validate_filter_source_names(filter_source_names)
 
         # OAK-D: Figure out if we should use the synced output
         if self.model == self._oak_d_model and isinstance(self.oak_cfg, OakDConfig):
@@ -354,18 +359,37 @@ class Oak(Camera, Reconfigurable):
         if self.oak_cfg.sensors.color_sensors:
             for cs in self.oak_cfg.sensors.color_sensors:
                 cs_source_name = f"color_{cs.socket_str}"
-                if filter_source_names and cs_source_name not in filter_source_names:
+                if (
+                    len(filter_source_names) > 0
+                    and cs_source_name not in filter_source_names
+                ):
                     continue
                 source_names.append(cs_source_name)
                 captured_data_list.append(await self.worker.get_color_output(cs))
 
         if self.oak_cfg.sensors.stereo_pair and (
-            "depth" in filter_source_names or not filter_source_names
+            "depth" in filter_source_names or len(filter_source_names) == 0
         ):
             source_names.append("depth")
             captured_data_list.append(await self.worker.get_depth_output())
 
         return self._encode_images_and_metadata(source_names, captured_data_list)
+
+    def _validate_filter_source_names(self, filter_source_names: List[str]) -> None:
+        if len(filter_source_names) == 0:
+            return
+
+        valid_source_names = []
+        for cs in self.oak_cfg.sensors.color_sensors:
+            valid_source_names.append(f"color_{cs.socket_str}")
+        if self.oak_cfg.sensors.stereo_pair:
+            valid_source_names.append("depth")
+
+        for source_name in filter_source_names:
+            if source_name not in valid_source_names:
+                raise ViamError(
+                    f"Invalid source name in filter_source_names: {source_name}. Must be one of {valid_source_names} for the current configuration."
+                )
 
     def _encode_images_and_metadata(
         self, source_names: List[str], captured_data_list: List[CapturedData]
