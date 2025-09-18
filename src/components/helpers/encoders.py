@@ -11,6 +11,7 @@ from viam.logging import getLogger
 from viam.media.video import CameraMimeType, NamedImage
 from viam.proto.common import ResponseMetadata
 
+from src.config import OakDConfig
 from src.components.helpers.shared import CapturedData
 
 LOGGER = getLogger("viam-oak-encoders-logger")
@@ -167,32 +168,3 @@ def convert_seconds_float_to_metadata(seconds_float: float) -> ResponseMetadata:
         captured_at=Timestamp(seconds=seconds_int, nanos=nanoseconds_int)
     )
     return metadata
-
-
-def handle_synced_color_and_depth(
-    color_data: CapturedData, depth_data: CapturedData
-) -> Tuple[List[NamedImage], ResponseMetadata]:
-    """
-    Takes outputted color and depth frame data and encodes them into the format
-    get_images expects them to be in to send as a gRPC message.
-
-    Args:
-        color_data (CapturedData): color data
-        depth_data (CapturedData): depth data
-
-    Returns:
-        Tuple[List[NamedImage], ResponseMetadata]: get_images return types
-    """
-    images = []
-    arr, captured_at = color_data.np_array, color_data.captured_at
-    jpeg_encoded_bytes = encode_jpeg_bytes(arr)
-    img = NamedImage("color", jpeg_encoded_bytes, CameraMimeType.JPEG)
-    images.append(img)
-
-    arr, captured_at = depth_data.np_array, depth_data.captured_at
-    depth_encoded_bytes = encode_depth_raw(arr.tobytes(), arr.shape)
-    img = NamedImage("depth", depth_encoded_bytes, CameraMimeType.VIAM_RAW_DEPTH)
-    images.append(img)
-
-    metadata = convert_seconds_float_to_metadata(seconds_float=captured_at)
-    return images, metadata

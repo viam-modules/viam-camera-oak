@@ -215,6 +215,8 @@ class OakDConfig(OakConfig):
     OAK-D component model native config
     """
 
+    OAK_D_COLOR_SOCKET_STR: ClassVar[str] = "cam_a"
+
     VALID_ATTRIBUTES: ClassVar[List[str]] = [
         "device_info",
         "sensors",
@@ -282,6 +284,23 @@ class OakDConfig(OakConfig):
                 )
                 sensor_list.append(color_sensor)
         self.sensors = Sensors(sensor_list)
+
+    def should_use_synced_output(self, filter_source_names: List[str]) -> bool:
+        """
+        Helper to determine whether to use synced color/depth output based on
+        the camera's get_images `filter_source_names` parameter.
+        """
+        if len(filter_source_names) == 0:
+            return True
+
+        has_oak_d_color_socket_filter = False
+        has_depth_filter = False
+        for source_name in filter_source_names:
+            if f"color_{self.OAK_D_COLOR_SOCKET_STR}" in source_name:
+                has_oak_d_color_socket_filter = True
+            if source_name == "depth":
+                has_depth_filter = True
+        return has_oak_d_color_socket_filter and has_depth_filter
 
     @classmethod
     def validate(cls, attribute_map: Mapping[str, Value], logger: Logger) -> List[str]:

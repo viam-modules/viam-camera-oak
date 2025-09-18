@@ -1,5 +1,6 @@
 # Standard library
 import asyncio
+import time
 from logging import Logger
 from threading import Lock, Thread
 from typing import (
@@ -38,7 +39,6 @@ from src.components.helpers.encoders import (
     encode_jpeg_bytes,
     encode_depth_raw,
     encode_pcd,
-    handle_synced_color_and_depth,
     convert_seconds_float_to_metadata,
 )
 from src.config import OakConfig, OakDConfig, OakFfc3PConfig, YDNConfig
@@ -162,13 +162,15 @@ class Oak(Camera, Reconfigurable):
         Returns:
             List[str]: of dep names
         """
+        # Validate can be called before the constructor, so we need to get the logger here
+        logger = getLogger("viam-oak-validation")
         if config.model == str(cls._depr_oak_agnostic_model):
-            cls.logger.warning(
+            logger.warning(
                 f"The '{cls._depr_oak_agnostic_model}' is deprecated. Please switch to '{cls._oak_d_model}' or '{cls._oak_ffc_3p_model}'"
             )
             cls.model = cls._oak_d_model
         elif config.model == str(cls._depr_oak_d_model):
-            cls.logger.warning(
+            logger.warning(
                 f"The '{cls._depr_oak_d_model}' is deprecated. Please switch to '{cls._oak_d_model}'"
             )
             cls.model = cls._oak_d_model
@@ -310,7 +312,11 @@ class Oak(Camera, Reconfigurable):
         )
 
     async def get_images(
-        self, *, timeout: Optional[float] = None, **kwargs
+        self,
+        *,
+        filter_source_names: Optional[List[str]] = None,
+        extra: Optional[Dict[str, Any]] = None,
+        **kwargs,
     ) -> Tuple[List[NamedImage], ResponseMetadata]:
         """
         Gets images from every sensor on your OAK device.
@@ -323,39 +329,87 @@ class Oak(Camera, Reconfigurable):
                 - ResponseMetadata:
                   The metadata associated with this response
         """
-        self.logger.debug("get_images called")
+        if filter_source_names is None:
+            filter_source_names = []
 
         await self._wait_for_worker()
 
-        # Split logic into helpers for OAK-D and OAK-D like cameras with FFC-like cameras
-        # Use MessageSynchronizer only for OAK-D-like
-        if self.oak_cfg.sensors.color_sensors and self.oak_cfg.sensors.stereo_pair:
-            color_data, depth_data = await self.worker.get_synced_color_depth_data()
-            return handle_synced_color_and_depth(color_data, depth_data)
+        self._validate_filter_source_names(filter_source_names)
 
-        images: List[NamedImage] = []
-        # For timestamp calculation later
-        seconds_float: float = None
+        # OAK-D: Figure out if we should use the synced output
+        if self.model == self._oak_d_model and isinstance(self.oak_cfg, OakDConfig):
+            should_use_synced_output = self.oak_cfg.should_use_synced_output(
+                filter_source_names
+            )
+            # Use MessageSynchronizer for color/depth sync when available for OAK-D
+            if (
+                should_use_synced_output
+                and self.oak_cfg.sensors.color_sensors
+                and self.oak_cfg.sensors.stereo_pair
+            ):
+                color_data, depth_data = await self.worker.get_synced_color_depth_data()
+                return self._encode_images_and_metadata(
+                    [f"color_{OakDConfig.OAK_D_COLOR_SOCKET_STR}", "depth"],
+                    [color_data, depth_data],
+                )
 
+        # Use normal output for color/depth when not OAK-D, or synced output is not available
+        source_names: List[str] = []
+        captured_data_list: List[CapturedData] = []
         if self.oak_cfg.sensors.color_sensors:
             for cs in self.oak_cfg.sensors.color_sensors:
-                color_data: CapturedData = await self.worker.get_color_output(cs)
-                arr, captured_at = color_data.np_array, color_data.captured_at
-                jpeg_encoded_bytes = encode_jpeg_bytes(arr)
-                img = NamedImage("color", jpeg_encoded_bytes, CameraMimeType.JPEG)
-                seconds_float = captured_at
-                images.append(img)
+                cs_source_name = f"color_{cs.socket_str}"
+                if (
+                    len(filter_source_names) > 0
+                    and cs_source_name not in filter_source_names
+                ):
+                    continue
+                source_names.append(cs_source_name)
+                captured_data_list.append(await self.worker.get_color_output(cs))
 
+        if self.oak_cfg.sensors.stereo_pair and (
+            "depth" in filter_source_names or len(filter_source_names) == 0
+        ):
+            source_names.append("depth")
+            captured_data_list.append(await self.worker.get_depth_output())
+
+        return self._encode_images_and_metadata(source_names, captured_data_list)
+
+    def _validate_filter_source_names(self, filter_source_names: List[str]) -> None:
+        if len(filter_source_names) == 0:
+            return
+
+        valid_source_names = []
+        for cs in self.oak_cfg.sensors.color_sensors:
+            valid_source_names.append(f"color_{cs.socket_str}")
         if self.oak_cfg.sensors.stereo_pair:
-            depth_data: CapturedData = await self.worker.get_depth_output()
-            arr, captured_at = depth_data.np_array, depth_data.captured_at
-            depth_encoded_bytes = encode_depth_raw(arr.tobytes(), arr.shape)
-            img = NamedImage(
-                "depth", depth_encoded_bytes, CameraMimeType.VIAM_RAW_DEPTH
-            )
-            seconds_float = captured_at
-            images.append(img)
+            valid_source_names.append("depth")
 
+        for source_name in filter_source_names:
+            if source_name not in valid_source_names:
+                raise ViamError(
+                    f"Invalid source name in filter_source_names: {source_name}. Must be one of {valid_source_names} for the current configuration."
+                )
+
+    def _encode_images_and_metadata(
+        self, source_names: List[str], captured_data_list: List[CapturedData]
+    ) -> Tuple[List[NamedImage], ResponseMetadata]:
+        images: List[NamedImage] = []
+        seconds_float: Optional[float] = None
+        for i in range(len(source_names)):
+            source_name = source_names[i]
+            captured_data = captured_data_list[i]
+            arr, captured_at = captured_data.np_array, captured_data.captured_at
+            seconds_float = captured_at
+            if "color" in source_name:
+                jpeg_encoded_bytes = encode_jpeg_bytes(arr)
+                img = NamedImage(source_name, jpeg_encoded_bytes, CameraMimeType.JPEG)
+            else:
+                depth_encoded_bytes = encode_depth_raw(arr.tobytes(), arr.shape)
+                img = NamedImage(
+                    source_name, depth_encoded_bytes, CameraMimeType.VIAM_RAW_DEPTH
+                )
+            images.append(img)
         metadata = convert_seconds_float_to_metadata(seconds_float)
         return images, metadata
 

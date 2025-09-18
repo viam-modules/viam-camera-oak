@@ -1,5 +1,5 @@
 depthai==2.30.0
-viam-sdk==0.29.3
+viam-sdk==0.55.1
 Pillow==10.4.0
 opencv-python==4.10.0.84
 numpy>=1.23,<2.0.0  # >2.0.0 breaks depthai https://github.com/luxonis/depthai-viewer/releases/tag/v0.2.3
