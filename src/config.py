@@ -8,7 +8,6 @@ from viam.errors import ValidationError
 from viam.logging import getLogger
 from src.components.helpers.shared import get_socket_from_str
 
-
 # Be sure to update README.md if default attributes are changed
 DEFAULT_FRAME_RATE = 30
 DEFAULT_WIDTH = 1280
@@ -316,12 +315,10 @@ class OakDConfig(OakConfig):
         # Check sensors is valid
         sensors_value = attribute_map.get(key="sensors", default=None)
         if sensors_value is None:
-            handle_err(
-                """
+            handle_err("""
                 a "sensors" attribute of a list of sensor(s) is a required attribute e.g. ["depth", "color"],
                 with the first sensor in the list being the main sensor that get_image uses.
-                """
-            )
+                """)
         validate_attr_type("sensors", "list_value", attribute_map)
         sensor_list = list(sensors_value.list_value)
         if len(sensor_list) == 0:
@@ -330,12 +327,10 @@ class OakDConfig(OakConfig):
             handle_err('"sensors" attribute list exceeds max length of two.')
         for sensor in sensor_list:
             if sensor != "color" and sensor != "depth":
-                handle_err(
-                    f"""
+                handle_err(f"""
                             unknown sensor type "{sensor}" found in "sensors" attribute list.
                             Valid sensors include: "color" and "depth"
-                            """
-                )
+                            """)
         if len(set(sensor_list)) != len(sensor_list):
             handle_err(
                 f'please remove duplicates in the "sensors" attribute list: {sensor_list}'

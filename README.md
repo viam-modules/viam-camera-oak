@@ -233,6 +233,28 @@ Below is an example full configuration of a `yolo-detection-network` service:
 ```
 
 
+## `get_images` source names
+
+The `get_images` method returns named images that can be filtered using `filter_source_names`. The available source names depend on the model and its configured sensors.
+
+### `oak-d`
+
+| Source Name | Returned When | MIME Type |
+| ----------- | ------------- | --------- |
+| `color_cam_a` | `"color"` is in the `sensors` attribute | `image/jpeg` |
+| `depth` | `"depth"` is in the `sensors` attribute | `image/vnd.viam.dep` |
+
+When both sensors are configured and `get_images` is called without a filter (or with both source names), it returns synchronized frames with aligned timestamps and matching dimensions. Filtering for only one source bypasses synchronization.
+
+### `oak-ffc-3p`
+
+| Source Name | Returned When | MIME Type |
+| ----------- | ------------- | --------- |
+| `color_{socket}` | A color-type sensor is configured on `{socket}` | `image/jpeg` |
+| `depth` | Two depth-type sensors are configured (forming a stereo pair) | `image/vnd.viam.dep` |
+
+Source names for color sensors are derived from their socket, e.g. a color sensor on `cam_a` produces `color_cam_a`, one on `cam_c` produces `color_cam_c`. Multiple color sensors each get their own source name. There is no synchronized output path for the FFC model.
+
 ## Next steps
 
 ### View camera outputs in App
