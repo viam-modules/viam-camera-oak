@@ -8,7 +8,6 @@ from viam.errors import ValidationError
 from viam.logging import getLogger
 from src.components.helpers.shared import get_socket_from_str
 
-
 # Be sure to update README.md if default attributes are changed
 DEFAULT_FRAME_RATE = 30
 DEFAULT_WIDTH = 1280
