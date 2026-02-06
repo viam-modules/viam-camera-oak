@@ -244,7 +244,7 @@ The `get_images` method returns named images that can be filtered using `filter_
 | `color_cam_a` | `"color"` is in the `sensors` attribute | `image/jpeg` |
 | `depth` | `"depth"` is in the `sensors` attribute | `image/vnd.viam.dep` |
 
-When both `"color"` and `"depth"` sensors are configured and both source names are requested (either via `filter_source_names: ["color_cam_a", "depth"]` or by omitting the filter entirely), `get_images` returns synchronized frames with aligned timestamps and matching dimensions. Filtering for only one source bypasses synchronization.
+When both sensors are configured and `get_images` is called without a filter (or with both source names), it returns synchronized frames with aligned timestamps and matching dimensions. Filtering for only one source bypasses synchronization.
 
 ### `oak-ffc-3p`
 
