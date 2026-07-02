@@ -1,0 +1,15 @@
+version: 2
+updates:
+  # Open a PR to bump the Viam Python SDK whenever a new viam-sdk release is published.
+  # The pip updater bumps viam-sdk in both requirements.txt and requirements-dev.txt.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    # Only track the Viam Python SDK; ignore all other pip dependencies.
+    allow:
+      - dependency-name: "viam-sdk"
+    commit-message:
+      prefix: "deps"
+    labels:
+      - "dependencies"
