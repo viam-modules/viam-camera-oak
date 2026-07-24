@@ -6,7 +6,7 @@ VENV_NAME=".venv"
 PYTHON="$VENV_NAME/bin/python"
 LOG_PREFIX="[Viam OAK local setup]"
 
-echo "$LOG_PREFIX Starting the Viam OAK camera module. Using this script requires Python >=3.8.1, pip3, and venv to be installed."
+echo "$LOG_PREFIX Starting the Viam OAK camera module. Using this script requires Python >=3.10, pip3, and venv to be installed."
 
 if ! python3 -m venv "$VENV_NAME" >/dev/null 2>&1; then
     echo "$LOG_PREFIX Error: failed to create venv. Please use your system package manager to install python3-venv." >&2
