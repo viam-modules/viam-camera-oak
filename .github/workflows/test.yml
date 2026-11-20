@@ -2,9 +2,9 @@ name: Run lint & unit tests
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   build:
@@ -12,14 +12,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Install dependencies
-      run: pip install -r requirements-dev.txt
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-    - name: Run lint
-      run: |
-        make lint-check
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
 
-    - name: Run unit tests
-      run: make test
+      - name: Run lint
+        run: |
+          make lint-check
+
+      - name: Run unit tests
+        run: make test
